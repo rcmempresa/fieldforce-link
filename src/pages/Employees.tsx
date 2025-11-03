@@ -3,9 +3,13 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Mail, Phone, Trash2, Edit } from "lucide-react";
+import { Search, Mail, Phone, Trash2, Edit, CalendarIcon, Briefcase } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Calendar } from "@/components/ui/calendar";
+import { format, isSameDay } from "date-fns";
+import { pt } from "date-fns/locale";
+import { useNavigate } from "react-router-dom";
 import { CreateEmployeeDialog } from "@/components/employees/CreateEmployeeDialog";
 import { EditEmployeeDialog } from "@/components/employees/EditEmployeeDialog";
 import {
@@ -29,6 +33,16 @@ interface Employee {
   created_at: string;
   company_name?: string | null;
   address?: string | null;
+  workOrdersCount?: number;
+}
+
+interface WorkOrder {
+  id: string;
+  reference: string | null;
+  title: string;
+  status: string;
+  priority: string;
+  scheduled_date?: string | null;
 }
 
 export default function Employees() {
@@ -38,7 +52,11 @@ export default function Employees() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [selectedCalendarEmployee, setSelectedCalendarEmployee] = useState<Employee | null>(null);
+  const [calendarOrders, setCalendarOrders] = useState<WorkOrder[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchEmployees();
@@ -66,13 +84,61 @@ export default function Employees() {
 
       if (error) throw error;
 
-      setEmployees(data.users || []);
-      setFilteredEmployees(data.users || []);
+      const employeesWithCount = await Promise.all(
+        (data.users || []).map(async (employee: Employee) => {
+          const { count } = await supabase
+            .from('work_order_assignments')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', employee.id);
+          
+          return {
+            ...employee,
+            workOrdersCount: count || 0,
+          };
+        })
+      );
+
+      setEmployees(employeesWithCount);
+      setFilteredEmployees(employeesWithCount);
     } catch (error) {
       console.error('Error fetching employees:', error);
       toast({
         title: "Erro",
         description: "Não foi possível carregar os funcionários",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchEmployeeOrders = async (employeeId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('work_order_assignments')
+        .select(`
+          work_order_id,
+          work_orders (
+            id,
+            reference,
+            title,
+            status,
+            priority,
+            scheduled_date
+          )
+        `)
+        .eq('user_id', employeeId);
+
+      if (error) throw error;
+
+      const orders = data
+        ?.map((assignment: any) => assignment.work_orders)
+        .filter((order: any) => order !== null) || [];
+
+      setCalendarOrders(orders);
+    } catch (error) {
+      console.error('Error fetching employee orders:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar as ordens de trabalho",
         variant: "destructive",
       });
     }
@@ -139,6 +205,52 @@ export default function Employees() {
       default:
         return "bg-muted text-muted-foreground";
     }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "pending":
+        return "bg-warning/10 text-warning";
+      case "in_progress":
+        return "bg-primary/10 text-primary";
+      case "completed":
+        return "bg-success/10 text-success";
+      case "cancelled":
+        return "bg-destructive/10 text-destructive";
+      default:
+        return "bg-muted text-muted-foreground";
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "pending":
+        return "Pendente";
+      case "in_progress":
+        return "Em Progresso";
+      case "completed":
+        return "Concluída";
+      case "cancelled":
+        return "Cancelada";
+      default:
+        return status;
+    }
+  };
+
+  const getOrdersForDate = (date: Date) => {
+    return calendarOrders.filter((order) => {
+      if (!order.scheduled_date) return false;
+      return isSameDay(new Date(order.scheduled_date), date);
+    });
+  };
+
+  const hasOrdersOnDate = (date: Date) => {
+    return getOrdersForDate(date).length > 0;
+  };
+
+  const handleViewEmployee = (employee: Employee) => {
+    setSelectedCalendarEmployee(employee);
+    fetchEmployeeOrders(employee.id);
   };
 
   return (
@@ -208,11 +320,22 @@ export default function Employees() {
                           </div>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Briefcase className="h-3 w-3" />
+                          <span>{employee.workOrdersCount || 0} OT atribuídas</span>
+                        </div>
+                       <p className="text-xs text-muted-foreground">
                         Registado: {new Date(employee.created_at).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleViewEmployee(employee)}
+                      >
+                        <CalendarIcon className="h-4 w-4" />
+                      </Button>
                       <Button
                         size="sm"
                         variant="ghost"
@@ -240,6 +363,72 @@ export default function Employees() {
             )}
           </CardContent>
         </Card>
+
+        {selectedCalendarEmployee && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Calendário - {selectedCalendarEmployee.name}</CardTitle>
+              </CardHeader>
+              <CardContent className="flex justify-center">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
+                  locale={pt}
+                  modifiers={{
+                    hasOrders: (date) => hasOrdersOnDate(date),
+                  }}
+                  modifiersStyles={{
+                    hasOrders: {
+                      fontWeight: 'bold',
+                      textDecoration: 'underline',
+                    },
+                  }}
+                  className="rounded-md border pointer-events-auto"
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  Ordens de Trabalho - {format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: pt })}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {getOrdersForDate(selectedDate).length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nenhuma ordem de trabalho agendada para este dia
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {getOrdersForDate(selectedDate).map((order) => (
+                      <div
+                        key={order.id}
+                        className="flex items-center justify-between rounded-lg border p-3 cursor-pointer hover:bg-accent/50 transition-colors"
+                        onClick={() => navigate(`/work-orders/${order.id}`)}
+                      >
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{order.reference}</p>
+                          <p className="text-xs text-muted-foreground">{order.title}</p>
+                          {order.scheduled_date && (
+                            <p className="text-xs font-medium text-primary mt-1">
+                              {format(new Date(order.scheduled_date), "HH:mm", { locale: pt })}
+                            </p>
+                          )}
+                        </div>
+                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${getStatusColor(order.status)}`}>
+                          {getStatusLabel(order.status)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
 
       <EditEmployeeDialog
