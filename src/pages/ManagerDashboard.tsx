@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ interface Stats {
 }
 
 export default function ManagerDashboard() {
+  const navigate = useNavigate();
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<Record<string, string>>({});
   const [stats, setStats] = useState<Stats>({ pending: 0, inProgress: 0, completed: 0, activeEmployees: 0, activeClients: 0 });
@@ -348,15 +350,15 @@ export default function ManagerDashboard() {
             <CardTitle>Ações Rápidas</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3">
-            <Button onClick={() => window.location.href = '/work-orders'}>
+            <Button onClick={() => navigate('/work-orders')}>
               <ClipboardList className="mr-2 h-4 w-4" />
               Gerir Ordens de Trabalho
             </Button>
-            <Button variant="outline" onClick={() => window.location.href = '/employees'}>
+            <Button variant="outline" onClick={() => navigate('/employees')}>
               <Users className="mr-2 h-4 w-4" />
               Gerir Funcionários
             </Button>
-            <Button variant="outline" onClick={() => window.location.href = '/clients'}>
+            <Button variant="outline" onClick={() => navigate('/clients')}>
               <Users className="mr-2 h-4 w-4" />
               Gerir Clientes
             </Button>
@@ -385,7 +387,7 @@ export default function ManagerDashboard() {
                       <span className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(order.status)}`}>
                         {getStatusLabel(order.status)}
                       </span>
-                      <Button size="sm">Ver Detalhes</Button>
+                      <Button size="sm" onClick={() => navigate(`/work-orders/${order.id}`)}>Ver Detalhes</Button>
                     </div>
                   </div>
                 ))}
