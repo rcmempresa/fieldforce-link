@@ -25,17 +25,27 @@ interface Client {
   name: string;
 }
 
+interface Equipment {
+  id: string;
+  name: string;
+  model: string | null;
+  serial_number: string | null;
+}
+
 export function CreateWorkOrderDialog({
   open,
   onOpenChange,
   onSuccess,
 }: CreateWorkOrderDialogProps) {
   const [clients, setClients] = useState<Client[]>([]);
+  const [equipments, setEquipments] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     client_id: "",
+    equipment_ids: [] as string[],
+    service_type: "repair",
     priority: "medium",
     scheduled_date: "",
   });
@@ -46,6 +56,15 @@ export function CreateWorkOrderDialog({
       fetchClients();
     }
   }, [open]);
+
+  useEffect(() => {
+    if (formData.client_id) {
+      fetchEquipments(formData.client_id);
+    } else {
+      setEquipments([]);
+      setFormData(prev => ({ ...prev, equipment_ids: [] }));
+    }
+  }, [formData.client_id]);
 
   const fetchClients = async () => {
     const { data } = await supabase
@@ -69,6 +88,26 @@ export function CreateWorkOrderDialog({
     }
   };
 
+  const fetchEquipments = async (clientId: string) => {
+    const { data } = await supabase
+      .from("equipments")
+      .select("id, name, model, serial_number")
+      .eq("client_id", clientId);
+
+    if (data) {
+      setEquipments(data);
+    }
+  };
+
+  const toggleEquipment = (equipmentId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      equipment_ids: prev.equipment_ids.includes(equipmentId)
+        ? prev.equipment_ids.filter(id => id !== equipmentId)
+        : [...prev.equipment_ids, equipmentId]
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -76,39 +115,66 @@ export function CreateWorkOrderDialog({
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { error } = await supabase.from("work_orders").insert({
-      title: formData.title,
-      description: formData.description,
-      client_id: formData.client_id,
-      priority: formData.priority as "low" | "medium" | "high",
-      scheduled_date: formData.scheduled_date || null,
-      created_by: user.id,
-      status: "pending" as const,
-    });
+    // Create work order
+    const { data: workOrder, error: workOrderError } = await supabase
+      .from("work_orders")
+      .insert({
+        title: formData.title,
+        description: formData.description,
+        client_id: formData.client_id,
+        service_type: formData.service_type as "repair" | "maintenance" | "installation" | "warranty",
+        priority: formData.priority as "low" | "medium" | "high",
+        scheduled_date: formData.scheduled_date || null,
+        created_by: user.id,
+        status: "pending" as const,
+      })
+      .select()
+      .single();
 
-    setLoading(false);
-
-    if (error) {
+    if (workOrderError) {
+      setLoading(false);
       toast({
         title: "Erro",
         description: "Erro ao criar ordem de trabalho",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Sucesso",
-        description: "Ordem de trabalho criada com sucesso",
-      });
-      setFormData({
-        title: "",
-        description: "",
-        client_id: "",
-        priority: "medium",
-        scheduled_date: "",
-      });
-      onOpenChange(false);
-      onSuccess();
+      return;
     }
+
+    // Link equipments to work order
+    if (formData.equipment_ids.length > 0) {
+      const equipmentLinks = formData.equipment_ids.map(equipmentId => ({
+        work_order_id: workOrder.id,
+        equipment_id: equipmentId,
+      }));
+
+      const { error: equipmentError } = await supabase
+        .from("work_order_equipments")
+        .insert(equipmentLinks);
+
+      if (equipmentError) {
+        console.error("Error linking equipments:", equipmentError);
+      }
+    }
+
+    setLoading(false);
+
+    toast({
+      title: "Sucesso",
+      description: "Ordem de trabalho criada com sucesso",
+    });
+    
+    setFormData({
+      title: "",
+      description: "",
+      client_id: "",
+      equipment_ids: [],
+      service_type: "repair",
+      priority: "medium",
+      scheduled_date: "",
+    });
+    onOpenChange(false);
+    onSuccess();
   };
 
   return (
@@ -154,6 +220,56 @@ export function CreateWorkOrderDialog({
                     {client.name}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {formData.client_id && equipments.length > 0 && (
+            <div className="space-y-2">
+              <Label>Equipamentos</Label>
+              <div className="border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
+                {equipments.map((equipment) => (
+                  <label
+                    key={equipment.id}
+                    className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formData.equipment_ids.includes(equipment.id)}
+                      onChange={() => toggleEquipment(equipment.id)}
+                      className="h-4 w-4"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">{equipment.name}</div>
+                      {(equipment.model || equipment.serial_number) && (
+                        <div className="text-xs text-muted-foreground">
+                          {equipment.model && `Modelo: ${equipment.model}`}
+                          {equipment.model && equipment.serial_number && " • "}
+                          {equipment.serial_number && `S/N: ${equipment.serial_number}`}
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="service_type">Tipo de Serviço *</Label>
+            <Select
+              value={formData.service_type}
+              onValueChange={(value) => setFormData({ ...formData, service_type: value })}
+              required
+            >
+              <SelectTrigger id="service_type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="repair">Reparação</SelectItem>
+                <SelectItem value="maintenance">Manutenção</SelectItem>
+                <SelectItem value="installation">Instalação</SelectItem>
+                <SelectItem value="warranty">Garantia</SelectItem>
               </SelectContent>
             </Select>
           </div>

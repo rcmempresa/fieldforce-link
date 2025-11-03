@@ -387,6 +387,7 @@ export type Database = {
           priority: Database["public"]["Enums"]["work_order_priority"]
           reference: string | null
           scheduled_date: string | null
+          service_type: Database["public"]["Enums"]["work_order_service_type"]
           status: Database["public"]["Enums"]["work_order_status"]
           title: string
           total_hours: number | null
@@ -402,6 +403,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["work_order_priority"]
           reference?: string | null
           scheduled_date?: string | null
+          service_type?: Database["public"]["Enums"]["work_order_service_type"]
           status?: Database["public"]["Enums"]["work_order_status"]
           title: string
           total_hours?: number | null
@@ -417,6 +419,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["work_order_priority"]
           reference?: string | null
           scheduled_date?: string | null
+          service_type?: Database["public"]["Enums"]["work_order_service_type"]
           status?: Database["public"]["Enums"]["work_order_status"]
           title?: string
           total_hours?: number | null
@@ -463,6 +466,11 @@ export type Database = {
       notification_channel: "email" | "sms" | "both"
       user_role: "manager" | "employee" | "client"
       work_order_priority: "low" | "medium" | "high" | "urgent"
+      work_order_service_type:
+        | "repair"
+        | "maintenance"
+        | "installation"
+        | "warranty"
       work_order_status:
         | "pending"
         | "approved"
@@ -600,6 +608,12 @@ export const Constants = {
       notification_channel: ["email", "sms", "both"],
       user_role: ["manager", "employee", "client"],
       work_order_priority: ["low", "medium", "high", "urgent"],
+      work_order_service_type: [
+        "repair",
+        "maintenance",
+        "installation",
+        "warranty",
+      ],
       work_order_status: [
         "pending",
         "approved",
