@@ -43,7 +43,6 @@ interface Assignment {
   assigned_at: string;
   profiles: {
     name: string;
-    email: string;
   };
 }
 
@@ -97,8 +96,7 @@ export default function WorkOrderDetails() {
         user_id,
         assigned_at,
         profiles!work_order_assignments_user_id_fkey (
-          name,
-          email
+          name
         )
       `)
       .eq("work_order_id", id);
@@ -391,7 +389,7 @@ export default function WorkOrderDetails() {
                 <SelectContent className="bg-popover z-50">
                   {employees.map((employee) => (
                     <SelectItem key={employee.id} value={employee.id}>
-                      {employee.name} ({employee.email})
+                      {employee.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -415,9 +413,6 @@ export default function WorkOrderDetails() {
                   >
                     <div>
                       <p className="font-medium text-sm">{assignment.profiles.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {assignment.profiles.email}
-                      </p>
                       <p className="text-xs text-muted-foreground">
                         Atribuído em: {new Date(assignment.assigned_at).toLocaleString()}
                       </p>
