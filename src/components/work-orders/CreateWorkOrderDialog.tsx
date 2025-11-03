@@ -214,7 +214,7 @@ export function CreateWorkOrderDialog({
               <SelectTrigger id="client">
                 <SelectValue placeholder="Selecionar cliente" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-popover z-50">
                 {clients.map((client) => (
                   <SelectItem key={client.id} value={client.id}>
                     {client.name}
@@ -265,7 +265,7 @@ export function CreateWorkOrderDialog({
               <SelectTrigger id="service_type">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-popover z-50">
                 <SelectItem value="repair">Reparação</SelectItem>
                 <SelectItem value="maintenance">Manutenção</SelectItem>
                 <SelectItem value="installation">Instalação</SelectItem>
@@ -283,7 +283,7 @@ export function CreateWorkOrderDialog({
               <SelectTrigger id="priority">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-popover z-50">
                 <SelectItem value="low">Baixa</SelectItem>
                 <SelectItem value="medium">Média</SelectItem>
                 <SelectItem value="high">Alta</SelectItem>
