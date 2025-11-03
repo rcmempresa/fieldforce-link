@@ -98,19 +98,7 @@ serve(async (req) => {
     
     let query = supabaseAdmin
       .from('user_roles')
-      .select(`
-        user_id,
-        role,
-        approved,
-        created_at,
-        profiles!user_roles_user_id_fkey (
-          id,
-          name,
-          phone,
-          company_name,
-          address
-        )
-      `)
+      .select('user_id, role, approved, created_at')
       .eq('approved', true)
 
     if (role) {
@@ -126,6 +114,29 @@ serve(async (req) => {
 
     console.log('User roles fetched:', userRoles?.length || 0, 'records')
 
+    // Get profiles for these users
+    if (!userRoles || userRoles.length === 0) {
+      console.log('No user roles found')
+      return new Response(JSON.stringify({ users: [] }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const userIds = userRoles.map(r => r.user_id)
+    console.log('Fetching profiles for user IDs:', userIds)
+
+    const { data: profiles, error: profilesError } = await supabaseAdmin
+      .from('profiles')
+      .select('*')
+      .in('id', userIds)
+
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError)
+      throw profilesError
+    }
+
+    console.log('Profiles fetched:', profiles?.length || 0, 'profiles')
+
     // Get all users from auth to get emails
     console.log('Fetching auth users')
     const { data: { users }, error: usersError } = await supabaseAdmin.auth.admin.listUsers()
@@ -138,20 +149,22 @@ serve(async (req) => {
     console.log('Auth users fetched:', users?.length || 0, 'users')
 
     // Combine data
-    const usersWithData = userRoles?.map((item: any) => {
-      const authUser = users.find(u => u.id === item.profiles.id)
+    const usersWithData = userRoles.map((userRole: any) => {
+      const profile = profiles?.find(p => p.id === userRole.user_id)
+      const authUser = users.find(u => u.id === userRole.user_id)
+      
       return {
-        id: item.profiles.id,
-        name: item.profiles.name,
+        id: userRole.user_id,
+        name: profile?.name || 'Sem nome',
         email: authUser?.email || '',
-        phone: item.profiles.phone,
-        company_name: item.profiles.company_name,
-        address: item.profiles.address,
-        role: item.role,
-        approved: item.approved,
-        created_at: item.created_at,
+        phone: profile?.phone || null,
+        company_name: profile?.company_name || null,
+        address: profile?.address || null,
+        role: userRole.role,
+        approved: userRole.approved,
+        created_at: userRole.created_at,
       }
-    }) || []
+    })
 
     console.log('Combined data:', usersWithData.length, 'users')
 
