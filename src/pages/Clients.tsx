@@ -293,61 +293,65 @@ export default function Clients() {
                     open={expandedClients.has(client.id)}
                     onOpenChange={() => toggleClientExpanded(client.id)}
                   >
-                    <div className="rounded-lg border">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4">
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium">{client.name}</p>
+                    <div className="rounded-lg border overflow-hidden">
+                      <div className="flex flex-col gap-3 p-4">
+                        <div className="flex-1 space-y-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold text-base">{client.name}</p>
                             {!client.approved && (
                               <span className="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
                                 Não Aprovado
                               </span>
                             )}
                           </div>
-                          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                              <Mail className="h-3 w-3" />
-                              {client.email}
+                          <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2">
+                              <Mail className="h-4 w-4 flex-shrink-0" />
+                              <span className="break-all">{client.email}</span>
                             </div>
                             {client.phone && (
-                              <div className="flex items-center gap-1">
-                                <Phone className="h-3 w-3" />
-                                {client.phone}
+                              <div className="flex items-center gap-2">
+                                <Phone className="h-4 w-4 flex-shrink-0" />
+                                <span>{client.phone}</span>
                               </div>
                             )}
                             {client.company_name && (
-                              <div className="flex items-center gap-1">
-                                <Building2 className="h-3 w-3" />
-                                {client.company_name}
+                              <div className="flex items-center gap-2">
+                                <Building2 className="h-4 w-4 flex-shrink-0" />
+                                <span>{client.company_name}</span>
                               </div>
                             )}
                             {client.address && (
-                              <div className="flex items-center gap-1">
-                                <MapPin className="h-3 w-3" />
-                                {client.address}
+                              <div className="flex items-center gap-2">
+                                <MapPin className="h-4 w-4 flex-shrink-0" />
+                                <span>{client.address}</span>
                               </div>
                             )}
                           </div>
-                          <div className="flex items-center gap-4">
-                            <p className="text-xs text-muted-foreground">
-                              Registado: {new Date(client.created_at).toLocaleDateString()}
-                            </p>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-muted-foreground pt-2 border-t">
+                            <span>Registado: {new Date(client.created_at).toLocaleDateString()}</span>
                             {client.equipments && client.equipments.length > 0 && (
-                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <div className="flex items-center gap-1">
                                 <Package className="h-3 w-3" />
-                                {client.equipments.length} equipamento{client.equipments.length !== 1 ? 's' : ''}
+                                <span>{client.equipments.length} equipamento{client.equipments.length !== 1 ? 's' : ''}</span>
                               </div>
                             )}
                           </div>
                         </div>
-                        <div className="flex gap-2 justify-end sm:justify-start">
+                        <div className="flex flex-wrap gap-2 pt-2 border-t sm:border-0 sm:pt-0">
                           {client.equipments && client.equipments.length > 0 && (
                             <CollapsibleTrigger asChild>
-                              <Button size="sm" variant="ghost">
+                              <Button size="sm" variant="outline" className="flex-1 sm:flex-none">
                                 {expandedClients.has(client.id) ? (
-                                  <ChevronUp className="h-4 w-4" />
+                                  <>
+                                    <ChevronUp className="h-4 w-4 mr-1" />
+                                    <span className="sm:hidden">Equipamentos</span>
+                                  </>
                                 ) : (
-                                  <ChevronDown className="h-4 w-4" />
+                                  <>
+                                    <ChevronDown className="h-4 w-4 mr-1" />
+                                    <span className="sm:hidden">Equipamentos</span>
+                                  </>
                                 )}
                               </Button>
                             </CollapsibleTrigger>
@@ -356,18 +360,22 @@ export default function Clients() {
                             size="sm"
                             variant="outline"
                             onClick={() => handleViewClientCalendar(client)}
+                            className="flex-1 sm:flex-none"
                           >
-                            <CalendarIcon className="h-4 w-4" />
+                            <CalendarIcon className="h-4 w-4 sm:mr-0" />
+                            <span className="ml-1 sm:hidden">Calendário</span>
                           </Button>
                           <Button
                             size="sm"
-                            variant="ghost"
+                            variant="outline"
                             onClick={() => {
                               setCurrentClientId(client.id);
                               setCreateEquipmentDialogOpen(true);
                             }}
+                            className="flex-1 sm:flex-none"
                           >
-                            <Plus className="h-4 w-4" />
+                            <Plus className="h-4 w-4 sm:mr-0" />
+                            <span className="ml-1 sm:hidden">Equipamento</span>
                           </Button>
                           <Button
                             size="sm"
@@ -376,8 +384,10 @@ export default function Clients() {
                               setSelectedClient(client);
                               setEditDialogOpen(true);
                             }}
+                            className="flex-1 sm:flex-none"
                           >
-                            <Edit className="h-4 w-4" />
+                            <Edit className="h-4 w-4 sm:mr-0" />
+                            <span className="ml-1 sm:hidden">Editar</span>
                           </Button>
                           <Button
                             size="sm"
@@ -386,102 +396,118 @@ export default function Clients() {
                               setSelectedClient(client);
                               setDeleteDialogOpen(true);
                             }}
+                            className="flex-1 sm:flex-none"
                           >
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                            <Trash2 className="h-4 w-4 text-destructive sm:mr-0" />
+                            <span className="ml-1 sm:hidden">Eliminar</span>
                           </Button>
                         </div>
                       </div>
 
                       <CollapsibleContent>
                         <div className="border-t bg-muted/30 p-4">
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-                            <h4 className="font-medium flex items-center gap-2">
-                              <Package className="h-4 w-4" />
-                              Equipamentos
-                            </h4>
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setCurrentClientId(client.id);
-                                setCreateEquipmentDialogOpen(true);
-                              }}
-                            >
-                              <Plus className="h-4 w-4 mr-1" />
-                              Adicionar
-                            </Button>
+                          <div className="flex flex-col gap-3 mb-4">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-semibold flex items-center gap-2">
+                                <Package className="h-4 w-4" />
+                                Equipamentos
+                              </h4>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setCurrentClientId(client.id);
+                                  setCreateEquipmentDialogOpen(true);
+                                }}
+                              >
+                                <Plus className="h-4 w-4 mr-1" />
+                                Adicionar
+                              </Button>
+                            </div>
                           </div>
                           {client.equipments && client.equipments.length > 0 ? (
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                               {client.equipments.map((equipment) => (
                                 <div
                                   key={equipment.id}
-                                  className="flex items-start justify-between rounded bg-background p-3 text-sm"
+                                  className="rounded-lg bg-background p-3 shadow-sm"
                                 >
-                                  <div className="flex-1 space-y-1">
-                                    <div className="font-medium">{equipment.name}</div>
-                                    <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                                      {equipment.model && (
-                                        <div>Modelo: {equipment.model}</div>
-                                      )}
-                                      {equipment.serial_number && (
-                                        <div>Nº Série: {equipment.serial_number}</div>
-                                      )}
-                                      {equipment.location && (
-                                        <div>Localização: {equipment.location}</div>
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="flex-1 space-y-2">
+                                      <div className="font-semibold">{equipment.name}</div>
+                                      <div className="flex flex-col gap-1.5 text-sm text-muted-foreground">
+                                        {equipment.model && (
+                                          <div className="flex items-start gap-2">
+                                            <span className="font-medium min-w-[80px]">Modelo:</span>
+                                            <span className="flex-1">{equipment.model}</span>
+                                          </div>
+                                        )}
+                                        {equipment.serial_number && (
+                                          <div className="flex items-start gap-2">
+                                            <span className="font-medium min-w-[80px]">Nº Série:</span>
+                                            <span className="flex-1">{equipment.serial_number}</span>
+                                          </div>
+                                        )}
+                                        {equipment.location && (
+                                          <div className="flex items-start gap-2">
+                                            <span className="font-medium min-w-[80px]">Localização:</span>
+                                            <span className="flex-1">{equipment.location}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                      {equipment.notes && (
+                                        <div className="text-sm pt-2 border-t">
+                                          <span className="font-medium text-muted-foreground">Notas:</span>{" "}
+                                          <span className="text-muted-foreground">{equipment.notes}</span>
+                                        </div>
                                       )}
                                     </div>
-                                    {equipment.notes && (
-                                      <div className="text-xs text-muted-foreground mt-1">
-                                        Notas: {equipment.notes}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="flex gap-1 ml-2">
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => {
-                                        setSelectedEquipment(equipment);
-                                        setEditEquipmentDialogOpen(true);
-                                      }}
-                                    >
-                                      <Edit className="h-3 w-3" />
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={async () => {
-                                        try {
-                                          const { error } = await supabase
-                                            .from('equipments')
-                                            .delete()
-                                            .eq('id', equipment.id);
+                                    <div className="flex flex-col gap-1">
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => {
+                                          setSelectedEquipment(equipment);
+                                          setEditEquipmentDialogOpen(true);
+                                        }}
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={async () => {
+                                          try {
+                                            const { error } = await supabase
+                                              .from('equipments')
+                                              .delete()
+                                              .eq('id', equipment.id);
 
-                                          if (error) throw error;
+                                            if (error) throw error;
 
-                                          toast({
-                                            title: "Sucesso",
-                                            description: "Equipamento eliminado com sucesso",
-                                          });
-                                          fetchClients();
-                                        } catch (error) {
-                                          console.error('Error deleting equipment:', error);
-                                          toast({
-                                            title: "Erro",
-                                            description: "Erro ao eliminar equipamento",
-                                            variant: "destructive",
-                                          });
-                                        }
-                                      }}
-                                    >
-                                      <Trash2 className="h-3 w-3 text-destructive" />
-                                    </Button>
+                                            toast({
+                                              title: "Sucesso",
+                                              description: "Equipamento eliminado com sucesso",
+                                            });
+                                            fetchClients();
+                                          } catch (error) {
+                                            console.error('Error deleting equipment:', error);
+                                            toast({
+                                              title: "Erro",
+                                              description: "Erro ao eliminar equipamento",
+                                              variant: "destructive",
+                                            });
+                                          }
+                                        }}
+                                      >
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                      </Button>
+                                    </div>
                                   </div>
                                 </div>
                               ))}
                             </div>
                           ) : (
-                            <p className="text-sm text-muted-foreground text-center py-4">
+                            <p className="text-sm text-muted-foreground text-center py-6">
                               Nenhum equipamento registado
                             </p>
                           )}
