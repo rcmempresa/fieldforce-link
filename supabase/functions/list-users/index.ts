@@ -12,6 +12,8 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Starting list-users function')
+    
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -23,21 +25,43 @@ serve(async (req) => {
       }
     )
 
+    console.log('Supabase client created')
+
     // Get the authorization header
-    const authHeader = req.headers.get('Authorization')!
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      console.error('No authorization header found')
+      return new Response(JSON.stringify({ error: 'No authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    
     const token = authHeader.replace('Bearer ', '')
+    console.log('Token extracted')
     
     // Verify the user is authenticated and is a manager
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+    if (authError) {
+      console.error('Auth error:', authError)
+      return new Response(JSON.stringify({ error: 'Unauthorized', details: authError.message }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    
+    if (!user) {
+      console.error('No user found')
+      return new Response(JSON.stringify({ error: 'Unauthorized - No user found' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
+    console.log('User authenticated:', user.id)
+
     // Check if user is a manager
-    const { data: roles } = await supabaseAdmin
+    const { data: roles, error: rolesError } = await supabaseAdmin
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
@@ -45,17 +69,33 @@ serve(async (req) => {
       .eq('approved', true)
       .single()
 
+    if (rolesError) {
+      console.error('Roles query error:', rolesError)
+    }
+
     if (!roles) {
+      console.error('User is not a manager')
       return new Response(JSON.stringify({ error: 'Forbidden - Manager access required' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
+    console.log('User is manager, proceeding')
+
     // Get role from request body
-    const { role } = await req.json().catch(() => ({}))
+    let role = null
+    try {
+      const body = await req.json()
+      role = body.role
+      console.log('Role from body:', role)
+    } catch (e) {
+      console.log('No body or invalid JSON, role will be null')
+    }
 
     // Get user roles with profile data
+    console.log('Querying user_roles with role filter:', role)
+    
     let query = supabaseAdmin
       .from('user_roles')
       .select(`
@@ -77,13 +117,25 @@ serve(async (req) => {
       query = query.eq('role', role)
     }
 
-    const { data: userRoles, error: rolesError } = await query
+    const { data: userRoles, error: rolesQueryError } = await query
 
-    if (rolesError) throw rolesError
+    if (rolesQueryError) {
+      console.error('Error querying user_roles:', rolesQueryError)
+      throw rolesQueryError
+    }
+
+    console.log('User roles fetched:', userRoles?.length || 0, 'records')
 
     // Get all users from auth to get emails
+    console.log('Fetching auth users')
     const { data: { users }, error: usersError } = await supabaseAdmin.auth.admin.listUsers()
-    if (usersError) throw usersError
+    
+    if (usersError) {
+      console.error('Error fetching auth users:', usersError)
+      throw usersError
+    }
+
+    console.log('Auth users fetched:', users?.length || 0, 'users')
 
     // Combine data
     const usersWithData = userRoles?.map((item: any) => {
@@ -101,12 +153,21 @@ serve(async (req) => {
       }
     }) || []
 
+    console.log('Combined data:', usersWithData.length, 'users')
+
     return new Response(JSON.stringify({ users: usersWithData }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error) {
+    console.error('Caught error:', error)
     const message = error instanceof Error ? error.message : 'Unknown error'
-    return new Response(JSON.stringify({ error: message }), {
+    const stack = error instanceof Error ? error.stack : undefined
+    console.error('Error details:', { message, stack })
+    
+    return new Response(JSON.stringify({ 
+      error: message,
+      details: stack 
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
