@@ -3,9 +3,16 @@ import { useParams, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Calendar, User, Clock, FileText } from "lucide-react";
+import { ArrowLeft, Calendar, User, Clock, FileText, Users, Plus, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface WorkOrderDetails {
   id: string;
@@ -24,15 +31,36 @@ interface WorkOrderDetails {
   };
 }
 
+interface Employee {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface Assignment {
+  id: string;
+  user_id: string;
+  assigned_at: string;
+  profiles: {
+    name: string;
+    email: string;
+  };
+}
+
 export default function WorkOrderDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [workOrder, setWorkOrder] = useState<WorkOrderDetails | null>(null);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [selectedEmployee, setSelectedEmployee] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchWorkOrderDetails();
+    fetchAssignments();
+    fetchEmployees();
   }, [id]);
 
   const fetchWorkOrderDetails = async () => {
@@ -58,6 +86,116 @@ export default function WorkOrderDetails() {
       navigate("/work-orders");
     } else if (data) {
       setWorkOrder(data as any);
+    }
+  };
+
+  const fetchAssignments = async () => {
+    const { data } = await supabase
+      .from("work_order_assignments")
+      .select(`
+        id,
+        user_id,
+        assigned_at,
+        profiles!work_order_assignments_user_id_fkey (
+          name,
+          email
+        )
+      `)
+      .eq("work_order_id", id);
+
+    if (data) {
+      setAssignments(data as any);
+    }
+  };
+
+  const fetchEmployees = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('list-users', {
+        body: { role: 'employee' },
+      });
+
+      if (error) {
+        console.error('Error fetching employees:', error);
+        return;
+      }
+
+      if (data?.users) {
+        setEmployees(data.users.map((user: any) => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+    }
+  };
+
+  const handleAssignEmployee = async () => {
+    if (!selectedEmployee) {
+      toast({
+        title: "Erro",
+        description: "Selecione um funcionário",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if already assigned
+    if (assignments.some(a => a.user_id === selectedEmployee)) {
+      toast({
+        title: "Aviso",
+        description: "Este funcionário já está atribuído",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from("work_order_assignments")
+      .insert({
+        work_order_id: id,
+        user_id: selectedEmployee,
+        assigned_by: user.id,
+      });
+
+    if (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao atribuir funcionário",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Sucesso",
+        description: "Funcionário atribuído com sucesso",
+      });
+      setSelectedEmployee("");
+      fetchAssignments();
+    }
+  };
+
+  const handleRemoveAssignment = async (assignmentId: string) => {
+    const { error } = await supabase
+      .from("work_order_assignments")
+      .delete()
+      .eq("id", assignmentId);
+
+    if (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao remover atribuição",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Sucesso",
+        description: "Atribuição removida com sucesso",
+      });
+      fetchAssignments();
     }
   };
 
@@ -232,6 +370,67 @@ export default function WorkOrderDetails() {
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                   {workOrder.notes}
                 </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Funcionários Atribuídos
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-2">
+              <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Selecionar funcionário" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-50">
+                  {employees.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.id}>
+                      {employee.name} ({employee.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button onClick={handleAssignEmployee}>
+                <Plus className="h-4 w-4 mr-1" />
+                Atribuir
+              </Button>
+            </div>
+
+            {assignments.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4">
+                Nenhum funcionário atribuído
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {assignments.map((assignment) => (
+                  <div
+                    key={assignment.id}
+                    className="flex items-center justify-between rounded-lg border p-3"
+                  >
+                    <div>
+                      <p className="font-medium text-sm">{assignment.profiles.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {assignment.profiles.email}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Atribuído em: {new Date(assignment.assigned_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleRemoveAssignment(assignment.id)}
+                    >
+                      <X className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
