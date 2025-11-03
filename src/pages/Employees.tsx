@@ -290,9 +290,9 @@ export default function Employees() {
                 {filteredEmployees.map((employee) => (
                   <div
                     key={employee.id}
-                    className="flex items-center justify-between rounded-lg border p-4"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-lg border p-4"
                   >
-                    <div className="flex-1 space-y-1">
+                    <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2">
                         <p className="font-medium">{employee.name}</p>
                         <span
@@ -308,7 +308,7 @@ export default function Employees() {
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <Mail className="h-3 w-3" />
                           {employee.email}
@@ -328,7 +328,7 @@ export default function Employees() {
                         Registado: {new Date(employee.created_at).toLocaleDateString()}
                       </p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 justify-end sm:justify-start">
                       <Button
                         size="sm"
                         variant="outline"

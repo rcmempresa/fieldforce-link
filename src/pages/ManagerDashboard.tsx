@@ -264,7 +264,7 @@ export default function ManagerDashboard() {
     <DashboardLayout title="Dashboard do Gerente">
       <div className="space-y-6">
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Ordens Pendentes</CardTitle>
@@ -333,7 +333,7 @@ export default function ManagerDashboard() {
             <CardContent>
               <div className="space-y-4">
                 {pendingUsers.map((user) => (
-                  <div key={user.id} className="flex items-center justify-between rounded-lg border p-4">
+                  <div key={user.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 rounded-lg border p-4">
                     <div className="space-y-1">
                       <p className="font-medium">{user.name}</p>
                       <p className="text-sm text-muted-foreground">{user.email}</p>
@@ -341,14 +341,14 @@ export default function ManagerDashboard() {
                         Registado em: {new Date(user.created_at).toLocaleDateString()}
                       </p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Select
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                       <Select
                         value={selectedRoles[user.id] || ""}
                         onValueChange={(value) =>
                           setSelectedRoles({ ...selectedRoles, [user.id]: value })
                         }
                       >
-                        <SelectTrigger className="w-[150px]">
+                        <SelectTrigger className="w-full sm:w-[150px]">
                           <SelectValue placeholder="Selecionar papel" />
                         </SelectTrigger>
                         <SelectContent>
@@ -380,7 +380,7 @@ export default function ManagerDashboard() {
           <CardHeader>
             <CardTitle>Ações Rápidas</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-3">
+          <CardContent className="flex flex-col sm:flex-row flex-wrap gap-3">
             <Button onClick={() => navigate('/work-orders')}>
               <ClipboardList className="mr-2 h-4 w-4" />
               Gerir Ordens de Trabalho
@@ -409,12 +409,12 @@ export default function ManagerDashboard() {
             ) : (
               <div className="space-y-4">
                 {recentOrders.map((order) => (
-                  <div key={order.id} className="flex items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-1">
+                  <div key={order.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border p-4">
+                    <div className="space-y-1 flex-1">
                       <p className="font-medium">{order.reference}</p>
                       <p className="text-sm text-muted-foreground">{order.title}</p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 justify-between sm:justify-end">
                       <span className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(order.status)}`}>
                         {getStatusLabel(order.status)}
                       </span>
@@ -436,8 +436,8 @@ export default function ManagerDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="flex justify-center">
                 <Calendar
                   mode="single"
                   selected={selectedDate}
