@@ -262,61 +262,90 @@ export default function ManagerDashboard() {
 
   return (
     <DashboardLayout title="Dashboard do Gerente">
-      <div className="space-y-6">
+      <div className="space-y-8 pb-8">
+        {/* Header Section */}
+        <div className="space-y-2">
+          <h2 className="text-3xl font-bold tracking-tight">Visão Geral</h2>
+          <p className="text-muted-foreground">
+            Acompanhe as métricas principais e gerencie as operações
+          </p>
+        </div>
+
         {/* Stats Cards */}
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
-          <Card>
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          <Card className="bg-gradient-to-br from-warning/5 via-background to-background border-warning/20 hover:shadow-lg transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Ordens Pendentes</CardTitle>
-              <ClipboardList className="h-4 w-4 text-warning" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">Ordens Pendentes</CardTitle>
+              <div className="h-10 w-10 rounded-full bg-warning/10 flex items-center justify-center">
+                <ClipboardList className="h-5 w-5 text-warning" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.pending}</div>
-              <p className="text-xs text-muted-foreground">Aguardam aprovação</p>
+              <div className="text-3xl font-bold text-warning">{stats.pending}</div>
+              <p className="text-xs text-muted-foreground mt-1">Aguardam aprovação</p>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="bg-gradient-to-br from-primary/5 via-background to-background border-primary/20 hover:shadow-lg transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Em Progresso</CardTitle>
-              <ClipboardList className="h-4 w-4 text-primary" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">Em Progresso</CardTitle>
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <ClipboardList className="h-5 w-5 text-primary" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.inProgress}</div>
-              <p className="text-xs text-muted-foreground">Em execução</p>
+              <div className="text-3xl font-bold text-primary">{stats.inProgress}</div>
+              <p className="text-xs text-muted-foreground mt-1">Em execução</p>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="bg-gradient-to-br from-accent/5 via-background to-background border-accent/20 hover:shadow-lg transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Concluídas</CardTitle>
-              <CheckCircle className="h-4 w-4 text-accent" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">Concluídas</CardTitle>
+              <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center">
+                <CheckCircle className="h-5 w-5 text-accent" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.completed}</div>
-              <p className="text-xs text-muted-foreground">Este mês</p>
+              <div className="text-3xl font-bold text-accent">{stats.completed}</div>
+              <p className="text-xs text-muted-foreground mt-1">Este mês</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Team Stats */}
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
+          <Card className="hover:shadow-md transition-all duration-300">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-base font-semibold">Equipa</CardTitle>
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <Users className="h-5 w-5 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Funcionários Ativos</span>
+                  <span className="text-2xl font-bold text-primary">{stats.activeEmployees}</span>
+                </div>
+              </div>
             </CardContent>
           </Card>
           
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Funcionários</CardTitle>
-              <Users className="h-4 w-4 text-primary" />
+          <Card className="hover:shadow-md transition-all duration-300">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-base font-semibold">Clientes</CardTitle>
+              <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center">
+                <Users className="h-5 w-5 text-accent" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.activeEmployees}</div>
-              <p className="text-xs text-muted-foreground">Ativos</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Clientes</CardTitle>
-              <Users className="h-4 w-4 text-accent" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.activeClients}</div>
-              <p className="text-xs text-muted-foreground">Ativos</p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Clientes Ativos</span>
+                  <span className="text-2xl font-bold text-accent">{stats.activeClients}</span>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -376,49 +405,75 @@ export default function ManagerDashboard() {
         )}
 
         {/* Quick Actions */}
-        <Card>
+        <Card className="border-2 hover:shadow-lg transition-all duration-300">
           <CardHeader>
-            <CardTitle>Ações Rápidas</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5 text-primary" />
+              Ações Rápidas
+            </CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col sm:flex-row flex-wrap gap-3">
-            <Button onClick={() => navigate('/work-orders')}>
-              <ClipboardList className="mr-2 h-4 w-4" />
-              Gerir Ordens de Trabalho
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/employees')}>
-              <Users className="mr-2 h-4 w-4" />
-              Gerir Funcionários
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/clients')}>
-              <Users className="mr-2 h-4 w-4" />
-              Gerir Clientes
-            </Button>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Button 
+                onClick={() => navigate('/work-orders')}
+                className="h-20 flex flex-col gap-2"
+                size="lg"
+              >
+                <ClipboardList className="h-6 w-6" />
+                <span>Gerir Ordens</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/employees')}
+                className="h-20 flex flex-col gap-2 hover:bg-primary hover:text-primary-foreground"
+                size="lg"
+              >
+                <Users className="h-6 w-6" />
+                <span>Funcionários</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/clients')}
+                className="h-20 flex flex-col gap-2 hover:bg-accent hover:text-accent-foreground"
+                size="lg"
+              >
+                <Users className="h-6 w-6" />
+                <span>Clientes</span>
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
         {/* Recent Work Orders */}
-        <Card>
+        <Card className="hover:shadow-md transition-all duration-300">
           <CardHeader>
-            <CardTitle>Ordens de Trabalho Recentes</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5 text-primary" />
+              Ordens de Trabalho Recentes
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {recentOrders.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                Nenhuma ordem de trabalho encontrada
-              </p>
+              <div className="text-center py-12">
+                <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                <p className="text-muted-foreground">Nenhuma ordem de trabalho encontrada</p>
+              </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {recentOrders.map((order) => (
-                  <div key={order.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border p-4">
+                  <div 
+                    key={order.id} 
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border p-4 hover:bg-muted/50 hover:shadow-sm transition-all duration-200 cursor-pointer"
+                    onClick={() => navigate(`/work-orders/${order.id}`)}
+                  >
                     <div className="space-y-1 flex-1">
-                      <p className="font-medium">{order.reference}</p>
+                      <p className="font-semibold text-foreground">{order.reference}</p>
                       <p className="text-sm text-muted-foreground">{order.title}</p>
                     </div>
                     <div className="flex items-center gap-3 justify-between sm:justify-end">
-                      <span className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(order.status)}`}>
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusColor(order.status)}`}>
                         {getStatusLabel(order.status)}
                       </span>
-                      <Button size="sm" onClick={() => navigate(`/work-orders/${order.id}`)}>Ver Detalhes</Button>
                     </div>
                   </div>
                 ))}
@@ -428,10 +483,10 @@ export default function ManagerDashboard() {
         </Card>
 
         {/* Calendar View */}
-        <Card>
+        <Card className="hover:shadow-md transition-all duration-300">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CalendarIcon className="h-5 w-5" />
+              <CalendarIcon className="h-5 w-5 text-primary" />
               Calendário de Ordens de Trabalho
             </CardTitle>
           </CardHeader>
@@ -443,52 +498,63 @@ export default function ManagerDashboard() {
                   selected={selectedDate}
                   onSelect={setSelectedDate}
                   locale={pt}
-                  className="rounded-md border"
+                  className="rounded-md border shadow-sm"
                   modifiers={{
                     hasOrders: (date) => hasOrdersOnDate(date)
                   }}
                   modifiersStyles={{
                     hasOrders: { 
                       fontWeight: 'bold',
-                      backgroundColor: 'hsl(var(--primary) / 0.1)',
-                      color: 'hsl(var(--primary))'
+                      backgroundColor: 'hsl(var(--primary) / 0.15)',
+                      color: 'hsl(var(--primary))',
+                      borderRadius: '0.375rem'
                     }
                   }}
                 />
               </div>
               <div>
-                <h4 className="font-medium mb-3">
-                  {selectedDate ? format(selectedDate, "dd 'de' MMMM, yyyy", { locale: pt }) : "Selecione uma data"}
-                </h4>
+                <div className="mb-4 pb-3 border-b">
+                  <h4 className="font-semibold text-lg">
+                    {selectedDate ? format(selectedDate, "dd 'de' MMMM, yyyy", { locale: pt }) : "Selecione uma data"}
+                  </h4>
+                  {selectedDate && getOrdersForDate(selectedDate).length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {getOrdersForDate(selectedDate).length} {getOrdersForDate(selectedDate).length === 1 ? 'ordem agendada' : 'ordens agendadas'}
+                    </p>
+                  )}
+                </div>
                 {selectedDate && getOrdersForDate(selectedDate).length > 0 ? (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {getOrdersForDate(selectedDate).map((order) => (
                       <div
                         key={order.id}
-                        className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 cursor-pointer transition-colors"
+                        className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 hover:shadow-sm cursor-pointer transition-all duration-200"
                         onClick={() => navigate(`/work-orders/${order.id}`)}
                       >
                         <div className="flex-1">
-                          <p className="font-medium text-sm">{order.reference}</p>
-                          <p className="text-xs text-muted-foreground">{order.title}</p>
+                          <p className="font-semibold text-sm">{order.reference}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{order.title}</p>
                           {order.scheduled_date && (
-                            <p className="text-xs font-medium text-primary mt-1">
+                            <p className="text-xs font-semibold text-primary mt-1">
                               {format(new Date(order.scheduled_date), "HH:mm", { locale: pt })}
                             </p>
                           )}
                         </div>
-                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${getStatusColor(order.status)}`}>
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusColor(order.status)}`}>
                           {getStatusLabel(order.status)}
                         </span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    {selectedDate 
-                      ? "Nenhuma ordem agendada para esta data" 
-                      : "Selecione uma data no calendário"}
-                  </p>
+                  <div className="text-center py-8">
+                    <CalendarIcon className="h-10 w-10 mx-auto text-muted-foreground/50 mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      {selectedDate 
+                        ? "Nenhuma ordem agendada para esta data" 
+                        : "Selecione uma data no calendário"}
+                    </p>
+                  </div>
                 )}
               </div>
             </div>
