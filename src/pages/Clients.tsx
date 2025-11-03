@@ -176,14 +176,14 @@ export default function Clients() {
       <div className="space-y-6">
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Clientes</CardTitle>
-              <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center justify-between sm:justify-start gap-4">
+                <CardTitle>Clientes</CardTitle>
                 <div className="text-sm text-muted-foreground">
                   Total: {clients.length}
                 </div>
-                <CreateEmployeeDialog onSuccess={fetchClients} />
               </div>
+              <CreateEmployeeDialog onSuccess={fetchClients} />
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -210,7 +210,7 @@ export default function Clients() {
                     onOpenChange={() => toggleClientExpanded(client.id)}
                   >
                     <div className="rounded-lg border">
-                      <div className="flex items-center justify-between p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4">
                         <div className="flex-1 space-y-2">
                           <div className="flex items-center gap-2">
                             <p className="font-medium">{client.name}</p>
@@ -256,7 +256,7 @@ export default function Clients() {
                             )}
                           </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 justify-end sm:justify-start">
                           {client.equipments && client.equipments.length > 0 && (
                             <CollapsibleTrigger asChild>
                               <Button size="sm" variant="ghost">
