@@ -3,7 +3,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Mail, Phone, Trash2, Edit, Building2, MapPin, Package, ChevronDown, ChevronUp, Plus } from "lucide-react";
+import { Search, Mail, Phone, Trash2, Edit, Building2, MapPin, Package, ChevronDown, ChevronUp, Plus, CalendarIcon, Briefcase } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CreateEmployeeDialog } from "@/components/employees/CreateEmployeeDialog";
@@ -21,6 +21,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Calendar } from "@/components/ui/calendar";
+import { format, isSameDay } from "date-fns";
+import { pt } from "date-fns/locale";
+import { useNavigate } from "react-router-dom";
 
 interface Equipment {
   id: string;
@@ -44,6 +48,15 @@ interface Client {
   equipments?: Equipment[];
 }
 
+interface WorkOrder {
+  id: string;
+  reference: string | null;
+  title: string;
+  status: string;
+  priority: string;
+  scheduled_date?: string | null;
+}
+
 export default function Clients() {
   const [clients, setClients] = useState<Client[]>([]);
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
@@ -56,7 +69,11 @@ export default function Clients() {
   const [editEquipmentDialogOpen, setEditEquipmentDialogOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
   const [currentClientId, setCurrentClientId] = useState<string | null>(null);
+  const [selectedCalendarClient, setSelectedCalendarClient] = useState<Client | null>(null);
+  const [calendarOrders, setCalendarOrders] = useState<WorkOrder[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchClients();
@@ -171,6 +188,73 @@ export default function Clients() {
     setExpandedClients(newExpanded);
   };
 
+  const fetchClientOrders = async (clientId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('work_orders')
+        .select('id, reference, title, status, priority, scheduled_date')
+        .eq('client_id', clientId)
+        .order('scheduled_date', { ascending: true });
+
+      if (error) throw error;
+
+      setCalendarOrders(data || []);
+    } catch (error) {
+      console.error('Error fetching client orders:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar as ordens de trabalho",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "pending":
+        return "bg-warning/10 text-warning";
+      case "in_progress":
+        return "bg-primary/10 text-primary";
+      case "completed":
+        return "bg-accent/10 text-accent";
+      case "cancelled":
+        return "bg-destructive/10 text-destructive";
+      default:
+        return "bg-muted text-muted-foreground";
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "pending":
+        return "Pendente";
+      case "in_progress":
+        return "Em Progresso";
+      case "completed":
+        return "Concluída";
+      case "cancelled":
+        return "Cancelada";
+      default:
+        return status;
+    }
+  };
+
+  const getOrdersForDate = (date: Date) => {
+    return calendarOrders.filter((order) => {
+      if (!order.scheduled_date) return false;
+      return isSameDay(new Date(order.scheduled_date), date);
+    });
+  };
+
+  const hasOrdersOnDate = (date: Date) => {
+    return getOrdersForDate(date).length > 0;
+  };
+
+  const handleViewClientCalendar = (client: Client) => {
+    setSelectedCalendarClient(client);
+    fetchClientOrders(client.id);
+  };
+
   return (
     <DashboardLayout title="Gerir Clientes">
       <div className="space-y-6">
@@ -268,6 +352,13 @@ export default function Clients() {
                               </Button>
                             </CollapsibleTrigger>
                           )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleViewClientCalendar(client)}
+                          >
+                            <CalendarIcon className="h-4 w-4" />
+                          </Button>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -403,6 +494,73 @@ export default function Clients() {
             )}
           </CardContent>
         </Card>
+
+        {selectedCalendarClient && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Calendário - {selectedCalendarClient.name}</CardTitle>
+              </CardHeader>
+              <CardContent className="flex justify-center">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
+                  locale={pt}
+                  modifiers={{
+                    hasOrders: (date) => hasOrdersOnDate(date),
+                  }}
+                  modifiersStyles={{
+                    hasOrders: {
+                      fontWeight: 'bold',
+                      backgroundColor: 'hsl(var(--primary) / 0.1)',
+                      color: 'hsl(var(--primary))'
+                    },
+                  }}
+                  className="rounded-md border pointer-events-auto"
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  Ordens de Trabalho - {format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: pt })}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {getOrdersForDate(selectedDate).length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nenhuma ordem de trabalho agendada para este dia
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {getOrdersForDate(selectedDate).map((order) => (
+                      <div
+                        key={order.id}
+                        className="flex items-center justify-between rounded-lg border p-3 cursor-pointer hover:bg-accent/50 transition-colors"
+                        onClick={() => navigate(`/work-orders/${order.id}`)}
+                      >
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{order.reference}</p>
+                          <p className="text-xs text-muted-foreground">{order.title}</p>
+                          {order.scheduled_date && (
+                            <p className="text-xs font-medium text-primary mt-1">
+                              {format(new Date(order.scheduled_date), "HH:mm", { locale: pt })}
+                            </p>
+                          )}
+                        </div>
+                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${getStatusColor(order.status)}`}>
+                          {getStatusLabel(order.status)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
 
       <EditEmployeeDialog
