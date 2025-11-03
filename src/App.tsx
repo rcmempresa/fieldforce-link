@@ -13,6 +13,7 @@ import ClientDashboard from "./pages/ClientDashboard";
 import WorkOrders from "./pages/WorkOrders";
 import WorkOrderDetails from "./pages/WorkOrderDetails";
 import Employees from "./pages/Employees";
+import Clients from "./pages/Clients";
 import Equipments from "./pages/Equipments";
 import NotFound from "./pages/NotFound";
 
@@ -73,6 +74,14 @@ const App = () => (
             element={
               <ProtectedRoute allowedRoles={["manager"]}>
                 <Employees />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/clients"
+            element={
+              <ProtectedRoute allowedRoles={["manager"]}>
+                <Clients />
               </ProtectedRoute>
             }
           />

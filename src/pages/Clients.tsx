@@ -3,7 +3,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Mail, Phone, Trash2, Edit } from "lucide-react";
+import { Search, Mail, Phone, Trash2, Edit, Building2, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CreateEmployeeDialog } from "@/components/employees/CreateEmployeeDialog";
@@ -19,7 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-interface Employee {
+interface Client {
   id: string;
   name: string;
   email: string;
@@ -31,25 +31,24 @@ interface Employee {
   address?: string | null;
 }
 
-export default function Employees() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
+export default function Clients() {
+  const [clients, setClients] = useState<Client[]>([]);
+  const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchEmployees();
+    fetchClients();
   }, []);
 
   useEffect(() => {
-    filterEmployees();
-  }, [searchTerm, employees]);
+    filterClients();
+  }, [searchTerm, clients]);
 
-  const fetchEmployees = async () => {
-    // Get only employees from user_roles
+  const fetchClients = async () => {
     const { data: userRoles } = await supabase
       .from("user_roles")
       .select(`
@@ -65,14 +64,13 @@ export default function Employees() {
           address
         )
       `)
-      .eq("role", "employee");
+      .eq("role", "client");
 
     if (userRoles) {
-      // Get emails from auth
       const { data } = await supabase.auth.admin.listUsers();
       const users = data?.users || [];
       
-      const employeesWithEmails = userRoles.map((item: any) => {
+      const clientsWithEmails = userRoles.map((item: any) => {
         const authUser = users.find(u => u.id === item.profiles.id);
         return {
           id: item.profiles.id,
@@ -87,138 +85,119 @@ export default function Employees() {
         };
       });
 
-      setEmployees(employeesWithEmails);
+      setClients(clientsWithEmails);
     }
   };
 
-  const filterEmployees = () => {
+  const filterClients = () => {
     if (!searchTerm) {
-      setFilteredEmployees(employees);
+      setFilteredClients(clients);
       return;
     }
 
-    const filtered = employees.filter(
-      (emp) =>
-        emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        emp.email.toLowerCase().includes(searchTerm.toLowerCase())
+    const filtered = clients.filter(
+      (client) =>
+        client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (client.company_name && client.company_name.toLowerCase().includes(searchTerm.toLowerCase()))
     );
-    setFilteredEmployees(filtered);
+    setFilteredClients(filtered);
   };
 
   const handleDelete = async () => {
-    if (!selectedEmployee) return;
+    if (!selectedClient) return;
 
-    // Delete user from auth (will cascade to user_roles and profiles)
-    const { error } = await supabase.auth.admin.deleteUser(selectedEmployee.id);
+    const { error } = await supabase.auth.admin.deleteUser(selectedClient.id);
 
     if (error) {
       toast({
         title: "Erro",
-        description: "Erro ao eliminar utilizador",
+        description: "Erro ao eliminar cliente",
         variant: "destructive",
       });
     } else {
       toast({
         title: "Sucesso",
-        description: "Utilizador eliminado com sucesso",
+        description: "Cliente eliminado com sucesso",
       });
-      fetchEmployees();
+      fetchClients();
       setDeleteDialogOpen(false);
-      setSelectedEmployee(null);
-    }
-  };
-
-  const getRoleLabel = (role: string) => {
-    switch (role) {
-      case "employee":
-        return "Funcionário";
-      case "client":
-        return "Cliente";
-      default:
-        return role;
-    }
-  };
-
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case "employee":
-        return "bg-primary/10 text-primary";
-      case "client":
-        return "bg-accent/10 text-accent";
-      default:
-        return "bg-muted text-muted-foreground";
+      setSelectedClient(null);
     }
   };
 
   return (
-    <DashboardLayout title="Gerir Funcionários">
+    <DashboardLayout title="Gerir Clientes">
       <div className="space-y-6">
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Funcionários</CardTitle>
+              <CardTitle>Clientes</CardTitle>
               <div className="flex items-center gap-4">
                 <div className="text-sm text-muted-foreground">
-                  Total: {employees.length}
+                  Total: {clients.length}
                 </div>
-                <CreateEmployeeDialog onSuccess={fetchEmployees} />
+                <CreateEmployeeDialog onSuccess={fetchClients} />
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Pesquisar por nome ou email..."
+                placeholder="Pesquisar por nome, email ou empresa..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9"
               />
             </div>
 
-            {/* Employees List */}
-            {filteredEmployees.length === 0 ? (
+            {filteredClients.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
-                Nenhum funcionário encontrado
+                Nenhum cliente encontrado
               </p>
             ) : (
               <div className="space-y-4">
-                {filteredEmployees.map((employee) => (
+                {filteredClients.map((client) => (
                   <div
-                    key={employee.id}
+                    key={client.id}
                     className="flex items-center justify-between rounded-lg border p-4"
                   >
-                    <div className="flex-1 space-y-1">
+                    <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2">
-                        <p className="font-medium">{employee.name}</p>
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${getRoleColor(
-                            employee.role
-                          )}`}
-                        >
-                          {getRoleLabel(employee.role)}
-                        </span>
-                        {!employee.approved && (
+                        <p className="font-medium">{client.name}</p>
+                        {!client.approved && (
                           <span className="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
                             Não Aprovado
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <Mail className="h-3 w-3" />
-                          {employee.email}
+                          {client.email}
                         </div>
-                        {employee.phone && (
+                        {client.phone && (
                           <div className="flex items-center gap-1">
                             <Phone className="h-3 w-3" />
-                            {employee.phone}
+                            {client.phone}
+                          </div>
+                        )}
+                        {client.company_name && (
+                          <div className="flex items-center gap-1">
+                            <Building2 className="h-3 w-3" />
+                            {client.company_name}
+                          </div>
+                        )}
+                        {client.address && (
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {client.address}
                           </div>
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        Registado: {new Date(employee.created_at).toLocaleDateString()}
+                        Registado: {new Date(client.created_at).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="flex gap-2">
@@ -226,7 +205,7 @@ export default function Employees() {
                         size="sm"
                         variant="ghost"
                         onClick={() => {
-                          setSelectedEmployee(employee);
+                          setSelectedClient(client);
                           setEditDialogOpen(true);
                         }}
                       >
@@ -236,7 +215,7 @@ export default function Employees() {
                         size="sm"
                         variant="ghost"
                         onClick={() => {
-                          setSelectedEmployee(employee);
+                          setSelectedClient(client);
                           setDeleteDialogOpen(true);
                         }}
                       >
@@ -252,10 +231,10 @@ export default function Employees() {
       </div>
 
       <EditEmployeeDialog
-        employee={selectedEmployee}
+        employee={selectedClient}
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
-        onSuccess={fetchEmployees}
+        onSuccess={fetchClients}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -263,13 +242,13 @@ export default function Employees() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Eliminação</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem a certeza que deseja eliminar o funcionário{" "}
-              <strong>{selectedEmployee?.name}</strong>? Esta ação não pode ser revertida e
+              Tem a certeza que deseja eliminar o cliente{" "}
+              <strong>{selectedClient?.name}</strong>? Esta ação não pode ser revertida e
               todos os dados associados serão eliminados.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setSelectedEmployee(null)}>
+            <AlertDialogCancel onClick={() => setSelectedClient(null)}>
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
