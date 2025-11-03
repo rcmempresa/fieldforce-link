@@ -253,10 +253,10 @@ export default function WorkOrders() {
                 {filteredOrders.map((order) => (
                   <div
                     key={order.id}
-                    className="flex items-center justify-between rounded-lg border p-4"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-lg border p-4"
                   >
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center gap-2">
+                    <div className="flex-1 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <p className="font-medium">{order.reference}</p>
                         <span
                           className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(
@@ -281,7 +281,7 @@ export default function WorkOrders() {
                         )}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 justify-end sm:justify-start">
                       <Button
                         size="sm"
                         variant="ghost"
