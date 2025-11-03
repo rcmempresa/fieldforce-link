@@ -67,24 +67,30 @@ export function CreateWorkOrderDialog({
   }, [formData.client_id]);
 
   const fetchClients = async () => {
-    const { data } = await supabase
-      .from("user_roles")
-      .select(`
-        user_id,
-        profiles!user_roles_user_id_fkey (
-          id,
-          name
-        )
-      `)
-      .eq("role", "client")
-      .eq("approved", true);
+    try {
+      const { data, error } = await supabase.functions.invoke('list-users', {
+        body: { role: 'client' },
+      });
 
-    if (data) {
-      const clientList = data.map((item: any) => ({
-        id: item.profiles.id,
-        name: item.profiles.name,
-      }));
-      setClients(clientList);
+      if (error) {
+        console.error('Error fetching clients:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar os clientes",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data?.users) {
+        const clientList = data.users.map((user: any) => ({
+          id: user.id,
+          name: user.name,
+        }));
+        setClients(clientList);
+      }
+    } catch (error) {
+      console.error('Error fetching clients:', error);
     }
   };
 
