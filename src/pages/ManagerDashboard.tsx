@@ -3,9 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Users, CheckCircle, UserCheck } from "lucide-react";
+import { ClipboardList, Users, CheckCircle, UserCheck, Calendar as CalendarIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Calendar } from "@/components/ui/calendar";
+import { format, isSameDay } from "date-fns";
+import { pt } from "date-fns/locale";
 import {
   Select,
   SelectContent,
@@ -26,6 +29,7 @@ interface WorkOrder {
   reference: string;
   title: string;
   status: string;
+  scheduled_date?: string | null;
 }
 
 interface Stats {
@@ -42,12 +46,15 @@ export default function ManagerDashboard() {
   const [selectedRoles, setSelectedRoles] = useState<Record<string, string>>({});
   const [stats, setStats] = useState<Stats>({ pending: 0, inProgress: 0, completed: 0, activeEmployees: 0, activeClients: 0 });
   const [recentOrders, setRecentOrders] = useState<WorkOrder[]>([]);
+  const [calendarOrders, setCalendarOrders] = useState<WorkOrder[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const { toast } = useToast();
 
   useEffect(() => {
     fetchPendingUsers();
     fetchStats();
     fetchRecentOrders();
+    fetchCalendarOrders();
   }, []);
 
   const fetchPendingUsers = async () => {
@@ -137,13 +144,37 @@ export default function ManagerDashboard() {
   const fetchRecentOrders = async () => {
     const { data } = await supabase
       .from("work_orders")
-      .select("id, reference, title, status")
+      .select("id, reference, title, status, scheduled_date")
       .order("created_at", { ascending: false })
       .limit(5);
 
     if (data) {
       setRecentOrders(data);
     }
+  };
+
+  const fetchCalendarOrders = async () => {
+    const { data } = await supabase
+      .from("work_orders")
+      .select("id, reference, title, status, scheduled_date")
+      .not("scheduled_date", "is", null)
+      .order("scheduled_date", { ascending: true });
+
+    if (data) {
+      setCalendarOrders(data);
+    }
+  };
+
+  const getOrdersForDate = (date: Date) => {
+    return calendarOrders.filter(order => 
+      order.scheduled_date && isSameDay(new Date(order.scheduled_date), date)
+    );
+  };
+
+  const hasOrdersOnDate = (date: Date) => {
+    return calendarOrders.some(order => 
+      order.scheduled_date && isSameDay(new Date(order.scheduled_date), date)
+    );
   };
 
   const approveUser = async (userId: string) => {
@@ -393,6 +424,69 @@ export default function ManagerDashboard() {
                 ))}
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Calendar View */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarIcon className="h-5 w-5" />
+              Calendário de Ordens de Trabalho
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  locale={pt}
+                  className="rounded-md border"
+                  modifiers={{
+                    hasOrders: (date) => hasOrdersOnDate(date)
+                  }}
+                  modifiersStyles={{
+                    hasOrders: { 
+                      fontWeight: 'bold',
+                      backgroundColor: 'hsl(var(--primary) / 0.1)',
+                      color: 'hsl(var(--primary))'
+                    }
+                  }}
+                />
+              </div>
+              <div>
+                <h4 className="font-medium mb-3">
+                  {selectedDate ? format(selectedDate, "dd 'de' MMMM, yyyy", { locale: pt }) : "Selecione uma data"}
+                </h4>
+                {selectedDate && getOrdersForDate(selectedDate).length > 0 ? (
+                  <div className="space-y-2">
+                    {getOrdersForDate(selectedDate).map((order) => (
+                      <div
+                        key={order.id}
+                        className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 cursor-pointer transition-colors"
+                        onClick={() => navigate(`/work-orders/${order.id}`)}
+                      >
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{order.reference}</p>
+                          <p className="text-xs text-muted-foreground">{order.title}</p>
+                        </div>
+                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${getStatusColor(order.status)}`}>
+                          {getStatusLabel(order.status)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    {selectedDate 
+                      ? "Nenhuma ordem agendada para esta data" 
+                      : "Selecione uma data no calendário"}
+                  </p>
+                )}
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
