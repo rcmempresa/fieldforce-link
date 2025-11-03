@@ -258,14 +258,14 @@ export default function Employees() {
       <div className="space-y-6">
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Funcionários</CardTitle>
-              <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center justify-between sm:justify-start gap-4">
+                <CardTitle>Funcionários</CardTitle>
                 <div className="text-sm text-muted-foreground">
                   Total: {employees.length}
                 </div>
-                <CreateEmployeeDialog onSuccess={fetchEmployees} />
               </div>
+              <CreateEmployeeDialog onSuccess={fetchEmployees} />
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
