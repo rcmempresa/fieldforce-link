@@ -133,12 +133,21 @@ export function useAuth() {
 
   const signOut = async () => {
     try {
+      // Clear state first
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+      setRoles([]);
+      setApproved(false);
+      
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      
       toast.success("Sessão terminada!");
       navigate("/auth");
     } catch (error: any) {
-      toast.error(error.message);
+      console.error("Logout error:", error);
+      toast.error("Erro ao terminar sessão: " + error.message);
     }
   };
 
