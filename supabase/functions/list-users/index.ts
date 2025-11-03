@@ -24,11 +24,47 @@ serve(async (req) => {
       })
     }
     
-    const token = authHeader.replace('Bearer ', '')
-    console.log('Token extracted, length:', token.length)
-    console.log('Token starts with:', token.substring(0, 20) + '...')
+    console.log('Authorization header found')
     
-    // Create admin client for privileged operations
+    // Create a Supabase client with the user's JWT token
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: authHeader }
+        }
+      }
+    )
+
+    // Verify the user is authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError) {
+      console.error('Auth verification failed:', authError.message)
+      return new Response(JSON.stringify({ 
+        error: 'Unauthorized', 
+        details: authError.message
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    
+    if (!user) {
+      console.error('No user found')
+      return new Response(JSON.stringify({ 
+        error: 'Unauthorized', 
+        details: 'No user found'
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    console.log('User authenticated:', user.id)
+    
+    // Create admin client for privileged database operations
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -39,40 +75,6 @@ serve(async (req) => {
         }
       }
     )
-
-    console.log('Supabase admin client created')
-    
-    // Verify the user is authenticated by getting user from JWT token
-    console.log('Attempting to verify user with token')
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
-    
-    if (authError) {
-      console.error('Auth error details:', {
-        message: authError.message,
-        name: authError.name,
-        status: authError.status
-      })
-      return new Response(JSON.stringify({ 
-        error: 'Unauthorized', 
-        details: authError.message || 'Invalid or expired token'
-      }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-    
-    if (!user) {
-      console.error('No user found in token')
-      return new Response(JSON.stringify({ 
-        error: 'Unauthorized', 
-        details: 'Invalid or expired token - no user found'
-      }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    console.log('User authenticated:', user.id)
 
     // Check if user is a manager
     const { data: roles, error: rolesError } = await supabaseAdmin
