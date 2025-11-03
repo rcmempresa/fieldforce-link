@@ -49,43 +49,32 @@ export default function Clients() {
   }, [searchTerm, clients]);
 
   const fetchClients = async () => {
-    const { data: userRoles } = await supabase
-      .from("user_roles")
-      .select(`
-        user_id,
-        role,
-        approved,
-        created_at,
-        profiles!user_roles_user_id_fkey (
-          id,
-          name,
-          phone,
-          company_name,
-          address
-        )
-      `)
-      .eq("role", "client");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: "Erro",
+          description: "Sessão não encontrada",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    if (userRoles) {
-      const { data } = await supabase.auth.admin.listUsers();
-      const users = data?.users || [];
-      
-      const clientsWithEmails = userRoles.map((item: any) => {
-        const authUser = users.find(u => u.id === item.profiles.id);
-        return {
-          id: item.profiles.id,
-          name: item.profiles.name,
-          email: authUser?.email || "N/A",
-          phone: item.profiles.phone,
-          company_name: item.profiles.company_name,
-          address: item.profiles.address,
-          role: item.role,
-          approved: item.approved,
-          created_at: item.created_at,
-        };
+      const { data, error } = await supabase.functions.invoke('list-users', {
+        body: { role: 'client' },
       });
 
-      setClients(clientsWithEmails);
+      if (error) throw error;
+
+      setClients(data.users || []);
+      setFilteredClients(data.users || []);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os clientes",
+        variant: "destructive",
+      });
     }
   };
 
@@ -107,15 +96,13 @@ export default function Clients() {
   const handleDelete = async () => {
     if (!selectedClient) return;
 
-    const { error } = await supabase.auth.admin.deleteUser(selectedClient.id);
-
-    if (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao eliminar cliente",
-        variant: "destructive",
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { userId: selectedClient.id },
       });
-    } else {
+
+      if (error) throw error;
+
       toast({
         title: "Sucesso",
         description: "Cliente eliminado com sucesso",
@@ -123,6 +110,13 @@ export default function Clients() {
       fetchClients();
       setDeleteDialogOpen(false);
       setSelectedClient(null);
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao eliminar cliente",
+        variant: "destructive",
+      });
     }
   };
 
