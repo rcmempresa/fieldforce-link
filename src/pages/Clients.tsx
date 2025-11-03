@@ -419,7 +419,7 @@ export default function Clients() {
                                 >
                                   <div className="flex-1 space-y-1">
                                     <div className="font-medium">{equipment.name}</div>
-                                    <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                                    <div className="flex flex-col gap-1 text-xs text-muted-foreground">
                                       {equipment.model && (
                                         <div>Modelo: {equipment.model}</div>
                                       )}
