@@ -332,11 +332,11 @@ export default function ManagerDashboard() {
               <ClipboardList className="mr-2 h-4 w-4" />
               Gerir Ordens de Trabalho
             </Button>
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => window.location.href = '/employees'}>
               <Users className="mr-2 h-4 w-4" />
               Gerir Funcionários
             </Button>
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => window.location.href = '/equipments'}>
               <Wrench className="mr-2 h-4 w-4" />
               Gerir Equipamentos
             </Button>
