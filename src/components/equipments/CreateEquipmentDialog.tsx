@@ -4,13 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -18,12 +11,7 @@ interface CreateEquipmentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  clientId?: string | null;
-}
-
-interface Client {
-  id: string;
-  name: string;
+  clientId: string;
 }
 
 export function CreateEquipmentDialog({
@@ -32,7 +20,6 @@ export function CreateEquipmentDialog({
   onSuccess,
   clientId,
 }: CreateEquipmentDialogProps) {
-  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -40,43 +27,22 @@ export function CreateEquipmentDialog({
     serial_number: "",
     location: "",
     notes: "",
-    client_id: clientId || "",
   });
 
-  useEffect(() => {
-    if (clientId) {
-      setFormData(prev => ({ ...prev, client_id: clientId }));
-    }
-  }, [clientId]);
   const { toast } = useToast();
 
   useEffect(() => {
-    if (open) {
-      fetchClients();
+    // Reset form when dialog closes
+    if (!open) {
+      setFormData({
+        name: "",
+        model: "",
+        serial_number: "",
+        location: "",
+        notes: "",
+      });
     }
   }, [open]);
-
-  const fetchClients = async () => {
-    const { data } = await supabase
-      .from("user_roles")
-      .select(`
-        user_id,
-        profiles!user_roles_user_id_fkey (
-          id,
-          name
-        )
-      `)
-      .eq("role", "client")
-      .eq("approved", true);
-
-    if (data) {
-      const clientList = data.map((item: any) => ({
-        id: item.profiles.id,
-        name: item.profiles.name,
-      }));
-      setClients(clientList);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,7 +54,7 @@ export function CreateEquipmentDialog({
       serial_number: formData.serial_number || null,
       location: formData.location || null,
       notes: formData.notes || null,
-      client_id: formData.client_id,
+      client_id: clientId,
     });
 
     setLoading(false);
@@ -103,14 +69,6 @@ export function CreateEquipmentDialog({
       toast({
         title: "Sucesso",
         description: "Equipamento criado com sucesso",
-      });
-      setFormData({
-        name: "",
-        model: "",
-        serial_number: "",
-        location: "",
-        notes: "",
-        client_id: "",
       });
       onOpenChange(false);
       onSuccess();
@@ -163,26 +121,6 @@ export function CreateEquipmentDialog({
               value={formData.location}
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="client">Cliente *</Label>
-            <Select
-              value={formData.client_id}
-              onValueChange={(value) => setFormData({ ...formData, client_id: value })}
-              required
-            >
-              <SelectTrigger id="client">
-                <SelectValue placeholder="Selecionar cliente" />
-              </SelectTrigger>
-              <SelectContent>
-                {clients.map((client) => (
-                  <SelectItem key={client.id} value={client.id}>
-                    {client.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="space-y-2">

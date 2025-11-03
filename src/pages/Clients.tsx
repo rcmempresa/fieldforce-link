@@ -419,7 +419,7 @@ export default function Clients() {
           fetchClients();
           setCreateEquipmentDialogOpen(false);
         }}
-        clientId={currentClientId}
+        clientId={currentClientId!}
       />
 
       <EditEquipmentDialog
