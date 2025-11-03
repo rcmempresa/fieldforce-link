@@ -8,18 +8,27 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { user, profile, loading } = useAuth();
+  const { user, roles, approved, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!loading && !user) {
       navigate("/auth");
+      return;
     }
 
-    if (!loading && user && profile && allowedRoles && !allowedRoles.includes(profile.role)) {
-      navigate("/");
+    if (!loading && user && !approved) {
+      navigate("/pending-approval");
+      return;
     }
-  }, [user, profile, loading, navigate, allowedRoles]);
+
+    if (!loading && user && approved && allowedRoles) {
+      const hasAllowedRole = roles.some(role => allowedRoles.includes(role));
+      if (!hasAllowedRole) {
+        navigate("/");
+      }
+    }
+  }, [user, roles, approved, loading, navigate, allowedRoles]);
 
   if (loading) {
     return (

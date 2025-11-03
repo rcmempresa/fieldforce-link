@@ -191,7 +191,6 @@ export type Database = {
           id: string
           name: string
           phone: string | null
-          role: Database["public"]["Enums"]["user_role"]
           updated_at: string
         }
         Insert: {
@@ -201,7 +200,6 @@ export type Database = {
           id: string
           name: string
           phone?: string | null
-          role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
         }
         Update: {
@@ -211,7 +209,6 @@ export type Database = {
           id?: string
           name?: string
           phone?: string | null
-          role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
         }
         Relationships: []
@@ -266,6 +263,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_roles: {
+        Row: {
+          approved: boolean
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          approved?: boolean
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          approved?: boolean
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
       }
       work_order_assignments: {
         Row: {
@@ -417,19 +444,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_user_role: {
+      get_user_roles: {
         Args: { _user_id: string }
-        Returns: Database["public"]["Enums"]["user_role"]
+        Returns: Database["public"]["Enums"]["app_role"][]
       }
       has_role: {
         Args: {
-          _role: Database["public"]["Enums"]["user_role"]
+          _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
       }
+      is_approved: { Args: { _user_id: string }; Returns: boolean }
+      is_first_user: { Args: never; Returns: boolean }
     }
     Enums: {
+      app_role: "manager" | "employee" | "client"
       notification_channel: "email" | "sms" | "both"
       user_role: "manager" | "employee" | "client"
       work_order_priority: "low" | "medium" | "high" | "urgent"
@@ -566,6 +596,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["manager", "employee", "client"],
       notification_channel: ["email", "sms", "both"],
       user_role: ["manager", "employee", "client"],
       work_order_priority: ["low", "medium", "high", "urgent"],

@@ -18,7 +18,7 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children, title }: DashboardLayoutProps) {
-  const { profile, signOut } = useAuth();
+  const { profile, roles, signOut } = useAuth();
 
   const getRoleName = (role: string) => {
     switch (role) {
@@ -52,9 +52,9 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
             </div>
             <div>
               <h1 className="text-lg font-semibold">{title}</h1>
-              {profile && (
+              {profile && roles.length > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  {getRoleName(profile.role)}
+                  {getRoleName(roles[0])}
                 </p>
               )}
             </div>
@@ -74,7 +74,7 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium">{profile?.name}</p>
-                  <p className="text-xs text-muted-foreground">{getRoleName(profile?.role || "")}</p>
+                  <p className="text-xs text-muted-foreground">{roles.length > 0 ? getRoleName(roles[0]) : ""}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />

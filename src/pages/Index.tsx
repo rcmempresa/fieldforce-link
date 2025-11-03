@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
 const Index = () => {
-  const { user, profile, loading } = useAuth();
+  const { user, roles, approved, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -14,20 +14,26 @@ const Index = () => {
       return;
     }
 
-    if (profile) {
-      switch (profile.role) {
-        case "manager":
-          navigate("/manager");
-          break;
-        case "employee":
-          navigate("/employee");
-          break;
-        case "client":
-          navigate("/client");
-          break;
-      }
+    // Check if user is approved
+    if (!approved || roles.length === 0) {
+      navigate("/pending-approval");
+      return;
     }
-  }, [user, profile, loading, navigate]);
+
+    // Redirect based on first role
+    const primaryRole = roles[0];
+    switch (primaryRole) {
+      case "manager":
+        navigate("/manager");
+        break;
+      case "employee":
+        navigate("/employee");
+        break;
+      case "client":
+        navigate("/client");
+        break;
+    }
+  }, [user, roles, approved, loading, navigate]);
 
   if (loading) {
     return (

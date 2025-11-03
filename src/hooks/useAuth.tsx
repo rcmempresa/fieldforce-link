@@ -4,11 +4,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
 
+interface UserRole {
+  role: "manager" | "employee" | "client";
+  approved: boolean;
+}
+
 export interface Profile {
   id: string;
   name: string;
   phone: string | null;
-  role: "manager" | "employee" | "client";
   company_name: string | null;
   address: string | null;
 }
@@ -17,52 +21,77 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [roles, setRoles] = useState<Array<"manager" | "employee" | "client">>([]);
+  const [approved, setApproved] = useState(false);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  const fetchUserData = async (userId: string) => {
+    // Fetch profile
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (profileData) {
+      setProfile(profileData as Profile);
+    }
+
+    // Fetch roles
+    const { data: rolesData } = await supabase
+      .from("user_roles")
+      .select("role, approved")
+      .eq("user_id", userId);
+
+    if (rolesData && rolesData.length > 0) {
+      const approvedRoles = rolesData.filter((r: UserRole) => r.approved);
+      setRoles(approvedRoles.map((r: UserRole) => r.role));
+      setApproved(approvedRoles.length > 0);
+    } else {
+      setRoles([]);
+      setApproved(false);
+    }
+  };
 
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch profile data
-          setTimeout(async () => {
-            // @ts-expect-error - Types will be generated after migration
-            const { data, error } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
-            
-            if (data && !error) {
-              setProfile(data as Profile);
-            }
+          // Defer data fetching to avoid blocking
+          setTimeout(() => {
+            fetchUserData(session.user.id);
           }, 0);
         } else {
           setProfile(null);
+          setRoles([]);
+          setApproved(false);
         }
       }
     );
 
     // Check for existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        // @ts-expect-error - Types will be generated after migration
-        const { data, error } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
-        
-        if (data && !error) {
-          setProfile(data as Profile);
-        }
+        fetchUserData(session.user.id).then(() => {
+          setLoading(false);
+        });
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, name: string, role: "manager" | "employee" | "client" = "client") => {
+  const signUp = async (email: string, password: string, name: string) => {
     try {
       const redirectUrl = `${window.location.origin}/`;
       
@@ -73,7 +102,6 @@ export function useAuth() {
           emailRedirectTo: redirectUrl,
           data: {
             name,
-            role,
           },
         },
       });
@@ -118,6 +146,8 @@ export function useAuth() {
     user,
     session,
     profile,
+    roles,
+    approved,
     loading,
     signUp,
     signIn,
