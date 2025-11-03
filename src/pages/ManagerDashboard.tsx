@@ -32,12 +32,13 @@ interface Stats {
   inProgress: number;
   completed: number;
   activeEmployees: number;
+  activeClients: number;
 }
 
 export default function ManagerDashboard() {
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<Record<string, string>>({});
-  const [stats, setStats] = useState<Stats>({ pending: 0, inProgress: 0, completed: 0, activeEmployees: 0 });
+  const [stats, setStats] = useState<Stats>({ pending: 0, inProgress: 0, completed: 0, activeEmployees: 0, activeClients: 0 });
   const [recentOrders, setRecentOrders] = useState<WorkOrder[]>([]);
   const { toast } = useToast();
 
@@ -115,11 +116,19 @@ export default function ManagerDashboard() {
       .eq("role", "employee")
       .eq("approved", true);
 
+    // Active clients
+    const { count: clientsCount } = await supabase
+      .from("user_roles")
+      .select("*", { count: "exact", head: true })
+      .eq("role", "client")
+      .eq("approved", true);
+
     setStats({
       pending: pendingCount || 0,
       inProgress: inProgressCount || 0,
       completed: completedCount || 0,
       activeEmployees: employeesCount || 0,
+      activeClients: clientsCount || 0,
     });
   };
 
@@ -222,7 +231,7 @@ export default function ManagerDashboard() {
     <DashboardLayout title="Dashboard do Gerente">
       <div className="space-y-6">
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Ordens Pendentes</CardTitle>
@@ -263,6 +272,17 @@ export default function ManagerDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.activeEmployees}</div>
+              <p className="text-xs text-muted-foreground">Ativos</p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Clientes</CardTitle>
+              <Users className="h-4 w-4 text-accent" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.activeClients}</div>
               <p className="text-xs text-muted-foreground">Ativos</p>
             </CardContent>
           </Card>
