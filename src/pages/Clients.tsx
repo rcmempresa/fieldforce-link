@@ -406,23 +406,11 @@ export default function Clients() {
 
                       <CollapsibleContent>
                         <div className="border-t bg-muted/30 p-4">
-                          <div className="flex flex-col gap-3 mb-4">
-                            <div className="flex items-center justify-between">
-                              <h4 className="font-semibold flex items-center gap-2">
-                                <Package className="h-4 w-4" />
-                                Equipamentos
-                              </h4>
-                              <Button
-                                size="sm"
-                                onClick={() => {
-                                  setCurrentClientId(client.id);
-                                  setCreateEquipmentDialogOpen(true);
-                                }}
-                              >
-                                <Plus className="h-4 w-4 mr-1" />
-                                Adicionar
-                              </Button>
-                            </div>
+                          <div className="mb-4">
+                            <h4 className="font-semibold flex items-center gap-2">
+                              <Package className="h-4 w-4" />
+                              Equipamentos
+                            </h4>
                           </div>
                           {client.equipments && client.equipments.length > 0 ? (
                             <div className="space-y-3">
@@ -453,18 +441,18 @@ export default function Clients() {
                                             <span className="flex-1">{equipment.location}</span>
                                           </div>
                                         )}
+                                        {equipment.notes && (
+                                          <div className="flex items-start gap-2">
+                                            <span className="font-medium min-w-[80px]">Notas:</span>
+                                            <span className="flex-1">{equipment.notes}</span>
+                                          </div>
+                                        )}
                                       </div>
-                                      {equipment.notes && (
-                                        <div className="text-sm pt-2 border-t">
-                                          <span className="font-medium text-muted-foreground">Notas:</span>{" "}
-                                          <span className="text-muted-foreground">{equipment.notes}</span>
-                                        </div>
-                                      )}
                                     </div>
-                                    <div className="flex flex-col gap-1">
+                                    <div className="flex flex-col gap-2">
                                       <Button
-                                        size="sm"
                                         variant="ghost"
+                                        size="sm"
                                         onClick={() => {
                                           setSelectedEquipment(equipment);
                                           setEditEquipmentDialogOpen(true);
@@ -472,45 +460,29 @@ export default function Clients() {
                                       >
                                         <Edit className="h-4 w-4" />
                                       </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={async () => {
-                                          try {
-                                            const { error } = await supabase
-                                              .from('equipments')
-                                              .delete()
-                                              .eq('id', equipment.id);
-
-                                            if (error) throw error;
-
-                                            toast({
-                                              title: "Sucesso",
-                                              description: "Equipamento eliminado com sucesso",
-                                            });
-                                            fetchClients();
-                                          } catch (error) {
-                                            console.error('Error deleting equipment:', error);
-                                            toast({
-                                              title: "Erro",
-                                              description: "Erro ao eliminar equipamento",
-                                              variant: "destructive",
-                                            });
-                                          }
-                                        }}
-                                      >
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                      </Button>
                                     </div>
                                   </div>
                                 </div>
                               ))}
                             </div>
                           ) : (
-                            <p className="text-sm text-muted-foreground text-center py-6">
+                            <p className="text-sm text-muted-foreground text-center py-4">
                               Nenhum equipamento registado
                             </p>
                           )}
+                          <div className="mt-4 flex justify-center">
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setCurrentClientId(client.id);
+                                setCreateEquipmentDialogOpen(true);
+                              }}
+                              className="w-full sm:w-auto"
+                            >
+                              <Plus className="h-4 w-4 mr-1" />
+                              Adicionar Equipamento
+                            </Button>
+                          </div>
                         </div>
                       </CollapsibleContent>
                     </div>
