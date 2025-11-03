@@ -394,7 +394,7 @@ export default function Clients() {
 
                       <CollapsibleContent>
                         <div className="border-t bg-muted/30 p-4">
-                          <div className="flex items-center justify-between mb-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                             <h4 className="font-medium flex items-center gap-2">
                               <Package className="h-4 w-4" />
                               Equipamentos
