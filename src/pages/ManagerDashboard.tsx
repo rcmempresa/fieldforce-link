@@ -471,6 +471,11 @@ export default function ManagerDashboard() {
                         <div className="flex-1">
                           <p className="font-medium text-sm">{order.reference}</p>
                           <p className="text-xs text-muted-foreground">{order.title}</p>
+                          {order.scheduled_date && (
+                            <p className="text-xs font-medium text-primary mt-1">
+                              {format(new Date(order.scheduled_date), "HH:mm", { locale: pt })}
+                            </p>
+                          )}
                         </div>
                         <span className={`rounded-full px-2 py-1 text-xs font-medium ${getStatusColor(order.status)}`}>
                           {getStatusLabel(order.status)}
