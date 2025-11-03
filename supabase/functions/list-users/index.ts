@@ -52,9 +52,8 @@ serve(async (req) => {
       })
     }
 
-    // Get query params
-    const url = new URL(req.url)
-    const role = url.searchParams.get('role')
+    // Get role from request body
+    const { role } = await req.json().catch(() => ({}))
 
     // Get user roles with profile data
     let query = supabaseAdmin
