@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Users, Wrench, CheckCircle, UserCheck } from "lucide-react";
+import { ClipboardList, Users, CheckCircle, UserCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -237,7 +237,7 @@ export default function ManagerDashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Em Progresso</CardTitle>
-              <Wrench className="h-4 w-4 text-primary" />
+              <ClipboardList className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.inProgress}</div>
@@ -339,10 +339,6 @@ export default function ManagerDashboard() {
             <Button variant="outline" onClick={() => window.location.href = '/clients'}>
               <Users className="mr-2 h-4 w-4" />
               Gerir Clientes
-            </Button>
-            <Button variant="outline" onClick={() => window.location.href = '/equipments'}>
-              <Wrench className="mr-2 h-4 w-4" />
-              Gerir Equipamentos
             </Button>
           </CardContent>
         </Card>

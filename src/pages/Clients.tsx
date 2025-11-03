@@ -3,7 +3,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Mail, Phone, Trash2, Edit, Building2, MapPin } from "lucide-react";
+import { Search, Mail, Phone, Trash2, Edit, Building2, MapPin, Package, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CreateEmployeeDialog } from "@/components/employees/CreateEmployeeDialog";
@@ -18,6 +18,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
+interface Equipment {
+  id: string;
+  name: string;
+  model: string | null;
+  serial_number: string | null;
+  location: string | null;
+  notes: string | null;
+}
 
 interface Client {
   id: string;
@@ -29,6 +39,7 @@ interface Client {
   created_at: string;
   company_name?: string | null;
   address?: string | null;
+  equipments?: Equipment[];
 }
 
 export default function Clients() {
@@ -38,6 +49,7 @@ export default function Clients() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -66,8 +78,23 @@ export default function Clients() {
 
       if (error) throw error;
 
-      setClients(data.users || []);
-      setFilteredClients(data.users || []);
+      // Fetch equipments for each client
+      const clientsWithEquipments = await Promise.all(
+        (data.users || []).map(async (client: Client) => {
+          const { data: equipments } = await supabase
+            .from('equipments')
+            .select('*')
+            .eq('client_id', client.id);
+          
+          return {
+            ...client,
+            equipments: equipments || []
+          };
+        })
+      );
+
+      setClients(clientsWithEquipments);
+      setFilteredClients(clientsWithEquipments);
     } catch (error) {
       console.error('Error fetching clients:', error);
       toast({
@@ -120,6 +147,16 @@ export default function Clients() {
     }
   };
 
+  const toggleClientExpanded = (clientId: string) => {
+    const newExpanded = new Set(expandedClients);
+    if (newExpanded.has(clientId)) {
+      newExpanded.delete(clientId);
+    } else {
+      newExpanded.add(clientId);
+    }
+    setExpandedClients(newExpanded);
+  };
+
   return (
     <DashboardLayout title="Gerir Clientes">
       <div className="space-y-6">
@@ -153,70 +190,131 @@ export default function Clients() {
             ) : (
               <div className="space-y-4">
                 {filteredClients.map((client) => (
-                  <div
+                  <Collapsible
                     key={client.id}
-                    className="flex items-center justify-between rounded-lg border p-4"
+                    open={expandedClients.has(client.id)}
+                    onOpenChange={() => toggleClientExpanded(client.id)}
                   >
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">{client.name}</p>
-                        {!client.approved && (
-                          <span className="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
-                            Não Aprovado
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Mail className="h-3 w-3" />
-                          {client.email}
+                    <div className="rounded-lg border">
+                      <div className="flex items-center justify-between p-4">
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{client.name}</p>
+                            {!client.approved && (
+                              <span className="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
+                                Não Aprovado
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <Mail className="h-3 w-3" />
+                              {client.email}
+                            </div>
+                            {client.phone && (
+                              <div className="flex items-center gap-1">
+                                <Phone className="h-3 w-3" />
+                                {client.phone}
+                              </div>
+                            )}
+                            {client.company_name && (
+                              <div className="flex items-center gap-1">
+                                <Building2 className="h-3 w-3" />
+                                {client.company_name}
+                              </div>
+                            )}
+                            {client.address && (
+                              <div className="flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />
+                                {client.address}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <p className="text-xs text-muted-foreground">
+                              Registado: {new Date(client.created_at).toLocaleDateString()}
+                            </p>
+                            {client.equipments && client.equipments.length > 0 && (
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Package className="h-3 w-3" />
+                                {client.equipments.length} equipamento{client.equipments.length !== 1 ? 's' : ''}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        {client.phone && (
-                          <div className="flex items-center gap-1">
-                            <Phone className="h-3 w-3" />
-                            {client.phone}
-                          </div>
-                        )}
-                        {client.company_name && (
-                          <div className="flex items-center gap-1">
-                            <Building2 className="h-3 w-3" />
-                            {client.company_name}
-                          </div>
-                        )}
-                        {client.address && (
-                          <div className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {client.address}
-                          </div>
-                        )}
+                        <div className="flex gap-2">
+                          {client.equipments && client.equipments.length > 0 && (
+                            <CollapsibleTrigger asChild>
+                              <Button size="sm" variant="ghost">
+                                {expandedClients.has(client.id) ? (
+                                  <ChevronUp className="h-4 w-4" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </CollapsibleTrigger>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setSelectedClient(client);
+                              setEditDialogOpen(true);
+                            }}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setSelectedClient(client);
+                              setDeleteDialogOpen(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Registado: {new Date(client.created_at).toLocaleDateString()}
-                      </p>
+
+                      <CollapsibleContent>
+                        {client.equipments && client.equipments.length > 0 && (
+                          <div className="border-t bg-muted/30 p-4">
+                            <h4 className="font-medium mb-3 flex items-center gap-2">
+                              <Package className="h-4 w-4" />
+                              Equipamentos
+                            </h4>
+                            <div className="space-y-2">
+                              {client.equipments.map((equipment) => (
+                                <div
+                                  key={equipment.id}
+                                  className="flex flex-col gap-1 rounded bg-background p-3 text-sm"
+                                >
+                                  <div className="font-medium">{equipment.name}</div>
+                                  <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                                    {equipment.model && (
+                                      <div>Modelo: {equipment.model}</div>
+                                    )}
+                                    {equipment.serial_number && (
+                                      <div>Nº Série: {equipment.serial_number}</div>
+                                    )}
+                                    {equipment.location && (
+                                      <div>Localização: {equipment.location}</div>
+                                    )}
+                                  </div>
+                                  {equipment.notes && (
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      Notas: {equipment.notes}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </CollapsibleContent>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setSelectedClient(client);
-                          setEditDialogOpen(true);
-                        }}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setSelectedClient(client);
-                          setDeleteDialogOpen(true);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
+                  </Collapsible>
                 ))}
               </div>
             )}
