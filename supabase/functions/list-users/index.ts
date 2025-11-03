@@ -25,7 +25,8 @@ serve(async (req) => {
     }
     
     const token = authHeader.replace('Bearer ', '')
-    console.log('Token extracted')
+    console.log('Token extracted, length:', token.length)
+    console.log('Token starts with:', token.substring(0, 20) + '...')
     
     // Create admin client for privileged operations
     const supabaseAdmin = createClient(
@@ -42,12 +43,29 @@ serve(async (req) => {
     console.log('Supabase admin client created')
     
     // Verify the user is authenticated by getting user from JWT token
+    console.log('Attempting to verify user with token')
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
-    if (authError || !user) {
-      console.error('Auth error:', authError)
+    
+    if (authError) {
+      console.error('Auth error details:', {
+        message: authError.message,
+        name: authError.name,
+        status: authError.status
+      })
       return new Response(JSON.stringify({ 
         error: 'Unauthorized', 
-        details: authError?.message || 'Invalid or expired token'
+        details: authError.message || 'Invalid or expired token'
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    
+    if (!user) {
+      console.error('No user found in token')
+      return new Response(JSON.stringify({ 
+        error: 'Unauthorized', 
+        details: 'Invalid or expired token - no user found'
       }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

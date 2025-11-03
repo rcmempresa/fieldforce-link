@@ -68,24 +68,21 @@ export default function Clients() {
 
   const fetchClients = async () => {
     try {
-      // Ensure we have a valid session
+      // Ensure we have a valid session with fresh token
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError || !session) {
         console.error('Session error:', sessionError);
-        // Try to refresh the session
-        const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession();
-        
-        if (refreshError || !newSession) {
-          toast({
-            title: "Erro de Autenticação",
-            description: "Por favor, faça login novamente",
-            variant: "destructive",
-          });
-          return;
-        }
+        toast({
+          title: "Erro de Autenticação",
+          description: "Por favor, faça login novamente",
+          variant: "destructive",
+        });
+        return;
       }
 
+      console.log('Calling list-users with valid session');
+      
       const { data, error } = await supabase.functions.invoke('list-users', {
         body: { role: 'client' },
       });
