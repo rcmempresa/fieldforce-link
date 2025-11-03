@@ -320,9 +320,9 @@ export default function ManagerDashboard() {
             <CardTitle>Ações Rápidas</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3">
-            <Button>
+            <Button onClick={() => window.location.href = '/work-orders'}>
               <ClipboardList className="mr-2 h-4 w-4" />
-              Nova Ordem de Trabalho
+              Gerir Ordens de Trabalho
             </Button>
             <Button variant="outline">
               <Users className="mr-2 h-4 w-4" />

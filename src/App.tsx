@@ -10,6 +10,8 @@ import PendingApproval from "./pages/PendingApproval";
 import ManagerDashboard from "./pages/ManagerDashboard";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import ClientDashboard from "./pages/ClientDashboard";
+import WorkOrders from "./pages/WorkOrders";
+import WorkOrderDetails from "./pages/WorkOrderDetails";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,6 +47,22 @@ const App = () => (
             element={
               <ProtectedRoute allowedRoles={["client"]}>
                 <ClientDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/work-orders"
+            element={
+              <ProtectedRoute allowedRoles={["manager"]}>
+                <WorkOrders />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/work-orders/:id"
+            element={
+              <ProtectedRoute allowedRoles={["manager"]}>
+                <WorkOrderDetails />
               </ProtectedRoute>
             }
           />
