@@ -48,31 +48,39 @@ export default function ManagerDashboard() {
   }, []);
 
   const fetchPendingUsers = async () => {
-    const { data: usersWithoutRoles } = await supabase
-      .from("profiles")
-      .select(`
-        id,
-        name,
-        created_at
-      `)
-      .not("id", "in", 
-        supabase
-          .from("user_roles")
-          .select("user_id")
-      );
+    // First, get all user IDs that have roles
+    const { data: usersWithRoles } = await supabase
+      .from("user_roles")
+      .select("user_id");
 
-    if (usersWithoutRoles) {
-      // Get emails from auth.users
-      const usersWithEmails = await Promise.all(
-        usersWithoutRoles.map(async (user) => {
-          const { data: { user: authUser } } = await supabase.auth.admin.getUserById(user.id);
-          return {
-            ...user,
-            email: authUser?.email || "N/A",
-          };
-        })
-      );
+    const userIdsWithRoles = usersWithRoles?.map(r => r.user_id) || [];
+
+    // Then get all profiles
+    const { data: allProfiles } = await supabase
+      .from("profiles")
+      .select("id, name, created_at");
+
+    // Filter profiles that don't have roles
+    const usersWithoutRoles = allProfiles?.filter(
+      profile => !userIdsWithRoles.includes(profile.id)
+    ) || [];
+
+    if (usersWithoutRoles.length > 0) {
+      // Get user list to find emails
+      const { data } = await supabase.auth.admin.listUsers();
+      const authUsers = data?.users || [];
+      
+      const usersWithEmails = usersWithoutRoles.map((user) => {
+        const authUser = authUsers.find(u => u.id === user.id);
+        return {
+          ...user,
+          email: authUser?.email || "N/A",
+        };
+      });
+      
       setPendingUsers(usersWithEmails as PendingUser[]);
+    } else {
+      setPendingUsers([]);
     }
   };
 
