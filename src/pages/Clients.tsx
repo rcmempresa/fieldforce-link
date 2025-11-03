@@ -68,21 +68,32 @@ export default function Clients() {
 
   const fetchClients = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({
-          title: "Erro",
-          description: "Sessão não encontrada",
-          variant: "destructive",
-        });
-        return;
+      // Ensure we have a valid session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        console.error('Session error:', sessionError);
+        // Try to refresh the session
+        const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (refreshError || !newSession) {
+          toast({
+            title: "Erro de Autenticação",
+            description: "Por favor, faça login novamente",
+            variant: "destructive",
+          });
+          return;
+        }
       }
 
       const { data, error } = await supabase.functions.invoke('list-users', {
         body: { role: 'client' },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
 
       // Fetch equipments for each client
       const clientsWithEquipments = await Promise.all(

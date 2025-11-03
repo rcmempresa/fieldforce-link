@@ -44,7 +44,10 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
     if (authError) {
       console.error('Auth error:', authError)
-      return new Response(JSON.stringify({ error: 'Unauthorized', details: authError.message }), {
+      return new Response(JSON.stringify({ 
+        error: 'Unauthorized', 
+        details: `Auth session missing! ${authError.message}. Please refresh your browser and login again.` 
+      }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
