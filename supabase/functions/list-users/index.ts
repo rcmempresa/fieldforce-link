@@ -26,38 +26,6 @@ serve(async (req) => {
     
     const token = authHeader.replace('Bearer ', '')
     console.log('Token extracted')
-
-    // Create a Supabase client with the user's token to verify authentication
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: authHeader }
-        },
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    )
-
-    console.log('Supabase client created')
-    
-    // Verify the user is authenticated
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
-    if (authError || !user) {
-      console.error('Auth error:', authError)
-      return new Response(JSON.stringify({ 
-        error: 'Unauthorized', 
-        details: authError?.message || 'User not authenticated'
-      }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    console.log('User authenticated:', user.id)
     
     // Create admin client for privileged operations
     const supabaseAdmin = createClient(
@@ -70,6 +38,23 @@ serve(async (req) => {
         }
       }
     )
+
+    console.log('Supabase admin client created')
+    
+    // Verify the user is authenticated by getting user from JWT token
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
+    if (authError || !user) {
+      console.error('Auth error:', authError)
+      return new Response(JSON.stringify({ 
+        error: 'Unauthorized', 
+        details: authError?.message || 'Invalid or expired token'
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    console.log('User authenticated:', user.id)
 
     // Check if user is a manager
     const { data: roles, error: rolesError } = await supabaseAdmin
