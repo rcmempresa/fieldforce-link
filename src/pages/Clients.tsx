@@ -3,11 +3,13 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Mail, Phone, Trash2, Edit, Building2, MapPin, Package, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Mail, Phone, Trash2, Edit, Building2, MapPin, Package, ChevronDown, ChevronUp, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CreateEmployeeDialog } from "@/components/employees/CreateEmployeeDialog";
 import { EditEmployeeDialog } from "@/components/employees/EditEmployeeDialog";
+import { CreateEquipmentDialog } from "@/components/equipments/CreateEquipmentDialog";
+import { EditEquipmentDialog } from "@/components/equipments/EditEquipmentDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,6 +52,10 @@ export default function Clients() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
+  const [createEquipmentDialogOpen, setCreateEquipmentDialogOpen] = useState(false);
+  const [editEquipmentDialogOpen, setEditEquipmentDialogOpen] = useState(false);
+  const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
+  const [currentClientId, setCurrentClientId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -258,6 +264,16 @@ export default function Clients() {
                             size="sm"
                             variant="ghost"
                             onClick={() => {
+                              setCurrentClientId(client.id);
+                              setCreateEquipmentDialogOpen(true);
+                            }}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
                               setSelectedClient(client);
                               setEditDialogOpen(true);
                             }}
@@ -278,40 +294,99 @@ export default function Clients() {
                       </div>
 
                       <CollapsibleContent>
-                        {client.equipments && client.equipments.length > 0 && (
-                          <div className="border-t bg-muted/30 p-4">
-                            <h4 className="font-medium mb-3 flex items-center gap-2">
+                        <div className="border-t bg-muted/30 p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-medium flex items-center gap-2">
                               <Package className="h-4 w-4" />
                               Equipamentos
                             </h4>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setCurrentClientId(client.id);
+                                setCreateEquipmentDialogOpen(true);
+                              }}
+                            >
+                              <Plus className="h-4 w-4 mr-1" />
+                              Adicionar
+                            </Button>
+                          </div>
+                          {client.equipments && client.equipments.length > 0 ? (
                             <div className="space-y-2">
                               {client.equipments.map((equipment) => (
                                 <div
                                   key={equipment.id}
-                                  className="flex flex-col gap-1 rounded bg-background p-3 text-sm"
+                                  className="flex items-start justify-between rounded bg-background p-3 text-sm"
                                 >
-                                  <div className="font-medium">{equipment.name}</div>
-                                  <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                                    {equipment.model && (
-                                      <div>Modelo: {equipment.model}</div>
-                                    )}
-                                    {equipment.serial_number && (
-                                      <div>Nº Série: {equipment.serial_number}</div>
-                                    )}
-                                    {equipment.location && (
-                                      <div>Localização: {equipment.location}</div>
+                                  <div className="flex-1 space-y-1">
+                                    <div className="font-medium">{equipment.name}</div>
+                                    <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                                      {equipment.model && (
+                                        <div>Modelo: {equipment.model}</div>
+                                      )}
+                                      {equipment.serial_number && (
+                                        <div>Nº Série: {equipment.serial_number}</div>
+                                      )}
+                                      {equipment.location && (
+                                        <div>Localização: {equipment.location}</div>
+                                      )}
+                                    </div>
+                                    {equipment.notes && (
+                                      <div className="text-xs text-muted-foreground mt-1">
+                                        Notas: {equipment.notes}
+                                      </div>
                                     )}
                                   </div>
-                                  {equipment.notes && (
-                                    <div className="text-xs text-muted-foreground mt-1">
-                                      Notas: {equipment.notes}
-                                    </div>
-                                  )}
+                                  <div className="flex gap-1 ml-2">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        setSelectedEquipment(equipment);
+                                        setEditEquipmentDialogOpen(true);
+                                      }}
+                                    >
+                                      <Edit className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={async () => {
+                                        try {
+                                          const { error } = await supabase
+                                            .from('equipments')
+                                            .delete()
+                                            .eq('id', equipment.id);
+
+                                          if (error) throw error;
+
+                                          toast({
+                                            title: "Sucesso",
+                                            description: "Equipamento eliminado com sucesso",
+                                          });
+                                          fetchClients();
+                                        } catch (error) {
+                                          console.error('Error deleting equipment:', error);
+                                          toast({
+                                            title: "Erro",
+                                            description: "Erro ao eliminar equipamento",
+                                            variant: "destructive",
+                                          });
+                                        }
+                                      }}
+                                    >
+                                      <Trash2 className="h-3 w-3 text-destructive" />
+                                    </Button>
+                                  </div>
                                 </div>
                               ))}
                             </div>
-                          </div>
-                        )}
+                          ) : (
+                            <p className="text-sm text-muted-foreground text-center py-4">
+                              Nenhum equipamento registado
+                            </p>
+                          )}
+                        </div>
                       </CollapsibleContent>
                     </div>
                   </Collapsible>
@@ -327,6 +402,26 @@ export default function Clients() {
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         onSuccess={fetchClients}
+      />
+
+      <CreateEquipmentDialog
+        open={createEquipmentDialogOpen}
+        onOpenChange={setCreateEquipmentDialogOpen}
+        onSuccess={() => {
+          fetchClients();
+          setCreateEquipmentDialogOpen(false);
+        }}
+        clientId={currentClientId}
+      />
+
+      <EditEquipmentDialog
+        equipment={selectedEquipment}
+        open={editEquipmentDialogOpen}
+        onOpenChange={setEditEquipmentDialogOpen}
+        onSuccess={() => {
+          fetchClients();
+          setEditEquipmentDialogOpen(false);
+        }}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

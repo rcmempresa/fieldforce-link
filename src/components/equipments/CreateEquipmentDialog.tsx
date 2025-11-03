@@ -18,6 +18,7 @@ interface CreateEquipmentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  clientId?: string | null;
 }
 
 interface Client {
@@ -29,6 +30,7 @@ export function CreateEquipmentDialog({
   open,
   onOpenChange,
   onSuccess,
+  clientId,
 }: CreateEquipmentDialogProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(false);
@@ -38,8 +40,14 @@ export function CreateEquipmentDialog({
     serial_number: "",
     location: "",
     notes: "",
-    client_id: "",
+    client_id: clientId || "",
   });
+
+  useEffect(() => {
+    if (clientId) {
+      setFormData(prev => ({ ...prev, client_id: clientId }));
+    }
+  }, [clientId]);
   const { toast } = useToast();
 
   useEffect(() => {
