@@ -3,9 +3,11 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Mail, Phone, Trash2 } from "lucide-react";
+import { Search, Mail, Phone, Trash2, Edit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { CreateEmployeeDialog } from "@/components/employees/CreateEmployeeDialog";
+import { EditEmployeeDialog } from "@/components/employees/EditEmployeeDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +27,8 @@ interface Employee {
   role: string;
   approved: boolean;
   created_at: string;
+  company_name?: string | null;
+  address?: string | null;
 }
 
 export default function Employees() {
@@ -32,6 +36,7 @@ export default function Employees() {
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const { toast } = useToast();
 
@@ -55,7 +60,9 @@ export default function Employees() {
         profiles!user_roles_user_id_fkey (
           id,
           name,
-          phone
+          phone,
+          company_name,
+          address
         )
       `)
       .in("role", ["employee", "client"]);
@@ -72,6 +79,8 @@ export default function Employees() {
           name: item.profiles.name,
           email: authUser?.email || "N/A",
           phone: item.profiles.phone,
+          company_name: item.profiles.company_name,
+          address: item.profiles.address,
           role: item.role,
           approved: item.approved,
           created_at: item.created_at,
@@ -148,8 +157,11 @@ export default function Employees() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Funcionários e Clientes</CardTitle>
-              <div className="text-sm text-muted-foreground">
-                Total: {employees.length}
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-muted-foreground">
+                  Total: {employees.length}
+                </div>
+                <CreateEmployeeDialog onSuccess={fetchEmployees} />
               </div>
             </div>
           </CardHeader>
@@ -209,16 +221,28 @@ export default function Employees() {
                         Registado: {new Date(employee.created_at).toLocaleDateString()}
                       </p>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setSelectedEmployee(employee);
-                        setDeleteDialogOpen(true);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setSelectedEmployee(employee);
+                          setEditDialogOpen(true);
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setSelectedEmployee(employee);
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -226,6 +250,13 @@ export default function Employees() {
           </CardContent>
         </Card>
       </div>
+
+      <EditEmployeeDialog
+        employee={selectedEmployee}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onSuccess={fetchEmployees}
+      />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
