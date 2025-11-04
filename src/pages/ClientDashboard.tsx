@@ -255,9 +255,9 @@ export default function ClientDashboard() {
         {/* Equipment Management */}
         {showEquipments && (
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle>Meus Equipamentos</CardTitle>
-              <Button onClick={() => setCreateEquipmentDialogOpen(true)}>
+              <Button className="w-full sm:w-auto" onClick={() => setCreateEquipmentDialogOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Adicionar Equipamento
               </Button>
