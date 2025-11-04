@@ -206,6 +206,8 @@ export default function WorkOrderDetails() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case "awaiting_approval":
+        return "bg-orange-500/10 text-orange-500";
       case "pending":
         return "bg-warning/10 text-warning";
       case "in_progress":
@@ -221,6 +223,8 @@ export default function WorkOrderDetails() {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
+      case "awaiting_approval":
+        return "Aguarda Aprovação";
       case "pending":
         return "Pendente";
       case "in_progress":

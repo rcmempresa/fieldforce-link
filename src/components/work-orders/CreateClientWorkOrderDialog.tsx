@@ -92,7 +92,7 @@ export function CreateClientWorkOrderDialog({
         service_type: formData.service_type as "repair" | "maintenance" | "installation" | "warranty",
         priority: formData.priority as "low" | "medium" | "high",
         created_by: user.id,
-        status: "pending" as const,
+        status: "awaiting_approval" as const,
       })
       .select()
       .single();
@@ -127,7 +127,7 @@ export function CreateClientWorkOrderDialog({
 
     toast({
       title: "Sucesso",
-      description: "Solicitação criada com sucesso. Aguarde aprovação do gerente.",
+      description: "Solicitação enviada! Aguarde a aprovação do gerente.",
     });
     
     setFormData({

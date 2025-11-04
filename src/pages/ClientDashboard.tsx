@@ -111,12 +111,16 @@ export default function ClientDashboard() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case "awaiting_approval":
+        return "bg-orange-500/10 text-orange-500";
       case "pending":
         return "bg-warning/10 text-warning";
       case "in_progress":
         return "bg-primary/10 text-primary";
       case "completed":
         return "bg-accent/10 text-accent";
+      case "cancelled":
+        return "bg-destructive/10 text-destructive";
       default:
         return "bg-muted text-muted-foreground";
     }
@@ -124,12 +128,16 @@ export default function ClientDashboard() {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
+      case "awaiting_approval":
+        return "Aguarda Aprovação";
       case "pending":
         return "Pendente";
       case "in_progress":
         return "Em Progresso";
       case "completed":
         return "Concluída";
+      case "cancelled":
+        return "Cancelada";
       default:
         return status;
     }

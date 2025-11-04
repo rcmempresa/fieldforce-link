@@ -30,6 +30,10 @@ interface WorkOrder {
   title: string;
   status: string;
   scheduled_date?: string | null;
+  client_name?: string;
+  service_type?: string;
+  priority?: string;
+  created_at?: string;
 }
 
 interface Stats {
@@ -43,6 +47,7 @@ interface Stats {
 export default function ManagerDashboard() {
   const navigate = useNavigate();
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<WorkOrder[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<Record<string, string>>({});
   const [stats, setStats] = useState<Stats>({ pending: 0, inProgress: 0, completed: 0, activeEmployees: 0, activeClients: 0 });
   const [recentOrders, setRecentOrders] = useState<WorkOrder[]>([]);
@@ -52,6 +57,7 @@ export default function ManagerDashboard() {
 
   useEffect(() => {
     fetchPendingUsers();
+    fetchPendingRequests();
     fetchStats();
     fetchRecentOrders();
     fetchCalendarOrders();
@@ -91,6 +97,33 @@ export default function ManagerDashboard() {
       setPendingUsers(usersWithEmails as PendingUser[]);
     } else {
       setPendingUsers([]);
+    }
+  };
+
+  const fetchPendingRequests = async () => {
+    const { data } = await supabase
+      .from("work_orders")
+      .select(`
+        id,
+        reference,
+        title,
+        status,
+        service_type,
+        priority,
+        created_at,
+        profiles!work_orders_client_id_fkey (
+          name
+        )
+      `)
+      .eq("status", "awaiting_approval")
+      .order("created_at", { ascending: false });
+
+    if (data) {
+      const formattedData = data.map((order: any) => ({
+        ...order,
+        client_name: order.profiles?.name || "N/A",
+      }));
+      setPendingRequests(formattedData);
     }
   };
 
@@ -234,14 +267,63 @@ export default function ManagerDashboard() {
     }
   };
 
+  const approveRequest = async (requestId: string) => {
+    const { error } = await supabase
+      .from("work_orders")
+      .update({ status: "pending" })
+      .eq("id", requestId);
+
+    if (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao aprovar solicitação",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Sucesso",
+        description: "Solicitação aprovada",
+      });
+      fetchPendingRequests();
+      fetchStats();
+      fetchRecentOrders();
+    }
+  };
+
+  const rejectRequest = async (requestId: string) => {
+    const { error } = await supabase
+      .from("work_orders")
+      .update({ status: "cancelled" })
+      .eq("id", requestId);
+
+    if (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao rejeitar solicitação",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Sucesso",
+        description: "Solicitação rejeitada",
+      });
+      fetchPendingRequests();
+      fetchStats();
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
+      case "awaiting_approval":
+        return "bg-orange-500/10 text-orange-500";
       case "pending":
         return "bg-warning/10 text-warning";
       case "in_progress":
         return "bg-primary/10 text-primary";
       case "completed":
         return "bg-accent/10 text-accent";
+      case "cancelled":
+        return "bg-destructive/10 text-destructive";
       default:
         return "bg-muted text-muted-foreground";
     }
@@ -249,12 +331,16 @@ export default function ManagerDashboard() {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
+      case "awaiting_approval":
+        return "Aguarda Aprovação";
       case "pending":
         return "Pendente";
       case "in_progress":
         return "Em Progresso";
       case "completed":
         return "Concluída";
+      case "cancelled":
+        return "Cancelada";
       default:
         return status;
     }
@@ -393,6 +479,77 @@ export default function ManagerDashboard() {
                         size="sm"
                         variant="destructive"
                         onClick={() => rejectUser(user.id)}
+                      >
+                        Rejeitar
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Pending Service Requests */}
+        {pendingRequests.length > 0 && (
+          <Card className="border-orange-500/20 bg-gradient-to-br from-orange-500/5 via-background to-background">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-orange-500">
+                <ClipboardList className="h-5 w-5" />
+                Solicitações Aguardando Aprovação
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {pendingRequests.map((request) => (
+                  <div key={request.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 rounded-lg border border-orange-500/20 bg-orange-500/5 p-4">
+                    <div className="space-y-1 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{request.reference}</p>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(request.status)}`}>
+                          {getStatusLabel(request.status)}
+                        </span>
+                      </div>
+                      <p className="text-sm">{request.title}</p>
+                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mt-2">
+                        <span>Cliente: {request.client_name}</span>
+                        {request.service_type && (
+                          <span>Tipo: {
+                            request.service_type === 'repair' ? 'Reparação' :
+                            request.service_type === 'maintenance' ? 'Manutenção' :
+                            request.service_type === 'installation' ? 'Instalação' :
+                            request.service_type === 'warranty' ? 'Garantia' : request.service_type
+                          }</span>
+                        )}
+                        {request.priority && (
+                          <span className={`font-medium ${
+                            request.priority === 'high' ? 'text-destructive' :
+                            request.priority === 'medium' ? 'text-warning' :
+                            'text-accent'
+                          }`}>
+                            Prioridade: {
+                              request.priority === 'high' ? 'Alta' :
+                              request.priority === 'medium' ? 'Média' : 'Baixa'
+                            }
+                          </span>
+                        )}
+                        {request.created_at && (
+                          <span>Criado: {new Date(request.created_at).toLocaleString()}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                      <Button 
+                        size="sm" 
+                        onClick={() => approveRequest(request.id)}
+                        className="bg-accent hover:bg-accent/90"
+                      >
+                        Aprovar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => rejectRequest(request.id)}
                       >
                         Rejeitar
                       </Button>
