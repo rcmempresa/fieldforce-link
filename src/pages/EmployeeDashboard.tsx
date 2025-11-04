@@ -18,6 +18,7 @@ interface WorkOrder {
   priority: string;
   scheduled_date: string;
   status: string;
+  client_name?: string;
 }
 
 interface Stats {
@@ -63,14 +64,24 @@ export default function EmployeeDashboard() {
           title,
           priority,
           scheduled_date,
-          status
+          status,
+          profiles:client_id (
+            name
+          )
         )
       `)
       .eq("user_id", user.id);
 
     if (data) {
       const orders = data
-        .map((item: any) => item.work_orders)
+        .map((item: any) => {
+          const wo = item.work_orders;
+          if (!wo) return null;
+          return {
+            ...wo,
+            client_name: wo.profiles?.name || 'N/A'
+          };
+        })
         .filter(Boolean);
       setAssignedOrders(orders);
     }
@@ -382,6 +393,11 @@ export default function EmployeeDashboard() {
                         </div>
                       </div>
                       <p className="text-sm text-muted-foreground">{order.title}</p>
+                      {order.client_name && (
+                        <p className="text-xs text-muted-foreground">
+                          Cliente: {order.client_name}
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         {format(new Date(order.scheduled_date), "HH:mm")}
                       </p>
@@ -418,6 +434,11 @@ export default function EmployeeDashboard() {
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground">{order.title}</p>
+                      {order.client_name && (
+                        <p className="text-xs text-muted-foreground">
+                          Cliente: {order.client_name}
+                        </p>
+                      )}
                       {order.scheduled_date && (
                         <p className="text-xs text-muted-foreground">
                           Agendado: {new Date(order.scheduled_date).toLocaleString("pt-BR")}
