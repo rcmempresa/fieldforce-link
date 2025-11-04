@@ -299,11 +299,11 @@ export default function ClientDashboard() {
                             <p className="text-xs mt-1">{equipment.notes}</p>
                           </div>
                         )}
-                        <div className="flex gap-2 pt-2">
+                        <div className="flex flex-col sm:flex-row gap-2 pt-2">
                           <Button
                             size="sm"
                             variant="outline"
-                            className="flex-1"
+                            className="w-full"
                             onClick={() => {
                               setSelectedEquipment(equipment);
                               setEditEquipmentDialogOpen(true);
@@ -315,7 +315,7 @@ export default function ClientDashboard() {
                           <Button
                             size="sm"
                             variant="destructive"
-                            className="flex-1"
+                            className="w-full"
                             onClick={() => {
                               setSelectedEquipment(equipment);
                               setDeleteEquipmentDialogOpen(true);
@@ -347,17 +347,18 @@ export default function ClientDashboard() {
             ) : (
               <div className="space-y-4">
                 {workOrders.map((order) => (
-                  <div key={order.id} className="flex items-center justify-between rounded-lg border p-4">
+                  <div key={order.id} className="flex flex-col gap-3 rounded-lg border p-4">
                     <div className="space-y-1">
                       <p className="font-medium">{order.reference}</p>
                       <p className="text-sm text-muted-foreground">{order.title}</p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(order.status)}`}>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                      <span className={`rounded-full px-3 py-1 text-xs font-medium text-center ${getStatusColor(order.status)}`}>
                         {getStatusLabel(order.status)}
                       </span>
                       <Button 
                         size="sm" 
+                        className="w-full sm:w-auto"
                         variant={order.status === "completed" ? "outline" : "default"}
                         onClick={() => navigate(`/work-orders/${order.id}`)}
                       >
