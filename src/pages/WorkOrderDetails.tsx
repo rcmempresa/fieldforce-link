@@ -52,12 +52,14 @@ export default function WorkOrderDetails() {
   const navigate = useNavigate();
   const { user, roles } = useAuth();
   const [workOrder, setWorkOrder] = useState<WorkOrderDetails | null>(null);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [selectedEmployee, setSelectedEmployee] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const isClient = roles.includes("client");
+  
+  // Manager/Employee only states
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [selectedEmployee, setSelectedEmployee] = useState<string>("");
 
   useEffect(() => {
     fetchWorkOrderDetails();
