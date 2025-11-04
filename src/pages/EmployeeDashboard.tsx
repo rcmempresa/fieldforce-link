@@ -23,12 +23,20 @@ interface WorkOrder {
 interface Stats {
   assignedOrders: number;
   hoursToday: number;
+  hoursWeek: number;
+  hoursMonth: number;
   completedOrders: number;
 }
 
 export default function EmployeeDashboard() {
   const [assignedOrders, setAssignedOrders] = useState<WorkOrder[]>([]);
-  const [stats, setStats] = useState<Stats>({ assignedOrders: 0, hoursToday: 0, completedOrders: 0 });
+  const [stats, setStats] = useState<Stats>({ 
+    assignedOrders: 0, 
+    hoursToday: 0, 
+    hoursWeek: 0, 
+    hoursMonth: 0, 
+    completedOrders: 0 
+  });
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<{ id: string; reference: string } | null>(null);
@@ -83,13 +91,39 @@ export default function EmployeeDashboard() {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    const { data: timeEntries } = await supabase
+    const { data: timeTodayEntries } = await supabase
       .from("time_entries")
       .select("duration_hours")
       .eq("user_id", user.id)
       .gte("start_time", startOfDay.toISOString());
 
-    const hoursToday = timeEntries?.reduce((sum, entry) => sum + (entry.duration_hours || 0), 0) || 0;
+    const hoursToday = timeTodayEntries?.reduce((sum, entry) => sum + (entry.duration_hours || 0), 0) || 0;
+
+    // Hours this week
+    const startOfWeek = new Date();
+    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const { data: timeWeekEntries } = await supabase
+      .from("time_entries")
+      .select("duration_hours")
+      .eq("user_id", user.id)
+      .gte("start_time", startOfWeek.toISOString());
+
+    const hoursWeek = timeWeekEntries?.reduce((sum, entry) => sum + (entry.duration_hours || 0), 0) || 0;
+
+    // Hours this month
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const { data: timeMonthEntries } = await supabase
+      .from("time_entries")
+      .select("duration_hours")
+      .eq("user_id", user.id)
+      .gte("start_time", startOfMonth.toISOString());
+
+    const hoursMonth = timeMonthEntries?.reduce((sum, entry) => sum + (entry.duration_hours || 0), 0) || 0;
 
     // Completed orders
     const { data: completedAssignments } = await supabase
@@ -106,6 +140,8 @@ export default function EmployeeDashboard() {
     setStats({
       assignedOrders: assignedCount || 0,
       hoursToday: Math.round(hoursToday * 10) / 10,
+      hoursWeek: Math.round(hoursWeek * 10) / 10,
+      hoursMonth: Math.round(hoursMonth * 10) / 10,
       completedOrders: completedAssignments?.length || 0,
     });
   };
@@ -224,7 +260,7 @@ export default function EmployeeDashboard() {
     <DashboardLayout title="Dashboard do Funcionário">
       <div className="space-y-6">
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Ordens Atribuídas</CardTitle>
@@ -243,7 +279,29 @@ export default function EmployeeDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.hoursToday}h</div>
-              <p className="text-xs text-muted-foreground">Tempo trabalhado</p>
+              <p className="text-xs text-muted-foreground">Hoje</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Horas Semana</CardTitle>
+              <Clock className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.hoursWeek}h</div>
+              <p className="text-xs text-muted-foreground">Esta semana</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Horas Mês</CardTitle>
+              <Clock className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.hoursMonth}h</div>
+              <p className="text-xs text-muted-foreground">Este mês</p>
             </CardContent>
           </Card>
 
