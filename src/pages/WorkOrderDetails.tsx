@@ -61,8 +61,8 @@ export default function WorkOrderDetails() {
 
   useEffect(() => {
     fetchWorkOrderDetails();
-    fetchAssignments();
     if (!isClient) {
+      fetchAssignments();
       fetchEmployees();
     }
   }, [id, isClient]);
