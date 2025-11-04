@@ -7,6 +7,7 @@ import { ClipboardList, Wrench, CheckCircle, Plus, Pencil, Trash2 } from "lucide
 import { supabase } from "@/integrations/supabase/client";
 import { CreateEquipmentDialog } from "@/components/equipments/CreateEquipmentDialog";
 import { EditEquipmentDialog } from "@/components/equipments/EditEquipmentDialog";
+import { CreateClientWorkOrderDialog } from "@/components/work-orders/CreateClientWorkOrderDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 
@@ -39,6 +40,7 @@ export default function ClientDashboard() {
   const [equipments, setEquipments] = useState<Equipment[]>([]);
   const [showEquipments, setShowEquipments] = useState(false);
   const [createEquipmentDialogOpen, setCreateEquipmentDialogOpen] = useState(false);
+  const [createWorkOrderDialogOpen, setCreateWorkOrderDialogOpen] = useState(false);
   const [editEquipmentDialogOpen, setEditEquipmentDialogOpen] = useState(false);
   const [deleteEquipmentDialogOpen, setDeleteEquipmentDialogOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
@@ -231,7 +233,7 @@ export default function ClientDashboard() {
             <CardTitle>Ações Rápidas</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3">
-            <Button>
+            <Button onClick={() => setCreateWorkOrderDialogOpen(true)}>
               <ClipboardList className="mr-2 h-4 w-4" />
               Nova Solicitação
             </Button>
@@ -363,6 +365,13 @@ export default function ClientDashboard() {
       </div>
 
       {/* Dialogs */}
+      <CreateClientWorkOrderDialog
+        open={createWorkOrderDialogOpen}
+        onOpenChange={setCreateWorkOrderDialogOpen}
+        onSuccess={fetchWorkOrders}
+        clientId={currentUserId}
+      />
+
       <CreateEquipmentDialog
         open={createEquipmentDialogOpen}
         onOpenChange={setCreateEquipmentDialogOpen}
