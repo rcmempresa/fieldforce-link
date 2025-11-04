@@ -318,7 +318,7 @@ export default function WorkOrderDetails() {
                   <User className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div>
                     <p className="text-sm font-medium">Cliente</p>
-                    <p className="text-sm text-muted-foreground">{workOrder.profiles.name}</p>
+                    <p className="text-sm text-muted-foreground">{workOrder.profiles?.name || 'N/A'}</p>
                   </div>
                 </div>
 
@@ -424,7 +424,7 @@ export default function WorkOrderDetails() {
                       className="flex items-center justify-between rounded-lg border p-3"
                     >
                       <div>
-                        <p className="font-medium text-sm">{assignment.profiles.name}</p>
+                        <p className="font-medium text-sm">{assignment.profiles?.name || 'N/A'}</p>
                         <p className="text-xs text-muted-foreground">
                           Atribuído em: {new Date(assignment.assigned_at).toLocaleString()}
                         </p>
