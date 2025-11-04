@@ -54,20 +54,20 @@ export default function WorkOrderDetails() {
   const [workOrder, setWorkOrder] = useState<WorkOrderDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const isClient = roles.includes("client");
+  const isManager = roles.includes("manager");
   
-  // Manager/Employee only states
+  // Manager only states
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<string>("");
 
   useEffect(() => {
     fetchWorkOrderDetails();
-    if (!isClient) {
+    if (isManager) {
       fetchAssignments();
       fetchEmployees();
     }
-  }, [id, isClient]);
+  }, [id, isManager]);
 
   const fetchWorkOrderDetails = async () => {
     const { data, error } = await supabase
@@ -384,7 +384,7 @@ export default function WorkOrderDetails() {
           </CardContent>
         </Card>
 
-        {!isClient && (
+        {isManager && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
