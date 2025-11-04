@@ -29,6 +29,8 @@ interface WorkOrderDetails {
   profiles: {
     name: string;
     email: string;
+    company_name?: string;
+    phone?: string;
   };
 }
 
@@ -75,7 +77,9 @@ export default function WorkOrderDetails() {
       .select(`
         *,
         profiles!work_orders_client_id_fkey (
-          name
+          name,
+          company_name,
+          phone
         )
       `)
       .eq("id", id)
@@ -312,15 +316,31 @@ export default function WorkOrderDetails() {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-4">
+            {/* Client Info Card - Highlighted */}
+            <Card className="bg-muted/50 border-primary/20">
+              <CardContent className="pt-6">
                 <div className="flex items-start gap-3">
-                  <User className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium">Cliente</p>
-                    <p className="text-sm text-muted-foreground">{workOrder.profiles?.name || 'N/A'}</p>
+                  <User className="h-5 w-5 text-primary mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-primary">Cliente</p>
+                    <p className="text-lg font-semibold">{workOrder.profiles?.name || 'N/A'}</p>
+                    {workOrder.profiles?.company_name && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Empresa: {workOrder.profiles.company_name}
+                      </p>
+                    )}
+                    {workOrder.profiles?.phone && (
+                      <p className="text-sm text-muted-foreground">
+                        Tel: {workOrder.profiles.phone}
+                      </p>
+                    )}
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-4">
 
                 <div className="flex items-start gap-3">
                   <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
