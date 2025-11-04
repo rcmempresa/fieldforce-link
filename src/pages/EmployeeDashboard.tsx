@@ -303,11 +303,25 @@ export default function EmployeeDashboard() {
                 <div className="space-y-3">
                   {ordersForSelectedDate.map((order) => (
                     <div key={order.id} className="rounded-lg border p-3 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-sm">{order.reference}</p>
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
-                          {getStatusLabel(order.status)}
-                        </span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm">{order.reference}</p>
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
+                            {getStatusLabel(order.status)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {order.status === "pending" && (
+                            <Button size="sm" onClick={() => handleStartWork(order.id, order.reference)}>
+                              Iniciar
+                            </Button>
+                          )}
+                          {order.status === "in_progress" && (
+                            <Button size="sm" onClick={() => handleCompleteClick(order.id, order.reference)}>
+                              Concluir
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       <p className="text-sm text-muted-foreground">{order.title}</p>
                       <p className="text-xs text-muted-foreground">
