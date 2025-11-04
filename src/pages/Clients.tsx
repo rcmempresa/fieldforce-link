@@ -98,6 +98,20 @@ export default function Clients() {
         return;
       }
 
+      // Check if user has manager role
+      const { data: userRoles } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', session.user.id)
+        .eq('role', 'manager')
+        .eq('approved', true)
+        .single();
+
+      if (!userRoles) {
+        console.error('User is not a manager');
+        return;
+      }
+
       console.log('Calling list-users with valid session');
       
       const { data, error } = await supabase.functions.invoke('list-users', {
