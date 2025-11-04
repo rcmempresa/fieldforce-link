@@ -3,15 +3,16 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Mail, Phone, Trash2, Edit, CalendarIcon, Briefcase } from "lucide-react";
+import { Search, Mail, Phone, Trash2, Edit, CalendarIcon, Briefcase, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
-import { format, isSameDay } from "date-fns";
+import { format, isSameDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { CreateEmployeeDialog } from "@/components/employees/CreateEmployeeDialog";
 import { EditEmployeeDialog } from "@/components/employees/EditEmployeeDialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,6 +46,24 @@ interface WorkOrder {
   scheduled_date?: string | null;
 }
 
+interface TimeEntry {
+  id: string;
+  duration_hours: number;
+  created_at: string;
+  work_order_id: string;
+  work_orders: {
+    reference: string | null;
+    title: string;
+  };
+}
+
+interface HoursStats {
+  today: number;
+  thisWeek: number;
+  thisMonth: number;
+  byWorkOrder: { [key: string]: { hours: number; reference: string; title: string } };
+}
+
 export default function Employees() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
@@ -55,6 +74,8 @@ export default function Employees() {
   const [selectedCalendarEmployee, setSelectedCalendarEmployee] = useState<Employee | null>(null);
   const [calendarOrders, setCalendarOrders] = useState<WorkOrder[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [hoursStats, setHoursStats] = useState<HoursStats | null>(null);
+  const [loadingHours, setLoadingHours] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -266,9 +287,85 @@ export default function Employees() {
     return getOrdersForDate(date).length > 0;
   };
 
+  const fetchEmployeeHours = async (employeeId: string) => {
+    setLoadingHours(true);
+    try {
+      const { data, error } = await supabase
+        .from('time_entries')
+        .select(`
+          id,
+          duration_hours,
+          created_at,
+          work_order_id,
+          work_orders (
+            reference,
+            title
+          )
+        `)
+        .eq('user_id', employeeId);
+
+      if (error) throw error;
+
+      const now = new Date();
+      const todayStart = startOfDay(now);
+      const todayEnd = endOfDay(now);
+      const weekStart = startOfWeek(now, { locale: pt });
+      const weekEnd = endOfWeek(now, { locale: pt });
+      const monthStart = startOfMonth(now);
+      const monthEnd = endOfMonth(now);
+
+      let todayHours = 0;
+      let weekHours = 0;
+      let monthHours = 0;
+      const workOrderHours: { [key: string]: { hours: number; reference: string; title: string } } = {};
+
+      data?.forEach((entry: any) => {
+        const entryDate = new Date(entry.created_at);
+        const hours = Number(entry.duration_hours) || 0;
+
+        if (entryDate >= todayStart && entryDate <= todayEnd) {
+          todayHours += hours;
+        }
+        if (entryDate >= weekStart && entryDate <= weekEnd) {
+          weekHours += hours;
+        }
+        if (entryDate >= monthStart && entryDate <= monthEnd) {
+          monthHours += hours;
+        }
+
+        const woId = entry.work_order_id;
+        if (!workOrderHours[woId]) {
+          workOrderHours[woId] = {
+            hours: 0,
+            reference: entry.work_orders?.reference || 'N/A',
+            title: entry.work_orders?.title || 'N/A',
+          };
+        }
+        workOrderHours[woId].hours += hours;
+      });
+
+      setHoursStats({
+        today: todayHours,
+        thisWeek: weekHours,
+        thisMonth: monthHours,
+        byWorkOrder: workOrderHours,
+      });
+    } catch (error) {
+      console.error('Error fetching employee hours:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar as horas trabalhadas",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingHours(false);
+    }
+  };
+
   const handleViewEmployee = (employee: Employee) => {
     setSelectedCalendarEmployee(employee);
     fetchEmployeeOrders(employee.id);
+    fetchEmployeeHours(employee.id);
   };
 
   return (
@@ -383,68 +480,144 @@ export default function Employees() {
         </Card>
 
         {selectedCalendarEmployee && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-6">
+            {/* Hours Statistics Card */}
             <Card>
               <CardHeader>
-                <CardTitle>Calendário - {selectedCalendarEmployee.name}</CardTitle>
-              </CardHeader>
-              <CardContent className="flex justify-center">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => date && setSelectedDate(date)}
-                  locale={pt}
-                  modifiers={{
-                    hasOrders: (date) => hasOrdersOnDate(date),
-                  }}
-                  modifiersStyles={{
-                    hasOrders: {
-                      fontWeight: 'bold',
-                      textDecoration: 'underline',
-                    },
-                  }}
-                  className="rounded-md border pointer-events-auto"
-                />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  Ordens de Trabalho - {format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: pt })}
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  Estatísticas de Horas - {selectedCalendarEmployee.name}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {getOrdersForDate(selectedDate).length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">
-                    Nenhuma ordem de trabalho agendada para este dia
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {getOrdersForDate(selectedDate).map((order) => (
-                      <div
-                        key={order.id}
-                        className="flex items-center justify-between rounded-lg border p-3 cursor-pointer hover:bg-accent/50 transition-colors"
-                        onClick={() => navigate(`/work-orders/${order.id}`)}
-                      >
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">{order.reference}</p>
-                          <p className="text-xs text-muted-foreground">{order.title}</p>
-                          {order.scheduled_date && (
-                            <p className="text-xs font-medium text-primary mt-1">
-                              {format(new Date(order.scheduled_date), "HH:mm", { locale: pt })}
-                            </p>
-                          )}
+                {loadingHours ? (
+                  <p className="text-center text-muted-foreground py-4">A carregar...</p>
+                ) : hoursStats ? (
+                  <Tabs defaultValue="summary" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="summary">Resumo</TabsTrigger>
+                      <TabsTrigger value="by-order">Por OT</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="summary" className="space-y-4 mt-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="rounded-lg border p-4 bg-primary/5">
+                          <p className="text-sm text-muted-foreground mb-1">Hoje</p>
+                          <p className="text-2xl font-bold text-primary">
+                            {hoursStats.today.toFixed(1)}h
+                          </p>
                         </div>
-                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${getStatusColor(order.status)}`}>
-                          {getStatusLabel(order.status)}
-                        </span>
+                        <div className="rounded-lg border p-4 bg-accent/5">
+                          <p className="text-sm text-muted-foreground mb-1">Esta Semana</p>
+                          <p className="text-2xl font-bold text-accent">
+                            {hoursStats.thisWeek.toFixed(1)}h
+                          </p>
+                        </div>
+                        <div className="rounded-lg border p-4 bg-success/5">
+                          <p className="text-sm text-muted-foreground mb-1">Este Mês</p>
+                          <p className="text-2xl font-bold text-success">
+                            {hoursStats.thisMonth.toFixed(1)}h
+                          </p>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </TabsContent>
+                    <TabsContent value="by-order" className="mt-4">
+                      {Object.keys(hoursStats.byWorkOrder).length === 0 ? (
+                        <p className="text-center text-muted-foreground py-8">
+                          Nenhuma hora registada
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {Object.entries(hoursStats.byWorkOrder)
+                            .sort(([, a], [, b]) => b.hours - a.hours)
+                            .map(([woId, data]) => (
+                              <div
+                                key={woId}
+                                className="flex items-center justify-between rounded-lg border p-3 cursor-pointer hover:bg-accent/50 transition-colors"
+                                onClick={() => navigate(`/work-orders/${woId}`)}
+                              >
+                                <div className="flex-1">
+                                  <p className="font-medium text-sm">{data.reference}</p>
+                                  <p className="text-xs text-muted-foreground">{data.title}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-lg font-bold text-primary">
+                                    {data.hours.toFixed(1)}h
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                ) : null}
               </CardContent>
             </Card>
+
+            {/* Calendar and Orders */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Calendário</CardTitle>
+                </CardHeader>
+                <CardContent className="flex justify-center">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => date && setSelectedDate(date)}
+                    locale={pt}
+                    modifiers={{
+                      hasOrders: (date) => hasOrdersOnDate(date),
+                    }}
+                    modifiersStyles={{
+                      hasOrders: {
+                        fontWeight: 'bold',
+                        textDecoration: 'underline',
+                      },
+                    }}
+                    className="rounded-md border pointer-events-auto"
+                  />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>
+                    Ordens de Trabalho - {format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: pt })}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {getOrdersForDate(selectedDate).length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">
+                      Nenhuma ordem de trabalho agendada para este dia
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {getOrdersForDate(selectedDate).map((order) => (
+                        <div
+                          key={order.id}
+                          className="flex items-center justify-between rounded-lg border p-3 cursor-pointer hover:bg-accent/50 transition-colors"
+                          onClick={() => navigate(`/work-orders/${order.id}`)}
+                        >
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">{order.reference}</p>
+                            <p className="text-xs text-muted-foreground">{order.title}</p>
+                            {order.scheduled_date && (
+                              <p className="text-xs font-medium text-primary mt-1">
+                                {format(new Date(order.scheduled_date), "HH:mm", { locale: pt })}
+                              </p>
+                            )}
+                          </div>
+                          <span className={`rounded-full px-2 py-1 text-xs font-medium ${getStatusColor(order.status)}`}>
+                            {getStatusLabel(order.status)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </div>
         )}
       </div>
