@@ -378,15 +378,15 @@ export default function WorkOrderDetails() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Wrench className="h-5 w-5" />
-              {isClient ? "Técnico Responsável" : "Funcionários Atribuídos"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {!isClient && (
+        {!isClient && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Funcionários Atribuídos
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="flex gap-2">
                 <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
                   <SelectTrigger className="flex-1">
@@ -405,29 +405,24 @@ export default function WorkOrderDetails() {
                   Atribuir
                 </Button>
               </div>
-            )}
 
-            {assignments.length === 0 ? (
-              <p className="text-center text-muted-foreground py-4">
-                {isClient ? "Ainda não foi atribuído um técnico" : "Nenhum funcionário atribuído"}
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {assignments.map((assignment) => (
-                  <div
-                    key={assignment.id}
-                    className="flex items-center justify-between rounded-lg border p-3"
-                  >
-                    <div>
-                      <p className="font-medium text-sm">{assignment.profiles.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {isClient 
-                          ? `Atribuído em: ${new Date(assignment.assigned_at).toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`
-                          : `Atribuído em: ${new Date(assignment.assigned_at).toLocaleString()}`
-                        }
-                      </p>
-                    </div>
-                    {!isClient && (
+              {assignments.length === 0 ? (
+                <p className="text-center text-muted-foreground py-4">
+                  Nenhum funcionário atribuído
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {assignments.map((assignment) => (
+                    <div
+                      key={assignment.id}
+                      className="flex items-center justify-between rounded-lg border p-3"
+                    >
+                      <div>
+                        <p className="font-medium text-sm">{assignment.profiles.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Atribuído em: {new Date(assignment.assigned_at).toLocaleString()}
+                        </p>
+                      </div>
                       <Button
                         size="sm"
                         variant="ghost"
@@ -435,13 +430,13 @@ export default function WorkOrderDetails() {
                       >
                         <X className="h-4 w-4 text-destructive" />
                       </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </DashboardLayout>
   );
