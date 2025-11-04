@@ -3,9 +3,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Calendar, User, Clock, FileText, Users, Plus, X } from "lucide-react";
+import { ArrowLeft, Calendar, User, Clock, FileText, Users, Plus, X, Wrench } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Select,
   SelectContent,
@@ -49,18 +50,22 @@ interface Assignment {
 export default function WorkOrderDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user, roles } = useAuth();
   const [workOrder, setWorkOrder] = useState<WorkOrderDetails | null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const isClient = roles.includes("client");
 
   useEffect(() => {
     fetchWorkOrderDetails();
     fetchAssignments();
-    fetchEmployees();
-  }, [id]);
+    if (!isClient) {
+      fetchEmployees();
+    }
+  }, [id, isClient]);
 
   const fetchWorkOrderDetails = async () => {
     const { data, error } = await supabase
@@ -376,33 +381,35 @@ export default function WorkOrderDetails() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Funcionários Atribuídos
+              <Wrench className="h-5 w-5" />
+              {isClient ? "Técnico Responsável" : "Funcionários Atribuídos"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex gap-2">
-              <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Selecionar funcionário" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover z-50">
-                  {employees.map((employee) => (
-                    <SelectItem key={employee.id} value={employee.id}>
-                      {employee.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button onClick={handleAssignEmployee}>
-                <Plus className="h-4 w-4 mr-1" />
-                Atribuir
-              </Button>
-            </div>
+            {!isClient && (
+              <div className="flex gap-2">
+                <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Selecionar funcionário" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    {employees.map((employee) => (
+                      <SelectItem key={employee.id} value={employee.id}>
+                        {employee.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button onClick={handleAssignEmployee}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Atribuir
+                </Button>
+              </div>
+            )}
 
             {assignments.length === 0 ? (
               <p className="text-center text-muted-foreground py-4">
-                Nenhum funcionário atribuído
+                {isClient ? "Ainda não foi atribuído um técnico" : "Nenhum funcionário atribuído"}
               </p>
             ) : (
               <div className="space-y-2">
@@ -414,16 +421,21 @@ export default function WorkOrderDetails() {
                     <div>
                       <p className="font-medium text-sm">{assignment.profiles.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        Atribuído em: {new Date(assignment.assigned_at).toLocaleString()}
+                        {isClient 
+                          ? `Atribuído em: ${new Date(assignment.assigned_at).toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`
+                          : `Atribuído em: ${new Date(assignment.assigned_at).toLocaleString()}`
+                        }
                       </p>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleRemoveAssignment(assignment.id)}
-                    >
-                      <X className="h-4 w-4 text-destructive" />
-                    </Button>
+                    {!isClient && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleRemoveAssignment(assignment.id)}
+                      >
+                        <X className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>

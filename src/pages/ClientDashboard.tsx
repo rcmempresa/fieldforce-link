@@ -344,7 +344,11 @@ export default function ClientDashboard() {
                       <span className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(order.status)}`}>
                         {getStatusLabel(order.status)}
                       </span>
-                      <Button size="sm" variant={order.status === "completed" ? "outline" : "default"}>
+                      <Button 
+                        size="sm" 
+                        variant={order.status === "completed" ? "outline" : "default"}
+                        onClick={() => window.location.href = `/work-order/${order.id}`}
+                      >
                         {order.status === "completed" ? "Ver Fatura" : "Ver"}
                       </Button>
                     </div>
