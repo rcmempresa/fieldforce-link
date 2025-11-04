@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ interface Stats {
 }
 
 export default function ClientDashboard() {
+  const navigate = useNavigate();
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [stats, setStats] = useState<Stats>({ activeRequests: 0, myEquipments: 0, completedServices: 0 });
   const [equipments, setEquipments] = useState<Equipment[]>([]);
@@ -347,7 +349,7 @@ export default function ClientDashboard() {
                       <Button 
                         size="sm" 
                         variant={order.status === "completed" ? "outline" : "default"}
-                        onClick={() => window.location.href = `/work-order/${order.id}`}
+                        onClick={() => navigate(`/work-orders/${order.id}`)}
                       >
                         {order.status === "completed" ? "Ver Fatura" : "Ver"}
                       </Button>
