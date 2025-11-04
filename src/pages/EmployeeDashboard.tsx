@@ -406,9 +406,9 @@ export default function EmployeeDashboard() {
             ) : (
               <div className="space-y-4">
                 {assignedOrders.map((order) => (
-                  <div key={order.id} className="flex items-center justify-between rounded-lg border p-4">
+                  <div key={order.id} className="flex flex-col gap-4 rounded-lg border p-4">
                     <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-medium">{order.reference}</p>
                         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(order.priority)}`}>
                           {getPriorityLabel(order.priority)}
@@ -424,18 +424,18 @@ export default function EmployeeDashboard() {
                         </p>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                       {order.status === "pending" && (
-                        <Button size="sm" onClick={() => handleStartWork(order.id, order.reference)}>
+                        <Button className="w-full sm:w-auto" size="sm" onClick={() => handleStartWork(order.id, order.reference)}>
                           Iniciar
                         </Button>
                       )}
                       {order.status === "in_progress" && (
-                        <Button size="sm" onClick={() => handleCompleteClick(order.id, order.reference)}>
+                        <Button className="w-full sm:w-auto" size="sm" onClick={() => handleCompleteClick(order.id, order.reference)}>
                           Concluir
                         </Button>
                       )}
-                      <Button size="sm" variant="outline" onClick={() => navigate(`/work-orders/${order.id}`)}>
+                      <Button className="w-full sm:w-auto" size="sm" variant="outline" onClick={() => navigate(`/work-orders/${order.id}`)}>
                         Ver Detalhes
                       </Button>
                     </div>
