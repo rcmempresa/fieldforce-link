@@ -176,8 +176,8 @@ export default function EmployeeDashboard() {
         description: `Ordem ${reference} está agora em progresso`,
       });
 
-      fetchAssignedOrders();
-      fetchStats();
+      await fetchAssignedOrders();
+      await fetchStats();
     } catch (error) {
       console.error("Error starting work:", error);
       toast({
