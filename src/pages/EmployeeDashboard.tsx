@@ -2,8 +2,14 @@ import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Clock, CheckCircle } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { ClipboardList, Clock, CheckCircle, CalendarDays } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { CompleteWorkOrderDialog } from "@/components/work-orders/CompleteWorkOrderDialog";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface WorkOrder {
   id: string;
@@ -11,6 +17,7 @@ interface WorkOrder {
   title: string;
   priority: string;
   scheduled_date: string;
+  status: string;
 }
 
 interface Stats {
@@ -22,6 +29,11 @@ interface Stats {
 export default function EmployeeDashboard() {
   const [assignedOrders, setAssignedOrders] = useState<WorkOrder[]>([]);
   const [stats, setStats] = useState<Stats>({ assignedOrders: 0, hoursToday: 0, completedOrders: 0 });
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
+  const [selectedWorkOrder, setSelectedWorkOrder] = useState<{ id: string; reference: string } | null>(null);
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchAssignedOrders();
@@ -42,7 +54,8 @@ export default function EmployeeDashboard() {
           reference,
           title,
           priority,
-          scheduled_date
+          scheduled_date,
+          status
         )
       `)
       .eq("user_id", user.id);
@@ -123,6 +136,90 @@ export default function EmployeeDashboard() {
     }
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "pending":
+        return "bg-warning/10 text-warning";
+      case "in_progress":
+        return "bg-primary/10 text-primary";
+      case "completed":
+        return "bg-accent/10 text-accent";
+      default:
+        return "bg-muted text-muted-foreground";
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "pending":
+        return "Pendente";
+      case "in_progress":
+        return "Em Progresso";
+      case "completed":
+        return "Concluída";
+      default:
+        return status;
+    }
+  };
+
+  const handleStartWork = async (workOrderId: string, reference: string) => {
+    try {
+      const { error } = await supabase
+        .from("work_orders")
+        .update({ status: "in_progress" })
+        .eq("id", workOrderId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Trabalho Iniciado",
+        description: `Ordem ${reference} está agora em progresso`,
+      });
+
+      fetchAssignedOrders();
+      fetchStats();
+    } catch (error) {
+      console.error("Error starting work:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao iniciar trabalho",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCompleteClick = (workOrderId: string, reference: string) => {
+    setSelectedWorkOrder({ id: workOrderId, reference });
+    setCompleteDialogOpen(true);
+  };
+
+  const handleCompleteSuccess = () => {
+    fetchAssignedOrders();
+    fetchStats();
+  };
+
+  const getDatesWithOrders = () => {
+    return assignedOrders
+      .filter((order) => order.scheduled_date)
+      .map((order) => new Date(order.scheduled_date));
+  };
+
+  const getOrdersForSelectedDate = () => {
+    if (!selectedDate) return [];
+    
+    return assignedOrders.filter((order) => {
+      if (!order.scheduled_date) return false;
+      const orderDate = new Date(order.scheduled_date);
+      return (
+        orderDate.getDate() === selectedDate.getDate() &&
+        orderDate.getMonth() === selectedDate.getMonth() &&
+        orderDate.getFullYear() === selectedDate.getFullYear()
+      );
+    });
+  };
+
+  const ordersForSelectedDate = getOrdersForSelectedDate();
+
   return (
     <DashboardLayout title="Dashboard do Funcionário">
       <div className="space-y-6">
@@ -162,6 +259,68 @@ export default function EmployeeDashboard() {
           </Card>
         </div>
 
+        {/* Calendar */}
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CalendarDays className="h-5 w-5" />
+                Calendário de Ordens
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex justify-center">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                locale={ptBR}
+                modifiers={{
+                  scheduled: getDatesWithOrders(),
+                }}
+                modifiersStyles={{
+                  scheduled: {
+                    fontWeight: "bold",
+                    textDecoration: "underline",
+                    color: "hsl(var(--primary))",
+                  },
+                }}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                Ordens para {selectedDate ? format(selectedDate, "dd 'de' MMMM", { locale: ptBR }) : ""}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {ordersForSelectedDate.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  Nenhuma ordem agendada para este dia
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {ordersForSelectedDate.map((order) => (
+                    <div key={order.id} className="rounded-lg border p-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-sm">{order.reference}</p>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
+                          {getStatusLabel(order.status)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{order.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(order.scheduled_date), "HH:mm")}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Assigned Work Orders */}
         <Card>
           <CardHeader>
@@ -182,17 +341,29 @@ export default function EmployeeDashboard() {
                         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(order.priority)}`}>
                           {getPriorityLabel(order.priority)}
                         </span>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
+                          {getStatusLabel(order.status)}
+                        </span>
                       </div>
                       <p className="text-sm text-muted-foreground">{order.title}</p>
                       {order.scheduled_date && (
                         <p className="text-xs text-muted-foreground">
-                          Agendado: {new Date(order.scheduled_date).toLocaleString()}
+                          Agendado: {new Date(order.scheduled_date).toLocaleString("pt-BR")}
                         </p>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button size="sm">Iniciar</Button>
-                      <Button size="sm" variant="outline">
+                      {order.status === "pending" && (
+                        <Button size="sm" onClick={() => handleStartWork(order.id, order.reference)}>
+                          Iniciar
+                        </Button>
+                      )}
+                      {order.status === "in_progress" && (
+                        <Button size="sm" onClick={() => handleCompleteClick(order.id, order.reference)}>
+                          Concluir
+                        </Button>
+                      )}
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/work-orders/${order.id}`)}>
                         Ver Detalhes
                       </Button>
                     </div>
@@ -203,6 +374,16 @@ export default function EmployeeDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {selectedWorkOrder && (
+        <CompleteWorkOrderDialog
+          open={completeDialogOpen}
+          onOpenChange={setCompleteDialogOpen}
+          workOrderId={selectedWorkOrder.id}
+          workOrderReference={selectedWorkOrder.reference}
+          onComplete={handleCompleteSuccess}
+        />
+      )}
     </DashboardLayout>
   );
 }
