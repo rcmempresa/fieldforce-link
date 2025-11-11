@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Notifications } from "@/components/Notifications";
 
 interface PendingUser {
   id: string;
@@ -356,6 +357,9 @@ export default function ManagerDashboard() {
             Acompanhe as métricas principais e gerencie as operações
           </p>
         </div>
+
+        {/* Notifications */}
+        <Notifications />
 
         {/* Stats Cards */}
         <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">

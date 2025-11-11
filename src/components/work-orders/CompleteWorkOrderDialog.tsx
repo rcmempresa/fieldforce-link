@@ -62,6 +62,13 @@ export function CompleteWorkOrderDialog({
 
       if (timeEntryError) throw timeEntryError;
 
+      // Get work order details for notifications
+      const { data: workOrder } = await supabase
+        .from("work_orders")
+        .select("client_id, created_by, profiles!work_orders_client_id_fkey(name)")
+        .eq("id", workOrderId)
+        .single();
+
       // Update work order status to completed
       const { error: updateError } = await supabase
         .from("work_orders")
@@ -69,6 +76,42 @@ export function CompleteWorkOrderDialog({
         .eq("id", workOrderId);
 
       if (updateError) throw updateError;
+
+      // Create notification for client
+      if (workOrder?.client_id) {
+        await supabase.from("notifications").insert({
+          user_id: workOrder.client_id,
+          work_order_id: workOrderId,
+          type: "work_order_completed",
+          channel: "email",
+          payload: JSON.stringify({
+            reference: workOrderReference,
+            message: `Ordem de trabalho ${workOrderReference} foi concluída`,
+          }),
+        });
+      }
+
+      // Create notification for all managers
+      const { data: managers } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "manager")
+        .eq("approved", true);
+
+      if (managers && managers.length > 0) {
+        const managerNotifications = managers.map(manager => ({
+          user_id: manager.user_id,
+          work_order_id: workOrderId,
+          type: "work_order_completed",
+          channel: "email" as const,
+          payload: JSON.stringify({
+            reference: workOrderReference,
+            client_name: (workOrder?.profiles as any)?.name || "Cliente",
+            message: `Ordem ${workOrderReference} concluída`,
+          }),
+        }));
+        await supabase.from("notifications").insert(managerNotifications);
+      }
 
       toast({
         title: "Sucesso",

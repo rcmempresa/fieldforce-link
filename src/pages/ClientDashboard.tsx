@@ -10,6 +10,7 @@ import { EditEquipmentDialog } from "@/components/equipments/EditEquipmentDialog
 import { CreateClientWorkOrderDialog } from "@/components/work-orders/CreateClientWorkOrderDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { Notifications } from "@/components/Notifications";
 
 interface WorkOrder {
   id: string;
@@ -199,6 +200,9 @@ export default function ClientDashboard() {
   return (
     <DashboardLayout title="Dashboard do Cliente">
       <div className="space-y-6">
+        {/* Notifications */}
+        <Notifications />
+
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
