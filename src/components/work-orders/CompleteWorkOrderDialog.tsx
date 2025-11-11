@@ -89,17 +89,40 @@ export function CompleteWorkOrderDialog({
             message: `Ordem de trabalho ${workOrderReference} foi concluída`,
           }),
         });
+
+        // Send email to client
+        const { data: clientProfile } = await supabase
+          .from("profiles")
+          .select("name")
+          .eq("id", workOrder.client_id)
+          .single();
+
+        if (clientProfile) {
+          supabase.functions.invoke("send-notification-email", {
+            body: {
+              type: "work_order_completed",
+              userId: workOrder.client_id,
+              data: {
+                recipientName: clientProfile.name,
+                workOrderReference: workOrderReference,
+                workOrderTitle: "",
+                completedBy: user.email || "Funcionário",
+                isManager: false,
+              },
+            },
+          });
+        }
       }
 
       // Create notification for all managers
       const { data: managers } = await supabase
         .from("user_roles")
-        .select("user_id")
+        .select("user_id, profiles!user_roles_user_id_fkey(name)")
         .eq("role", "manager")
         .eq("approved", true);
 
       if (managers && managers.length > 0) {
-        const managerNotifications = managers.map(manager => ({
+        const managerNotifications = managers.map((manager: any) => ({
           user_id: manager.user_id,
           work_order_id: workOrderId,
           type: "work_order_completed",
@@ -111,6 +134,27 @@ export function CompleteWorkOrderDialog({
           }),
         }));
         await supabase.from("notifications").insert(managerNotifications);
+
+        // Send emails to managers
+        for (const manager of managers) {
+          const managerProfile = manager.profiles as any;
+          
+          if (managerProfile) {
+            supabase.functions.invoke("send-notification-email", {
+              body: {
+                type: "work_order_completed",
+                userId: manager.user_id,
+                data: {
+                  recipientName: managerProfile.name,
+                  workOrderReference: workOrderReference,
+                  workOrderTitle: "",
+                  completedBy: user.email || "Funcionário",
+                  isManager: true,
+                },
+              },
+            });
+          }
+        }
       }
 
       toast({

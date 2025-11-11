@@ -194,6 +194,29 @@ export default function WorkOrderDetails() {
           status: "queued",
         });
 
+      // Get employee details for email
+      const { data: employeeData } = await supabase
+        .from("profiles")
+        .select("name, id")
+        .eq("id", selectedEmployee)
+        .single();
+
+      // Send email notification
+      if (employeeData) {
+        supabase.functions.invoke("send-notification-email", {
+          body: {
+            type: "work_order_assigned",
+            userId: selectedEmployee,
+            data: {
+              recipientName: employeeData.name,
+              workOrderReference: workOrder?.reference || "",
+              workOrderTitle: workOrder?.title || "",
+              clientName: workOrder?.profiles?.name || "N/A",
+            },
+          },
+        });
+      }
+
       toast({
         title: "Sucesso",
         description: "Funcionário atribuído com sucesso",
