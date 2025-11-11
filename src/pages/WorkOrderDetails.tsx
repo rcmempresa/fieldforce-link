@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { WorkOrderAttachments } from "@/components/work-orders/WorkOrderAttachments";
 
 interface WorkOrderDetails {
   id: string;
@@ -538,6 +539,12 @@ export default function WorkOrderDetails() {
             </CardContent>
           </Card>
         )}
+
+        <WorkOrderAttachments 
+          workOrderId={id!} 
+          isManager={isManager}
+          currentUserId={user?.id}
+        />
       </div>
     </DashboardLayout>
   );
