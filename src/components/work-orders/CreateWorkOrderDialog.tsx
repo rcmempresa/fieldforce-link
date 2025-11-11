@@ -180,6 +180,81 @@ export function CreateWorkOrderDialog({
       }
     }
 
+    // Get client name for notifications
+    const { data: clientProfile } = await supabase
+      .from("profiles")
+      .select("name")
+      .eq("id", formData.client_id)
+      .single();
+
+    // Notify client
+    await supabase.from("notifications").insert({
+      user_id: formData.client_id,
+      work_order_id: workOrder.id,
+      type: "work_order_created",
+      channel: "email",
+      payload: JSON.stringify({
+        reference: workOrder.reference,
+        message: `Nova ordem de trabalho ${workOrder.reference} foi criada`,
+      }),
+    });
+
+    if (clientProfile) {
+      supabase.functions.invoke("send-notification-email", {
+        body: {
+          type: "work_order_created",
+          userId: formData.client_id,
+          data: {
+            recipientName: clientProfile.name,
+            workOrderReference: workOrder.reference || "",
+            workOrderTitle: formData.title,
+            clientName: clientProfile.name,
+          },
+        },
+      });
+    }
+
+    // Notify all managers
+    const { data: managers } = await supabase
+      .from("user_roles")
+      .select("user_id, profiles!user_roles_user_id_fkey(name)")
+      .eq("role", "manager")
+      .eq("approved", true);
+
+    if (managers && managers.length > 0) {
+      const managerNotifications = managers.map((manager: any) => ({
+        user_id: manager.user_id,
+        work_order_id: workOrder.id,
+        type: "work_order_created",
+        channel: "email" as const,
+        payload: JSON.stringify({
+          reference: workOrder.reference,
+          client_name: clientProfile?.name || "Cliente",
+          message: `Nova ordem ${workOrder.reference} criada`,
+        }),
+      }));
+      await supabase.from("notifications").insert(managerNotifications);
+
+      for (const manager of managers) {
+        const managerProfile = manager.profiles as any;
+        if (managerProfile) {
+          supabase.functions.invoke("send-notification-email", {
+            body: {
+              type: "work_order_created",
+              userId: manager.user_id,
+              data: {
+                recipientName: managerProfile.name,
+                workOrderReference: workOrder.reference || "",
+                workOrderTitle: formData.title,
+                clientName: clientProfile?.name || "Cliente",
+                isManager: true,
+              },
+            },
+          });
+        }
+      }
+    }
+
     setLoading(false);
 
     toast({

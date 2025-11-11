@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+// Resend API
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,7 +10,7 @@ const corsHeaders = {
 };
 
 interface NotificationEmailRequest {
-  type: "work_order_assigned" | "work_order_completed";
+  type: "work_order_assigned" | "work_order_completed" | "work_order_created" | "work_order_updated" | "work_order_assignment_removed";
   userId: string; // User ID instead of email
   data: {
     recipientName: string;
@@ -20,6 +20,7 @@ interface NotificationEmailRequest {
     clientName?: string;
     completedBy?: string;
     isManager?: boolean;
+    changes?: string;
   };
 }
 
@@ -97,20 +98,76 @@ const handler = async (req: Request): Promise<Response> => {
           <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
         </div>
       `;
+    } else if (type === "work_order_created") {
+      subject = `Nova Ordem Criada - ${data.workOrderReference}`;
+      html = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
+          <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">Nova Ordem de Trabalho Criada</h1>
+          <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
+          <p style="color: #333; font-size: 16px; line-height: 1.5;">Uma nova ordem de trabalho foi criada:</p>
+          <div style="background-color: #f0f9ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 24px; margin: 24px 0;">
+            <p style="color: #3b82f6; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${data.workOrderReference}</p>
+            <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
+            <p style="color: #71717a; font-size: 14px; margin: 8px 0 0 0;">Cliente: ${data.clientName || 'N/A'}</p>
+          </div>
+          <p style="color: #333; font-size: 16px; line-height: 1.5;">Por favor, aceda ao sistema para ver todos os detalhes.</p>
+          <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
+        </div>
+      `;
+    } else if (type === "work_order_updated") {
+      subject = `Ordem Atualizada - ${data.workOrderReference}`;
+      html = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
+          <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">Ordem de Trabalho Atualizada</h1>
+          <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
+          <p style="color: #333; font-size: 16px; line-height: 1.5;">Uma ordem de trabalho foi atualizada:</p>
+          <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 24px; margin: 24px 0;">
+            <p style="color: #f59e0b; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${data.workOrderReference}</p>
+            <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
+            ${data.changes ? `<p style="color: #71717a; font-size: 14px; margin: 8px 0 0 0;">Alterações: ${data.changes}</p>` : ''}
+          </div>
+          <p style="color: #333; font-size: 16px; line-height: 1.5;">Por favor, aceda ao sistema para ver todos os detalhes.</p>
+          <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
+        </div>
+      `;
+    } else if (type === "work_order_assignment_removed") {
+      subject = `Removido da Ordem - ${data.workOrderReference}`;
+      html = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
+          <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">Atribuição Removida</h1>
+          <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
+          <p style="color: #333; font-size: 16px; line-height: 1.5;">Foi removido da seguinte ordem de trabalho:</p>
+          <div style="background-color: #fef2f2; border: 1px solid #ef4444; border-radius: 8px; padding: 24px; margin: 24px 0;">
+            <p style="color: #ef4444; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${data.workOrderReference}</p>
+            <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
+          </div>
+          <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
+        </div>
+      `;
     } else {
       throw new Error("Invalid notification type");
     }
 
-    const { error } = await resend.emails.send({
-      from: "Ordens de Trabalho <onboarding@resend.dev>",
-      to: [to],
-      subject,
-      html,
+    // Send email using Resend API directly
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: "Ordens de Trabalho <onboarding@resend.dev>",
+        to: [to],
+        subject,
+        html,
+      }),
     });
 
-    if (error) {
-      console.error("Error sending email:", error);
-      throw error;
+    const result = await response.json();
+
+    if (!response.ok) {
+      console.error("Error sending email:", result);
+      throw new Error(result.message || "Failed to send email");
     }
 
     console.log("Email sent successfully to:", to);

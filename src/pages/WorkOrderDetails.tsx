@@ -227,6 +227,13 @@ export default function WorkOrderDetails() {
   };
 
   const handleRemoveAssignment = async (assignmentId: string) => {
+    // Get assignment details before deleting
+    const { data: assignmentData } = await supabase
+      .from("work_order_assignments")
+      .select("user_id, profiles!work_order_assignments_user_id_fkey(name)")
+      .eq("id", assignmentId)
+      .single();
+
     const { error } = await supabase
       .from("work_order_assignments")
       .delete()
@@ -239,6 +246,35 @@ export default function WorkOrderDetails() {
         variant: "destructive",
       });
     } else {
+      // Notify removed employee
+      if (assignmentData) {
+        await supabase.from("notifications").insert({
+          user_id: assignmentData.user_id,
+          work_order_id: id,
+          type: "work_order_assignment_removed",
+          channel: "email",
+          payload: JSON.stringify({
+            reference: workOrder?.reference,
+            message: `Foi removido da ordem de trabalho ${workOrder?.reference}`,
+          }),
+        });
+
+        const employeeProfile = assignmentData.profiles as any;
+        if (employeeProfile) {
+          supabase.functions.invoke("send-notification-email", {
+            body: {
+              type: "work_order_assignment_removed",
+              userId: assignmentData.user_id,
+              data: {
+                recipientName: employeeProfile.name,
+                workOrderReference: workOrder?.reference || "",
+                workOrderTitle: workOrder?.title || "",
+              },
+            },
+          });
+        }
+      }
+
       toast({
         title: "Sucesso",
         description: "Atribuição removida com sucesso",

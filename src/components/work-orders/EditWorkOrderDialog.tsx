@@ -87,22 +87,147 @@ export function EditWorkOrderDialog({
       })
       .eq("id", workOrder.id);
 
-    setLoading(false);
-
     if (error) {
+      setLoading(false);
       toast({
         title: "Erro",
         description: "Erro ao atualizar ordem de trabalho",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Sucesso",
-        description: "Ordem de trabalho atualizada com sucesso",
-      });
-      onOpenChange(false);
-      onSuccess();
+      return;
     }
+
+    // Get work order details for notifications
+    const { data: workOrderData } = await supabase
+      .from("work_orders")
+      .select(`
+        reference,
+        client_id,
+        profiles!work_orders_client_id_fkey(name)
+      `)
+      .eq("id", workOrder.id)
+      .single();
+
+    if (workOrderData) {
+      const clientProfile = workOrderData.profiles as any;
+
+      // Notify client
+      if (workOrderData.client_id) {
+        await supabase.from("notifications").insert({
+          user_id: workOrderData.client_id,
+          work_order_id: workOrder.id,
+          type: "work_order_updated",
+          channel: "email",
+          payload: JSON.stringify({
+            reference: workOrderData.reference,
+            message: `Ordem de trabalho ${workOrderData.reference} foi atualizada`,
+          }),
+        });
+
+        if (clientProfile) {
+          supabase.functions.invoke("send-notification-email", {
+            body: {
+              type: "work_order_updated",
+              userId: workOrderData.client_id,
+              data: {
+                recipientName: clientProfile.name,
+                workOrderReference: workOrderData.reference || "",
+                workOrderTitle: formData.title,
+                changes: "Estado, prioridade ou detalhes atualizados",
+              },
+            },
+          });
+        }
+      }
+
+      // Notify assigned employees
+      const { data: assignments } = await supabase
+        .from("work_order_assignments")
+        .select("user_id, profiles!work_order_assignments_user_id_fkey(name)")
+        .eq("work_order_id", workOrder.id);
+
+      if (assignments && assignments.length > 0) {
+        const employeeNotifications = assignments.map((assignment: any) => ({
+          user_id: assignment.user_id,
+          work_order_id: workOrder.id,
+          type: "work_order_updated",
+          channel: "email" as const,
+          payload: JSON.stringify({
+            reference: workOrderData.reference,
+            message: `Ordem ${workOrderData.reference} foi atualizada`,
+          }),
+        }));
+        await supabase.from("notifications").insert(employeeNotifications);
+
+        for (const assignment of assignments) {
+          const employeeProfile = assignment.profiles as any;
+          if (employeeProfile) {
+            supabase.functions.invoke("send-notification-email", {
+              body: {
+                type: "work_order_updated",
+                userId: assignment.user_id,
+                data: {
+                  recipientName: employeeProfile.name,
+                  workOrderReference: workOrderData.reference || "",
+                  workOrderTitle: formData.title,
+                  changes: "Estado, prioridade ou detalhes atualizados",
+                },
+              },
+            });
+          }
+        }
+      }
+
+      // Notify all managers
+      const { data: managers } = await supabase
+        .from("user_roles")
+        .select("user_id, profiles!user_roles_user_id_fkey(name)")
+        .eq("role", "manager")
+        .eq("approved", true);
+
+      if (managers && managers.length > 0) {
+        const managerNotifications = managers.map((manager: any) => ({
+          user_id: manager.user_id,
+          work_order_id: workOrder.id,
+          type: "work_order_updated",
+          channel: "email" as const,
+          payload: JSON.stringify({
+            reference: workOrderData.reference,
+            client_name: clientProfile?.name || "Cliente",
+            message: `Ordem ${workOrderData.reference} foi atualizada`,
+          }),
+        }));
+        await supabase.from("notifications").insert(managerNotifications);
+
+        for (const manager of managers) {
+          const managerProfile = manager.profiles as any;
+          if (managerProfile) {
+            supabase.functions.invoke("send-notification-email", {
+              body: {
+                type: "work_order_updated",
+                userId: manager.user_id,
+                data: {
+                  recipientName: managerProfile.name,
+                  workOrderReference: workOrderData.reference || "",
+                  workOrderTitle: formData.title,
+                  clientName: clientProfile?.name || "Cliente",
+                  changes: "Estado, prioridade ou detalhes atualizados",
+                  isManager: true,
+                },
+              },
+            });
+          }
+        }
+      }
+    }
+
+    setLoading(false);
+    toast({
+      title: "Sucesso",
+      description: "Ordem de trabalho atualizada com sucesso",
+    });
+    onOpenChange(false);
+    onSuccess();
   };
 
   return (
