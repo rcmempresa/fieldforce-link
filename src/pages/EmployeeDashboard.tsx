@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Notifications } from "@/components/Notifications";
 
 interface WorkOrder {
   id: string;
@@ -327,6 +328,9 @@ export default function EmployeeDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Notifications */}
+        <Notifications />
 
         {/* Calendar */}
         <div className="grid gap-6 md:grid-cols-2">

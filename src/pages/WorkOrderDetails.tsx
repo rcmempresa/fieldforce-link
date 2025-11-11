@@ -178,6 +178,22 @@ export default function WorkOrderDetails() {
         variant: "destructive",
       });
     } else {
+      // Create notification for assigned employee
+      await supabase
+        .from("notifications")
+        .insert({
+          user_id: selectedEmployee,
+          work_order_id: id,
+          type: "work_order_assigned",
+          channel: "email",
+          payload: JSON.stringify({
+            message: `Foi atribuído à ordem de trabalho ${workOrder?.reference}`,
+            work_order_reference: workOrder?.reference,
+            work_order_title: workOrder?.title,
+          }),
+          status: "queued",
+        });
+
       toast({
         title: "Sucesso",
         description: "Funcionário atribuído com sucesso",
