@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Plus, Search, Eye, Pencil, Trash2 } from "lucide-react";
+import { Plus, Eye, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CreateWorkOrderDialog } from "@/components/work-orders/CreateWorkOrderDialog";
 import { EditWorkOrderDialog } from "@/components/work-orders/EditWorkOrderDialog";
+import { WorkOrderFilters } from "@/components/work-orders/WorkOrderFilters";
+import { WorkOrderPagination } from "@/components/work-orders/WorkOrderPagination";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,13 +19,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
 
 interface WorkOrder {
@@ -40,18 +34,24 @@ interface WorkOrder {
   };
 }
 
+const ITEMS_PER_PAGE = 10;
+
 export default function WorkOrders() {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<WorkOrder[]>([]);
+  const [paginatedOrders, setPaginatedOrders] = useState<WorkOrder[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<WorkOrder | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
 
   useEffect(() => {
     fetchWorkOrders();
@@ -60,6 +60,10 @@ export default function WorkOrders() {
   useEffect(() => {
     filterOrders();
   }, [searchTerm, statusFilter, priorityFilter, workOrders]);
+
+  useEffect(() => {
+    paginateOrders();
+  }, [filteredOrders, currentPage]);
 
   const fetchWorkOrders = async () => {
     const { data, error } = await supabase
@@ -110,6 +114,13 @@ export default function WorkOrders() {
     }
 
     setFilteredOrders(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  const paginateOrders = () => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    setPaginatedOrders(filteredOrders.slice(startIndex, endIndex));
   };
 
   const handleDelete = async () => {
@@ -210,42 +221,15 @@ export default function WorkOrders() {
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Filters */}
-            <div className="flex flex-col gap-4 md:flex-row">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Pesquisar por referência, título ou cliente..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full md:w-[180px]">
-                  <SelectValue placeholder="Estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os Estados</SelectItem>
-                  <SelectItem value="pending">Pendente</SelectItem>
-                  <SelectItem value="in_progress">Em Progresso</SelectItem>
-                  <SelectItem value="completed">Concluída</SelectItem>
-                  <SelectItem value="cancelled">Cancelada</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                <SelectTrigger className="w-full md:w-[180px]">
-                  <SelectValue placeholder="Prioridade" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as Prioridades</SelectItem>
-                  <SelectItem value="low">Baixa</SelectItem>
-                  <SelectItem value="medium">Média</SelectItem>
-                  <SelectItem value="high">Alta</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <CardContent>
+            <WorkOrderFilters
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              statusFilter={statusFilter}
+              onStatusChange={setStatusFilter}
+              priorityFilter={priorityFilter}
+              onPriorityChange={setPriorityFilter}
+            />
 
             {/* Work Orders List */}
             {filteredOrders.length === 0 ? (
@@ -254,7 +238,7 @@ export default function WorkOrders() {
               </p>
             ) : (
               <div className="space-y-4">
-                {filteredOrders.map((order) => (
+                {paginatedOrders.map((order) => (
                   <div
                     key={order.id}
                     className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-lg border p-4"
@@ -317,6 +301,16 @@ export default function WorkOrders() {
                   </div>
                 ))}
               </div>
+            )}
+
+            {totalPages > 1 && (
+              <WorkOrderPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                itemsPerPage={ITEMS_PER_PAGE}
+                totalItems={filteredOrders.length}
+              />
             )}
           </CardContent>
         </Card>
