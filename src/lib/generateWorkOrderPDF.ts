@@ -122,7 +122,7 @@ export async function uploadWorkOrderPDF(
     .insert({
       work_order_id: workOrderId,
       uploaded_by: userId,
-      url: publicUrl,
+      url: filePath,
       filename: fileName,
     });
   
