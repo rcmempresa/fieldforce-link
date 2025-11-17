@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import SignatureCanvas from "react-signature-canvas";
+import { generateWorkOrderPDF, uploadWorkOrderPDF } from "@/lib/generateWorkOrderPDF";
 
 interface CompleteWorkOrderDialogProps {
   open: boolean;
@@ -26,6 +28,17 @@ export function CompleteWorkOrderDialog({
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const signatureRef = useRef<SignatureCanvas>(null);
+  const [signatureEmpty, setSignatureEmpty] = useState(true);
+
+  const clearSignature = () => {
+    signatureRef.current?.clear();
+    setSignatureEmpty(true);
+  };
+
+  const handleSignatureEnd = () => {
+    setSignatureEmpty(signatureRef.current?.isEmpty() ?? true);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +47,15 @@ export function CompleteWorkOrderDialog({
       toast({
         title: "Erro",
         description: "Por favor, insira um número válido de horas",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (signatureEmpty || !signatureRef.current) {
+      toast({
+        title: "Erro",
+        description: "Por favor, assine antes de concluir a ordem",
         variant: "destructive",
       });
       return;
@@ -62,12 +84,70 @@ export function CompleteWorkOrderDialog({
 
       if (timeEntryError) throw timeEntryError;
 
-      // Get work order details for notifications
+      // Get work order details for notifications and PDF
       const { data: workOrder } = await supabase
         .from("work_orders")
-        .select("client_id, created_by, profiles!work_orders_client_id_fkey(name)")
+        .select(`
+          *,
+          client:profiles!work_orders_client_id_fkey(name, id),
+          assignments:work_order_assignments(user:profiles!work_order_assignments_user_id_fkey(name))
+        `)
         .eq("id", workOrderId)
         .single();
+
+      if (!workOrder) throw new Error("Ordem de trabalho não encontrada");
+
+      // Get client email
+      const { data: clientAuth } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", workOrder.client_id)
+        .single();
+
+      const { data: { user: clientUser } } = await supabase.auth.admin.getUserById(
+        clientAuth?.id || ""
+      );
+
+      // Get current user profile
+      const { data: currentProfile } = await supabase
+        .from("profiles")
+        .select("name")
+        .eq("id", user.id)
+        .single();
+
+      // Generate signature image
+      const signatureDataUrl = signatureRef.current!.toDataURL();
+
+      // Generate PDF with work order details
+      const pdfBlob = await generateWorkOrderPDF(
+        {
+          reference: workOrderReference,
+          title: workOrder.title,
+          description: workOrder.description,
+          status: "completed",
+          priority: workOrder.priority,
+          service_type: workOrder.service_type,
+          scheduled_date: workOrder.scheduled_date,
+          client_name: (workOrder.client as any)?.name || "N/A",
+          client_email: clientUser?.email || "N/A",
+          assigned_employees: (workOrder.assignments as any[])?.map((a: any) => ({ name: a.user.name })) || [],
+          total_hours: workOrder.total_hours,
+          created_at: workOrder.created_at,
+          completed_at: now.toISOString(),
+        },
+        signatureDataUrl,
+        currentProfile?.name || user.email || "Funcionário",
+        parseFloat(hours),
+        note || null
+      );
+
+      // Upload PDF to storage
+      await uploadWorkOrderPDF(
+        workOrderId,
+        pdfBlob,
+        workOrderReference,
+        user.id
+      );
 
       // Update work order status to completed
       const { error: updateError } = await supabase
@@ -78,7 +158,7 @@ export function CompleteWorkOrderDialog({
       if (updateError) throw updateError;
 
       // Create notification for client
-      if (workOrder?.client_id) {
+      if (workOrder.client_id) {
         await supabase.from("notifications").insert({
           user_id: workOrder.client_id,
           work_order_id: workOrderId,
@@ -86,27 +166,21 @@ export function CompleteWorkOrderDialog({
           channel: "email",
           payload: JSON.stringify({
             reference: workOrderReference,
-            message: `Ordem de trabalho ${workOrderReference} foi concluída`,
+            message: `Ordem de trabalho ${workOrderReference} foi concluída. Documento disponível nos anexos.`,
           }),
         });
 
         // Send email to client
-        const { data: clientProfile } = await supabase
-          .from("profiles")
-          .select("name")
-          .eq("id", workOrder.client_id)
-          .single();
-
-        if (clientProfile) {
+        if ((workOrder.client as any)?.name) {
           supabase.functions.invoke("send-notification-email", {
             body: {
               type: "work_order_completed",
               userId: workOrder.client_id,
               data: {
-                recipientName: clientProfile.name,
+                recipientName: (workOrder.client as any).name,
                 workOrderReference: workOrderReference,
-                workOrderTitle: "",
-                completedBy: user.email || "Funcionário",
+                workOrderTitle: workOrder.title,
+                completedBy: currentProfile?.name || user.email || "Funcionário",
                 isManager: false,
               },
             },
@@ -129,8 +203,8 @@ export function CompleteWorkOrderDialog({
           channel: "email" as const,
           payload: JSON.stringify({
             reference: workOrderReference,
-            client_name: (workOrder?.profiles as any)?.name || "Cliente",
-            message: `Ordem ${workOrderReference} concluída`,
+            client_name: (workOrder.client as any)?.name || "Cliente",
+            message: `Ordem ${workOrderReference} concluída. Documento disponível nos anexos.`,
           }),
         }));
         await supabase.from("notifications").insert(managerNotifications);
@@ -147,8 +221,8 @@ export function CompleteWorkOrderDialog({
                 data: {
                   recipientName: managerProfile.name,
                   workOrderReference: workOrderReference,
-                  workOrderTitle: "",
-                  completedBy: user.email || "Funcionário",
+                  workOrderTitle: workOrder.title,
+                  completedBy: currentProfile?.name || user.email || "Funcionário",
                   isManager: true,
                 },
               },
@@ -159,11 +233,13 @@ export function CompleteWorkOrderDialog({
 
       toast({
         title: "Sucesso",
-        description: `Ordem ${workOrderReference} concluída!`,
+        description: `Ordem ${workOrderReference} concluída e documento gerado!`,
       });
 
       setHours("");
       setNote("");
+      signatureRef.current?.clear();
+      setSignatureEmpty(true);
       onOpenChange(false);
       onComplete();
     } catch (error) {
@@ -207,6 +283,27 @@ export function CompleteWorkOrderDialog({
               onChange={(e) => setNote(e.target.value)}
               rows={3}
             />
+          </div>
+          <div className="space-y-2">
+            <Label>Assinatura *</Label>
+            <div className="border-2 border-border rounded-md">
+              <SignatureCanvas
+                ref={signatureRef}
+                canvasProps={{
+                  className: "w-full h-40 cursor-crosshair",
+                }}
+                onEnd={handleSignatureEnd}
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={clearSignature}
+              className="w-full"
+            >
+              Limpar Assinatura
+            </Button>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
