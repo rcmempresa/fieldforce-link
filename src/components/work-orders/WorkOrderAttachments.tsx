@@ -109,20 +109,17 @@ export function WorkOrderAttachments({ workOrderId, isManager, currentUserId }: 
 
   const handleDownload = async (attachment: Attachment) => {
     try {
-      const { data, error } = await supabase.storage
+      const { data: { publicUrl } } = supabase.storage
         .from("work-order-attachments")
-        .download(attachment.url);
+        .getPublicUrl(attachment.url);
 
-      if (error) throw error;
-
-      const url = URL.createObjectURL(data);
       const a = document.createElement("a");
-      a.href = url;
+      a.href = publicUrl;
       a.download = attachment.filename;
+      a.target = "_blank";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
     } catch (error: any) {
       console.error("Error downloading file:", error);
       toast({
