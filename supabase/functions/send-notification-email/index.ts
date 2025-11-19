@@ -21,6 +21,7 @@ interface NotificationEmailRequest {
     completedBy?: string;
     isManager?: boolean;
     changes?: string;
+    pdfUrl?: string;
   };
 }
 
@@ -148,6 +149,48 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Invalid notification type");
     }
 
+    // Prepare email data
+    const emailData: any = {
+      from: "Ordens de Trabalho <onboarding@resend.dev>",
+      to: [to],
+      subject,
+      html,
+    };
+
+    // If there's a PDF URL for work_order_completed, download and attach it
+    if (type === "work_order_completed" && data.pdfUrl) {
+      try {
+        console.log("Downloading PDF from storage:", data.pdfUrl);
+        
+        // Extract the file path from the public URL
+        const urlParts = data.pdfUrl.split('/work-order-attachments/');
+        const filePath = urlParts[1];
+        
+        // Download the PDF from Supabase storage
+        const { data: pdfData, error: downloadError } = await supabaseAdmin.storage
+          .from("work-order-attachments")
+          .download(filePath);
+
+        if (downloadError) {
+          console.error("Error downloading PDF:", downloadError);
+        } else if (pdfData) {
+          // Convert blob to base64
+          const buffer = await pdfData.arrayBuffer();
+          const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+          
+          emailData.attachments = [{
+            filename: `${data.workOrderReference}_concluido.pdf`,
+            content: base64,
+          }];
+          
+          console.log("PDF attached to email successfully");
+        }
+      } catch (pdfError) {
+        console.error("Error processing PDF attachment:", pdfError);
+        // Continue sending email without attachment
+      }
+    }
+
     // Send email using Resend API directly
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -155,12 +198,7 @@ const handler = async (req: Request): Promise<Response> => {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${RESEND_API_KEY}`,
       },
-      body: JSON.stringify({
-        from: "Ordens de Trabalho <onboarding@resend.dev>",
-        to: [to],
-        subject,
-        html,
-      }),
+      body: JSON.stringify(emailData),
     });
 
     const result = await response.json();
