@@ -142,7 +142,7 @@ export function CompleteWorkOrderDialog({
       );
 
       // Upload PDF to storage
-      await uploadWorkOrderPDF(
+      const pdfUrl = await uploadWorkOrderPDF(
         workOrderId,
         pdfBlob,
         workOrderReference,
@@ -170,7 +170,7 @@ export function CompleteWorkOrderDialog({
           }),
         });
 
-        // Send email to client
+        // Send email to client with PDF attachment
         if ((workOrder.client as any)?.name) {
           supabase.functions.invoke("send-notification-email", {
             body: {
@@ -182,6 +182,7 @@ export function CompleteWorkOrderDialog({
                 workOrderTitle: workOrder.title,
                 completedBy: currentProfile?.name || user.email || "Funcionário",
                 isManager: false,
+                pdfUrl: pdfUrl,
               },
             },
           });
@@ -209,7 +210,7 @@ export function CompleteWorkOrderDialog({
         }));
         await supabase.from("notifications").insert(managerNotifications);
 
-        // Send emails to managers
+        // Send emails to managers with PDF attachment
         for (const manager of managers) {
           const managerProfile = manager.profiles as any;
           
@@ -223,7 +224,9 @@ export function CompleteWorkOrderDialog({
                   workOrderReference: workOrderReference,
                   workOrderTitle: workOrder.title,
                   completedBy: currentProfile?.name || user.email || "Funcionário",
+                  clientName: (workOrder.client as any)?.name,
                   isManager: true,
+                  pdfUrl: pdfUrl,
                 },
               },
             });
