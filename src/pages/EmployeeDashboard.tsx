@@ -7,6 +7,8 @@ import { ClipboardList, Clock, CheckCircle, CalendarDays, Pause, Play } from "lu
 import { supabase } from "@/integrations/supabase/client";
 import { CompleteWorkOrderDialog } from "@/components/work-orders/CompleteWorkOrderDialog";
 import { PauseWorkOrderDialog } from "@/components/work-orders/PauseWorkOrderDialog";
+import { EditTimeEntriesDialog } from "@/components/work-orders/EditTimeEntriesDialog";
+import { TimeTracker } from "@/components/work-orders/TimeTracker";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -22,6 +24,7 @@ interface WorkOrder {
   status: string;
   client_name?: string;
   active_time_entry_id?: string;
+  active_time_entry_start?: string;
 }
 
 interface Stats {
@@ -44,6 +47,7 @@ export default function EmployeeDashboard() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
   const [pauseDialogOpen, setPauseDialogOpen] = useState(false);
+  const [editTimeEntriesDialogOpen, setEditTimeEntriesDialogOpen] = useState(false);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<{ 
     id: string; 
     reference: string;
@@ -84,22 +88,24 @@ export default function EmployeeDashboard() {
       // Get active time entries for in_progress orders
       const { data: activeTimeEntries } = await supabase
         .from("time_entries")
-        .select("id, work_order_id")
+        .select("id, work_order_id, start_time")
         .eq("user_id", user.id)
         .is("end_time", null);
 
       const activeTimeEntriesMap = new Map(
-        activeTimeEntries?.map(entry => [entry.work_order_id, entry.id]) || []
+        activeTimeEntries?.map(entry => [entry.work_order_id, { id: entry.id, start_time: entry.start_time }]) || []
       );
 
       const orders = data
         .map((item: any) => {
           const wo = item.work_orders;
           if (!wo) return null;
+          const activeEntry = activeTimeEntriesMap.get(wo.id);
           return {
             ...wo,
             client_name: wo.profiles?.name || 'N/A',
-            active_time_entry_id: activeTimeEntriesMap.get(wo.id),
+            active_time_entry_id: activeEntry?.id,
+            active_time_entry_start: activeEntry?.start_time,
           };
         })
         .filter(Boolean);
@@ -290,6 +296,16 @@ export default function EmployeeDashboard() {
     fetchStats();
   };
 
+  const handleEditTimeEntriesClick = (workOrderId: string, reference: string) => {
+    setSelectedWorkOrder({ id: workOrderId, reference });
+    setEditTimeEntriesDialogOpen(true);
+  };
+
+  const handleEditTimeEntriesUpdate = () => {
+    fetchAssignedOrders();
+    fetchStats();
+  };
+
   const getDatesWithOrders = () => {
     return assignedOrders
       .filter((order) => order.scheduled_date)
@@ -426,6 +442,9 @@ export default function EmployeeDashboard() {
                           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
                             {getStatusLabel(order.status)}
                           </span>
+                          {order.status === "in_progress" && order.active_time_entry_start && (
+                            <TimeTracker startTime={order.active_time_entry_start} className="text-xs" />
+                          )}
                         </div>
                         <div className="flex items-center gap-1">
                           {order.status === "pending" && (
@@ -493,6 +512,9 @@ export default function EmployeeDashboard() {
                         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
                           {getStatusLabel(order.status)}
                         </span>
+                        {order.status === "in_progress" && order.active_time_entry_start && (
+                          <TimeTracker startTime={order.active_time_entry_start} />
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground">{order.title}</p>
                       {order.client_name && (
@@ -531,6 +553,15 @@ export default function EmployeeDashboard() {
                           </Button>
                         </>
                       )}
+                      <Button 
+                        className="w-full sm:w-auto" 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => handleEditTimeEntriesClick(order.id, order.reference)}
+                      >
+                        <Clock className="h-4 w-4 mr-1" />
+                        Gerenciar Horas
+                      </Button>
                       <Button className="w-full sm:w-auto" size="sm" variant="outline" onClick={() => navigate(`/work-orders/${order.id}`)}>
                         Ver Detalhes
                       </Button>
@@ -562,6 +593,13 @@ export default function EmployeeDashboard() {
               onPause={handlePauseSuccess}
             />
           )}
+          <EditTimeEntriesDialog
+            open={editTimeEntriesDialogOpen}
+            onOpenChange={setEditTimeEntriesDialogOpen}
+            workOrderId={selectedWorkOrder.id}
+            workOrderReference={selectedWorkOrder.reference}
+            onUpdate={handleEditTimeEntriesUpdate}
+          />
         </>
       )}
     </DashboardLayout>
