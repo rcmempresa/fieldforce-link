@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Mail, Phone, Trash2, Edit, Building2, MapPin, Package, ChevronDown, ChevronUp, Plus, CalendarIcon, Briefcase, ArrowLeft } from "lucide-react";
+import { EquipmentAttachments } from "@/components/equipments/EquipmentAttachments";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CreateEmployeeDialog } from "@/components/employees/CreateEmployeeDialog";
@@ -72,12 +73,36 @@ export default function Clients() {
   const [selectedCalendarClient, setSelectedCalendarClient] = useState<Client | null>(null);
   const [calendarOrders, setCalendarOrders] = useState<WorkOrder[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [isManager, setIsManager] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchClients();
+    fetchCurrentUser();
   }, []);
+
+  const fetchCurrentUser = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setCurrentUserId(session.user.id);
+        
+        const { data: userRoles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .eq('role', 'manager')
+          .eq('approved', true)
+          .single();
+        
+        setIsManager(!!userRoles);
+      }
+    } catch (error) {
+      console.error('Error fetching current user:', error);
+    }
+  };
 
   useEffect(() => {
     filterClients();
@@ -485,11 +510,20 @@ export default function Clients() {
                                       >
                                         <Edit className="h-4 w-4" />
                                       </Button>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
+                                     </div>
+                                   </div>
+                                   {currentUserId && (
+                                     <div className="mt-4">
+                                       <EquipmentAttachments
+                                         equipmentId={equipment.id}
+                                         currentUserId={currentUserId}
+                                         isManager={isManager}
+                                       />
+                                     </div>
+                                   )}
+                                 </div>
+                               ))}
+                             </div>
                           ) : (
                             <p className="text-sm text-muted-foreground text-center py-4">
                               Nenhum equipamento registado
