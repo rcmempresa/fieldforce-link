@@ -67,22 +67,49 @@ export function CompleteWorkOrderDialog({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      // Create time entry
       const now = new Date();
-      const startTime = new Date(now.getTime() - parseFloat(hours) * 60 * 60 * 1000);
 
-      const { error: timeEntryError } = await supabase
+      // Check if there's an active time entry (without end_time)
+      const { data: activeTimeEntry } = await supabase
         .from("time_entries")
-        .insert({
-          work_order_id: workOrderId,
-          user_id: user.id,
-          start_time: startTime.toISOString(),
-          end_time: now.toISOString(),
-          duration_hours: parseFloat(hours),
-          note: note || null,
-        });
+        .select("id, start_time")
+        .eq("work_order_id", workOrderId)
+        .eq("user_id", user.id)
+        .is("end_time", null)
+        .single();
 
-      if (timeEntryError) throw timeEntryError;
+      if (activeTimeEntry) {
+        // Finalize the active time entry
+        const startTime = new Date(activeTimeEntry.start_time);
+        const durationHours = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+
+        const { error: updateError } = await supabase
+          .from("time_entries")
+          .update({
+            end_time: now.toISOString(),
+            duration_hours: durationHours,
+            note: note || null,
+          })
+          .eq("id", activeTimeEntry.id);
+
+        if (updateError) throw updateError;
+      } else {
+        // No active time entry, create a new one with provided hours
+        const startTime = new Date(now.getTime() - parseFloat(hours) * 60 * 60 * 1000);
+
+        const { error: timeEntryError } = await supabase
+          .from("time_entries")
+          .insert({
+            work_order_id: workOrderId,
+            user_id: user.id,
+            start_time: startTime.toISOString(),
+            end_time: now.toISOString(),
+            duration_hours: parseFloat(hours),
+            note: note || null,
+          });
+
+        if (timeEntryError) throw timeEntryError;
+      }
 
       // Get work order details for notifications and PDF
       const { data: workOrder } = await supabase

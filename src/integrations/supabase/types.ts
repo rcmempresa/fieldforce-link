@@ -220,6 +220,7 @@ export type Database = {
           end_time: string | null
           id: string
           note: string | null
+          pause_reason: Database["public"]["Enums"]["pause_reason"] | null
           start_time: string
           updated_at: string
           user_id: string
@@ -231,6 +232,7 @@ export type Database = {
           end_time?: string | null
           id?: string
           note?: string | null
+          pause_reason?: Database["public"]["Enums"]["pause_reason"] | null
           start_time: string
           updated_at?: string
           user_id: string
@@ -242,6 +244,7 @@ export type Database = {
           end_time?: string | null
           id?: string
           note?: string | null
+          pause_reason?: Database["public"]["Enums"]["pause_reason"] | null
           start_time?: string
           updated_at?: string
           user_id?: string
@@ -464,6 +467,11 @@ export type Database = {
     Enums: {
       app_role: "manager" | "employee" | "client"
       notification_channel: "email" | "sms" | "both"
+      pause_reason:
+        | "falta_material"
+        | "enviado_oficina"
+        | "enviado_orcamento"
+        | "assinatura_gerente"
       user_role: "manager" | "employee" | "client"
       work_order_priority: "low" | "medium" | "high" | "urgent"
       work_order_service_type:
@@ -607,6 +615,12 @@ export const Constants = {
     Enums: {
       app_role: ["manager", "employee", "client"],
       notification_channel: ["email", "sms", "both"],
+      pause_reason: [
+        "falta_material",
+        "enviado_oficina",
+        "enviado_orcamento",
+        "assinatura_gerente",
+      ],
       user_role: ["manager", "employee", "client"],
       work_order_priority: ["low", "medium", "high", "urgent"],
       work_order_service_type: [
