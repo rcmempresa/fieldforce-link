@@ -3,9 +3,10 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { ClipboardList, Clock, CheckCircle, CalendarDays } from "lucide-react";
+import { ClipboardList, Clock, CheckCircle, CalendarDays, Pause, Play } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { CompleteWorkOrderDialog } from "@/components/work-orders/CompleteWorkOrderDialog";
+import { PauseWorkOrderDialog } from "@/components/work-orders/PauseWorkOrderDialog";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -20,6 +21,7 @@ interface WorkOrder {
   scheduled_date: string;
   status: string;
   client_name?: string;
+  active_time_entry_id?: string;
 }
 
 interface Stats {
@@ -41,7 +43,12 @@ export default function EmployeeDashboard() {
   });
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
-  const [selectedWorkOrder, setSelectedWorkOrder] = useState<{ id: string; reference: string } | null>(null);
+  const [pauseDialogOpen, setPauseDialogOpen] = useState(false);
+  const [selectedWorkOrder, setSelectedWorkOrder] = useState<{ 
+    id: string; 
+    reference: string;
+    timeEntryId?: string;
+  } | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -74,13 +81,25 @@ export default function EmployeeDashboard() {
       .eq("user_id", user.id);
 
     if (data) {
+      // Get active time entries for in_progress orders
+      const { data: activeTimeEntries } = await supabase
+        .from("time_entries")
+        .select("id, work_order_id")
+        .eq("user_id", user.id)
+        .is("end_time", null);
+
+      const activeTimeEntriesMap = new Map(
+        activeTimeEntries?.map(entry => [entry.work_order_id, entry.id]) || []
+      );
+
       const orders = data
         .map((item: any) => {
           const wo = item.work_orders;
           if (!wo) return null;
           return {
             ...wo,
-            client_name: wo.profiles?.name || 'N/A'
+            client_name: wo.profiles?.name || 'N/A',
+            active_time_entry_id: activeTimeEntriesMap.get(wo.id),
           };
         })
         .filter(Boolean);
@@ -212,6 +231,21 @@ export default function EmployeeDashboard() {
 
   const handleStartWork = async (workOrderId: string, reference: string) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      // Create time entry
+      const { error: timeEntryError } = await supabase
+        .from("time_entries")
+        .insert({
+          work_order_id: workOrderId,
+          user_id: user.id,
+          start_time: new Date().toISOString(),
+        });
+
+      if (timeEntryError) throw timeEntryError;
+
+      // Update work order status
       const { error } = await supabase
         .from("work_orders")
         .update({ status: "in_progress" })
@@ -234,6 +268,16 @@ export default function EmployeeDashboard() {
         variant: "destructive",
       });
     }
+  };
+
+  const handlePauseClick = (workOrderId: string, reference: string, timeEntryId: string) => {
+    setSelectedWorkOrder({ id: workOrderId, reference, timeEntryId });
+    setPauseDialogOpen(true);
+  };
+
+  const handlePauseSuccess = () => {
+    fetchAssignedOrders();
+    fetchStats();
   };
 
   const handleCompleteClick = (workOrderId: string, reference: string) => {
@@ -386,13 +430,26 @@ export default function EmployeeDashboard() {
                         <div className="flex items-center gap-1">
                           {order.status === "pending" && (
                             <Button size="sm" onClick={() => handleStartWork(order.id, order.reference)}>
+                              <Play className="h-4 w-4 mr-1" />
                               Iniciar
                             </Button>
                           )}
                           {order.status === "in_progress" && (
-                            <Button size="sm" onClick={() => handleCompleteClick(order.id, order.reference)}>
-                              Concluir
-                            </Button>
+                            <>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handlePauseClick(order.id, order.reference, order.active_time_entry_id!)}
+                                disabled={!order.active_time_entry_id}
+                              >
+                                <Pause className="h-4 w-4 mr-1" />
+                                Pausar
+                              </Button>
+                              <Button size="sm" onClick={() => handleCompleteClick(order.id, order.reference)}>
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Concluir
+                              </Button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -452,13 +509,27 @@ export default function EmployeeDashboard() {
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                       {order.status === "pending" && (
                         <Button className="w-full sm:w-auto" size="sm" onClick={() => handleStartWork(order.id, order.reference)}>
+                          <Play className="h-4 w-4 mr-1" />
                           Iniciar
                         </Button>
                       )}
                       {order.status === "in_progress" && (
-                        <Button className="w-full sm:w-auto" size="sm" onClick={() => handleCompleteClick(order.id, order.reference)}>
-                          Concluir
-                        </Button>
+                        <>
+                          <Button 
+                            className="w-full sm:w-auto" 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handlePauseClick(order.id, order.reference, order.active_time_entry_id!)}
+                            disabled={!order.active_time_entry_id}
+                          >
+                            <Pause className="h-4 w-4 mr-1" />
+                            Pausar
+                          </Button>
+                          <Button className="w-full sm:w-auto" size="sm" onClick={() => handleCompleteClick(order.id, order.reference)}>
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Concluir
+                          </Button>
+                        </>
                       )}
                       <Button className="w-full sm:w-auto" size="sm" variant="outline" onClick={() => navigate(`/work-orders/${order.id}`)}>
                         Ver Detalhes
@@ -473,13 +544,25 @@ export default function EmployeeDashboard() {
       </div>
 
       {selectedWorkOrder && (
-        <CompleteWorkOrderDialog
-          open={completeDialogOpen}
-          onOpenChange={setCompleteDialogOpen}
-          workOrderId={selectedWorkOrder.id}
-          workOrderReference={selectedWorkOrder.reference}
-          onComplete={handleCompleteSuccess}
-        />
+        <>
+          <CompleteWorkOrderDialog
+            open={completeDialogOpen}
+            onOpenChange={setCompleteDialogOpen}
+            workOrderId={selectedWorkOrder.id}
+            workOrderReference={selectedWorkOrder.reference}
+            onComplete={handleCompleteSuccess}
+          />
+          {selectedWorkOrder.timeEntryId && (
+            <PauseWorkOrderDialog
+              open={pauseDialogOpen}
+              onOpenChange={setPauseDialogOpen}
+              workOrderId={selectedWorkOrder.id}
+              workOrderReference={selectedWorkOrder.reference}
+              timeEntryId={selectedWorkOrder.timeEntryId}
+              onPause={handlePauseSuccess}
+            />
+          )}
+        </>
       )}
     </DashboardLayout>
   );
