@@ -16,10 +16,10 @@ interface Attachment {
 interface EquipmentAttachmentsProps {
   equipmentId: string;
   currentUserId: string;
-  isManager: boolean;
+  canEdit: boolean;
 }
 
-export function EquipmentAttachments({ equipmentId, currentUserId, isManager }: EquipmentAttachmentsProps) {
+export function EquipmentAttachments({ equipmentId, currentUserId, canEdit }: EquipmentAttachmentsProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -170,8 +170,8 @@ export function EquipmentAttachments({ equipmentId, currentUserId, isManager }: 
     return <File className="h-4 w-4" />;
   };
 
-  const canDelete = (attachment: Attachment) => {
-    return isManager || attachment.uploaded_by === currentUserId;
+  const canDelete = () => {
+    return canEdit;
   };
 
   return (
@@ -179,21 +179,25 @@ export function EquipmentAttachments({ equipmentId, currentUserId, isManager }: 
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>Anexos do Equipamento</span>
-          <Button
-            size="sm"
-            onClick={() => document.getElementById("equipment-file-upload")?.click()}
-            disabled={uploading}
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            {uploading ? "Enviando..." : "Adicionar Anexo"}
-          </Button>
-          <input
-            id="equipment-file-upload"
-            type="file"
-            multiple
-            className="hidden"
-            onChange={handleFileUpload}
-          />
+          {canEdit && (
+            <>
+              <Button
+                size="sm"
+                onClick={() => document.getElementById(`equipment-file-upload-${equipmentId}`)?.click()}
+                disabled={uploading}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {uploading ? "Enviando..." : "Adicionar Anexo"}
+              </Button>
+              <input
+                id={`equipment-file-upload-${equipmentId}`}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+            </>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -227,7 +231,7 @@ export function EquipmentAttachments({ equipmentId, currentUserId, isManager }: 
                   >
                     <Download className="h-4 w-4" />
                   </Button>
-                  {canDelete(attachment) && (
+                  {canDelete() && (
                     <Button
                       size="sm"
                       variant="destructive"
