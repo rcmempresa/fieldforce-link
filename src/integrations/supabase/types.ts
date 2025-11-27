@@ -56,6 +56,41 @@ export type Database = {
           },
         ]
       }
+      equipment_attachments: {
+        Row: {
+          equipment_id: string
+          filename: string
+          id: string
+          uploaded_at: string
+          uploaded_by: string
+          url: string
+        }
+        Insert: {
+          equipment_id: string
+          filename: string
+          id?: string
+          uploaded_at?: string
+          uploaded_by: string
+          url: string
+        }
+        Update: {
+          equipment_id?: string
+          filename?: string
+          id?: string
+          uploaded_at?: string
+          uploaded_by?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_attachments_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipments: {
         Row: {
           client_id: string
