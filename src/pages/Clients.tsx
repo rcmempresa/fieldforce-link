@@ -514,11 +514,11 @@ export default function Clients() {
                                    </div>
                                    {currentUserId && (
                                      <div className="mt-4">
-                                       <EquipmentAttachments
-                                         equipmentId={equipment.id}
-                                         currentUserId={currentUserId}
-                                         isManager={isManager}
-                                       />
+                            <EquipmentAttachments 
+                              equipmentId={equipment.id}
+                              currentUserId={currentUserId}
+                              canEdit={isManager}
+                            />
                                      </div>
                                    )}
                                  </div>

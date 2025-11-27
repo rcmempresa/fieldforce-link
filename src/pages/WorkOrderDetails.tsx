@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Calendar, User, Clock, FileText, Users, Plus, X, Wrench } from "lucide-react";
+import { ArrowLeft, Calendar, User, Clock, FileText, Users, Plus, X, Wrench, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,6 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { WorkOrderAttachments } from "@/components/work-orders/WorkOrderAttachments";
+import { EquipmentAttachments } from "@/components/equipments/EquipmentAttachments";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 interface WorkOrderDetails {
   id: string;
@@ -50,6 +52,13 @@ interface Assignment {
   };
 }
 
+interface Equipment {
+  id: string;
+  name: string;
+  model: string | null;
+  serial_number: string | null;
+}
+
 export default function WorkOrderDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -63,9 +72,13 @@ export default function WorkOrderDetails() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<string>("");
+  
+  // Equipment states
+  const [equipments, setEquipments] = useState<Equipment[]>([]);
 
   useEffect(() => {
     fetchWorkOrderDetails();
+    fetchEquipments();
     if (isManager) {
       fetchAssignments();
       fetchEmployees();
@@ -138,6 +151,33 @@ export default function WorkOrderDetails() {
       }
     } catch (error) {
       console.error('Error fetching employees:', error);
+    }
+  };
+
+  const fetchEquipments = async () => {
+    const { data, error } = await supabase
+      .from("work_order_equipments")
+      .select(`
+        equipment_id,
+        equipments (
+          id,
+          name,
+          model,
+          serial_number
+        )
+      `)
+      .eq("work_order_id", id);
+
+    if (error) {
+      console.error("Error fetching equipments:", error);
+      return;
+    }
+
+    if (data) {
+      const equipmentsList = data
+        .map((item: any) => item.equipments)
+        .filter(Boolean);
+      setEquipments(equipmentsList);
     }
   };
 
@@ -536,6 +576,47 @@ export default function WorkOrderDetails() {
                   ))}
                 </div>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {equipments.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Equipamentos Associados
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Accordion type="single" collapsible className="w-full">
+                {equipments.map((equipment) => (
+                  <AccordionItem key={equipment.id} value={equipment.id}>
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <Wrench className="h-4 w-4" />
+                        <div className="text-left">
+                          <p className="font-medium">{equipment.name}</p>
+                          {(equipment.model || equipment.serial_number) && (
+                            <p className="text-xs text-muted-foreground">
+                              {equipment.model && `Modelo: ${equipment.model}`}
+                              {equipment.model && equipment.serial_number && " | "}
+                              {equipment.serial_number && `S/N: ${equipment.serial_number}`}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <EquipmentAttachments
+                        equipmentId={equipment.id}
+                        currentUserId={user?.id || ""}
+                        canEdit={roles.includes("manager") || roles.includes("employee")}
+                      />
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
             </CardContent>
           </Card>
         )}
