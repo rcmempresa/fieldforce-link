@@ -24,7 +24,6 @@ export function CompleteWorkOrderDialog({
   workOrderReference,
   onComplete,
 }: CompleteWorkOrderDialogProps) {
-  const [hours, setHours] = useState("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -42,15 +41,6 @@ export function CompleteWorkOrderDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!hours || parseFloat(hours) <= 0) {
-      toast({
-        title: "Erro",
-        description: "Por favor, insira um número válido de horas",
-        variant: "destructive",
-      });
-      return;
-    }
 
     if (signatureEmpty || !signatureRef.current) {
       toast({
@@ -78,38 +68,30 @@ export function CompleteWorkOrderDialog({
         .is("end_time", null)
         .single();
 
-      if (activeTimeEntry) {
-        // Finalize the active time entry
-        const startTime = new Date(activeTimeEntry.start_time);
-        const durationHours = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-
-        const { error: updateError } = await supabase
-          .from("time_entries")
-          .update({
-            end_time: now.toISOString(),
-            duration_hours: durationHours,
-            note: note || null,
-          })
-          .eq("id", activeTimeEntry.id);
-
-        if (updateError) throw updateError;
-      } else {
-        // No active time entry, create a new one with provided hours
-        const startTime = new Date(now.getTime() - parseFloat(hours) * 60 * 60 * 1000);
-
-        const { error: timeEntryError } = await supabase
-          .from("time_entries")
-          .insert({
-            work_order_id: workOrderId,
-            user_id: user.id,
-            start_time: startTime.toISOString(),
-            end_time: now.toISOString(),
-            duration_hours: parseFloat(hours),
-            note: note || null,
-          });
-
-        if (timeEntryError) throw timeEntryError;
+      if (!activeTimeEntry) {
+        toast({
+          title: "Erro",
+          description: "Não há entrada de tempo ativa para esta ordem",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
       }
+
+      // Finalize the active time entry
+      const startTime = new Date(activeTimeEntry.start_time);
+      const durationHours = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+
+      const { error: timeEntryError } = await supabase
+        .from("time_entries")
+        .update({
+          end_time: now.toISOString(),
+          duration_hours: durationHours,
+          note: note || null,
+        })
+        .eq("id", activeTimeEntry.id);
+
+      if (timeEntryError) throw timeEntryError;
 
       // Get work order details for notifications and PDF
       const { data: workOrder } = await supabase
@@ -164,7 +146,7 @@ export function CompleteWorkOrderDialog({
         },
         signatureDataUrl,
         currentProfile?.name || user.email || "Funcionário",
-        parseFloat(hours),
+        durationHours,
         note || null
       );
 
@@ -266,7 +248,6 @@ export function CompleteWorkOrderDialog({
         description: `Ordem ${workOrderReference} concluída e documento gerado!`,
       });
 
-      setHours("");
       setNote("");
       signatureRef.current?.clear();
       setSignatureEmpty(true);
@@ -291,19 +272,6 @@ export function CompleteWorkOrderDialog({
           <DialogTitle>Concluir Ordem de Trabalho</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="hours">Horas Trabalhadas *</Label>
-            <Input
-              id="hours"
-              type="number"
-              step="0.5"
-              min="0"
-              placeholder="Ex: 2.5"
-              value={hours}
-              onChange={(e) => setHours(e.target.value)}
-              required
-            />
-          </div>
           <div className="space-y-2">
             <Label htmlFor="note">Notas (opcional)</Label>
             <Textarea
