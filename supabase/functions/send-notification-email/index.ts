@@ -47,6 +47,18 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Sending notification email:", { type, userId });
 
+    let workOrderId: string | null = null;
+
+    // Get work order ID early for logging purposes
+    if (data.workOrderReference) {
+      const { data: woData } = await supabaseAdmin
+        .from('work_orders')
+        .select('id')
+        .eq('reference', data.workOrderReference)
+        .single();
+      workOrderId = woData?.id || null;
+    }
+
     // Get user email
     const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
     
@@ -218,10 +230,32 @@ const handler = async (req: Request): Promise<Response> => {
     if (!response.ok) {
       const result = await response.text();
       console.error("Error sending email:", result);
+      
+      // Log failed email attempt
+      await supabaseAdmin.from('email_logs').insert({
+        user_id: userId,
+        email: to,
+        subject,
+        notification_type: type,
+        status: 'failed',
+        error_message: result,
+        work_order_id: workOrderId,
+      });
+
       throw new Error(result || "Failed to send email");
     }
 
     console.log("Email sent successfully to:", to);
+
+    // Log the email in the database
+    await supabaseAdmin.from('email_logs').insert({
+      user_id: userId,
+      email: to,
+      subject,
+      notification_type: type,
+      status: 'sent',
+      work_order_id: workOrderId,
+    });
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
@@ -232,6 +266,7 @@ const handler = async (req: Request): Promise<Response> => {
     });
   } catch (error: any) {
     console.error("Error in send-notification-email function:", error);
+    
     return new Response(
       JSON.stringify({ error: error.message }),
       {

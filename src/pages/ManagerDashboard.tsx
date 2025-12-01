@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Users, CheckCircle, UserCheck, Calendar as CalendarIcon } from "lucide-react";
+import { ClipboardList, Users, CheckCircle, UserCheck, Calendar as CalendarIcon, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
@@ -437,6 +437,53 @@ export default function ManagerDashboard() {
                 </div>
               </div>
             </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          <Card className="hover:shadow-md transition-all duration-300 cursor-pointer" onClick={() => navigate("/work-orders")}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <ClipboardList className="h-5 w-5 text-primary" />
+                </div>
+                <CardTitle className="text-base">Ordens de Trabalho</CardTitle>
+              </div>
+            </CardHeader>
+          </Card>
+          
+          <Card className="hover:shadow-md transition-all duration-300 cursor-pointer" onClick={() => navigate("/employees")}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Users className="h-5 w-5 text-primary" />
+                </div>
+                <CardTitle className="text-base">Funcionários</CardTitle>
+              </div>
+            </CardHeader>
+          </Card>
+          
+          <Card className="hover:shadow-md transition-all duration-300 cursor-pointer" onClick={() => navigate("/clients")}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center">
+                  <Users className="h-5 w-5 text-accent" />
+                </div>
+                <CardTitle className="text-base">Clientes</CardTitle>
+              </div>
+            </CardHeader>
+          </Card>
+
+          <Card className="hover:shadow-md transition-all duration-300 cursor-pointer" onClick={() => navigate("/email-logs")}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-orange-500/10 flex items-center justify-center">
+                  <Mail className="h-5 w-5 text-orange-500" />
+                </div>
+                <CardTitle className="text-base">Histórico de Emails</CardTitle>
+              </div>
+            </CardHeader>
           </Card>
         </div>
 
