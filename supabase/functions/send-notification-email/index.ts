@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
-// Resend API
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+// SendGrid API
+const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -149,12 +149,24 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Invalid notification type");
     }
 
-    // Prepare email data
+    // Prepare email data for SendGrid
     const emailData: any = {
-      from: "Ordens de Trabalho <onboarding@resend.dev>",
-      to: [to],
+      personalizations: [
+        {
+          to: [{ email: to }]
+        }
+      ],
+      from: { 
+        email: "noreply@yourdomain.com",
+        name: "Ordens de Trabalho"
+      },
       subject,
-      html,
+      content: [
+        {
+          type: "text/html",
+          value: html
+        }
+      ]
     };
 
     // If there's a PDF URL for work_order_completed, download and attach it
@@ -179,8 +191,10 @@ const handler = async (req: Request): Promise<Response> => {
           const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
           
           emailData.attachments = [{
-            filename: `${data.workOrderReference}_concluido.pdf`,
             content: base64,
+            filename: `${data.workOrderReference}_concluido.pdf`,
+            type: "application/pdf",
+            disposition: "attachment"
           }];
           
           console.log("PDF attached to email successfully");
@@ -191,21 +205,20 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Send email using Resend API directly
-    const response = await fetch("https://api.resend.com/emails", {
+    // Send email using SendGrid API
+    const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${RESEND_API_KEY}`,
+        "Authorization": `Bearer ${SENDGRID_API_KEY}`,
       },
       body: JSON.stringify(emailData),
     });
 
-    const result = await response.json();
-
     if (!response.ok) {
+      const result = await response.text();
       console.error("Error sending email:", result);
-      throw new Error(result.message || "Failed to send email");
+      throw new Error(result || "Failed to send email");
     }
 
     console.log("Email sent successfully to:", to);
