@@ -157,7 +157,7 @@ const handler = async (req: Request): Promise<Response> => {
         }
       ],
       from: { 
-        email: "noreply@yourdomain.com",
+        email: "geral@nrenergias.pt",
         name: "Ordens de Trabalho"
       },
       subject,
