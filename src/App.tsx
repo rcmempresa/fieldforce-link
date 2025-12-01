@@ -14,6 +14,7 @@ import WorkOrders from "./pages/WorkOrders";
 import WorkOrderDetails from "./pages/WorkOrderDetails";
 import Employees from "./pages/Employees";
 import Clients from "./pages/Clients";
+import EmailLogs from "./pages/EmailLogs";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -81,6 +82,14 @@ const App = () => (
             element={
               <ProtectedRoute allowedRoles={["manager"]}>
                 <Clients />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/email-logs"
+            element={
+              <ProtectedRoute allowedRoles={["manager"]}>
+                <EmailLogs />
               </ProtectedRoute>
             }
           />
