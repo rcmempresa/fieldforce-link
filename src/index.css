@@ -82,7 +82,7 @@ All colors MUST be HSL.
     --border: 217 33% 17%;
     --input: 217 33% 17%;
     --ring: 217 91% 60%;
-    
+
     --sidebar-background: 222 47% 11%;
     --sidebar-foreground: 210 40% 98%;
     --sidebar-primary: 217 91% 60%;
@@ -101,5 +101,9 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+  }
+
+  #lovable-badge {
+    display: none !important;
   }
 }
