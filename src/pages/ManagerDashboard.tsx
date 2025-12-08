@@ -65,38 +65,23 @@ export default function ManagerDashboard() {
   }, []);
 
   const fetchPendingUsers = async () => {
-    // First, get all user IDs that have roles
-    const { data: usersWithRoles } = await supabase
-      .from("user_roles")
-      .select("user_id");
-
-    const userIdsWithRoles = usersWithRoles?.map(r => r.user_id) || [];
-
-    // Then get all profiles
-    const { data: allProfiles } = await supabase
-      .from("profiles")
-      .select("id, name, created_at");
-
-    // Filter profiles that don't have roles
-    const usersWithoutRoles = allProfiles?.filter(
-      profile => !userIdsWithRoles.includes(profile.id)
-    ) || [];
-
-    if (usersWithoutRoles.length > 0) {
-      // Get user list to find emails
-      const { data } = await supabase.auth.admin.listUsers();
-      const authUsers = data?.users || [];
+    try {
+      // Call the secure edge function to list pending users
+      const { data, error } = await supabase.functions.invoke("list-pending-users");
       
-      const usersWithEmails = usersWithoutRoles.map((user) => {
-        const authUser = authUsers.find(u => u.id === user.id);
-        return {
-          ...user,
-          email: authUser?.email || "N/A",
-        };
-      });
+      if (error) {
+        console.error("Error fetching pending users:", error);
+        setPendingUsers([]);
+        return;
+      }
       
-      setPendingUsers(usersWithEmails as PendingUser[]);
-    } else {
+      if (data?.users) {
+        setPendingUsers(data.users as PendingUser[]);
+      } else {
+        setPendingUsers([]);
+      }
+    } catch (error) {
+      console.error("Error fetching pending users:", error);
       setPendingUsers([]);
     }
   };
@@ -251,20 +236,26 @@ export default function ManagerDashboard() {
   };
 
   const rejectUser = async (userId: string) => {
-    const { error } = await supabase.auth.admin.deleteUser(userId);
-
-    if (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao rejeitar utilizador",
-        variant: "destructive",
+    try {
+      // Call the secure edge function to delete user
+      const { data, error } = await supabase.functions.invoke("delete-user", {
+        body: { userId },
       });
-    } else {
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
       toast({
         title: "Sucesso",
         description: "Utilizador rejeitado",
       });
       fetchPendingUsers();
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao rejeitar utilizador",
+        variant: "destructive",
+      });
     }
   };
 

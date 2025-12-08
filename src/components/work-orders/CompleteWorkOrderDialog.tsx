@@ -106,16 +106,18 @@ export function CompleteWorkOrderDialog({
 
       if (!workOrder) throw new Error("Ordem de trabalho não encontrada");
 
-      // Get client email
-      const { data: clientAuth } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("id", workOrder.client_id)
-        .single();
-
-      const { data: { user: clientUser } } = await supabase.auth.admin.getUserById(
-        clientAuth?.id || ""
-      );
+      // Get client email via secure edge function
+      let clientEmail = "N/A";
+      if (workOrder.client_id) {
+        try {
+          const { data: emailData } = await supabase.functions.invoke("get-user-email", {
+            body: { userId: workOrder.client_id },
+          });
+          clientEmail = emailData?.email || "N/A";
+        } catch (emailError) {
+          console.error("Error fetching client email:", emailError);
+        }
+      }
 
       // Get current user profile
       const { data: currentProfile } = await supabase
@@ -138,7 +140,7 @@ export function CompleteWorkOrderDialog({
           service_type: workOrder.service_type,
           scheduled_date: workOrder.scheduled_date,
           client_name: (workOrder.client as any)?.name || "N/A",
-          client_email: clientUser?.email || "N/A",
+          client_email: clientEmail,
           assigned_employees: (workOrder.assignments as any[])?.map((a: any) => ({ name: a.user.name })) || [],
           total_hours: workOrder.total_hours,
           created_at: workOrder.created_at,
