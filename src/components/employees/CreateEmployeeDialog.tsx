@@ -31,42 +31,21 @@ export function CreateEmployeeDialog({ onSuccess }: CreateEmployeeDialogProps) {
     setLoading(true);
 
     try {
-      // Create user in auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: formData.email,
-        password: formData.password,
-        email_confirm: true,
-        user_metadata: {
+      // Call the secure edge function to create user
+      const { data, error } = await supabase.functions.invoke("create-user", {
+        body: {
+          email: formData.email,
+          password: formData.password,
           name: formData.name,
-        },
-      });
-
-      if (authError) throw authError;
-
-      // Update profile with additional info
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({
           phone: formData.phone || null,
           company_name: formData.company_name || null,
           address: formData.address || null,
-        })
-        .eq("id", authData.user.id);
-
-      if (profileError) throw profileError;
-
-      // Create role
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .insert({
-          user_id: authData.user.id,
           role: formData.role,
-          approved: true,
-          approved_at: new Date().toISOString(),
-          approved_by: (await supabase.auth.getUser()).data.user?.id,
-        });
+        },
+      });
 
-      if (roleError) throw roleError;
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast({
         title: "Sucesso",
