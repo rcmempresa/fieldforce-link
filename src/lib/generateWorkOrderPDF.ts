@@ -18,9 +18,13 @@ interface WorkOrderData {
 }
 
 function formatDecimalHoursToTime(decimalHours: number): string {
-  const hours = Math.floor(decimalHours);
-  const minutes = Math.round((decimalHours - hours) * 60);
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  const totalMinutes = Math.round(decimalHours * 60);
+  if (totalMinutes < 60) {
+    return `${totalMinutes} min`;
+  }
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours}h ${minutes.toString().padStart(2, '0')}min`;
 }
 
 export async function generateWorkOrderPDF(
