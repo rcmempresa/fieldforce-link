@@ -1,15 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
-import { Mail, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Mail, AlertCircle, CheckCircle2, ArrowLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function EmailLogs() {
+  const navigate = useNavigate();
   const { data: emailLogs, isLoading } = useQuery({
     queryKey: ["email-logs"],
     queryFn: async () => {
@@ -60,11 +63,20 @@ export default function EmailLogs() {
   return (
     <DashboardLayout title="Histórico de Emails">
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Histórico de Emails</h1>
-          <p className="text-muted-foreground">
-            Visualize todos os emails enviados pelo sistema
-          </p>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => navigate(-1)}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Histórico de Emails</h1>
+            <p className="text-muted-foreground">
+              Visualize todos os emails enviados pelo sistema
+            </p>
+          </div>
         </div>
 
         <Card>
