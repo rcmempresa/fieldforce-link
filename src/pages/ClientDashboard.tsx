@@ -366,7 +366,7 @@ export default function ClientDashboard() {
                         variant={order.status === "completed" ? "outline" : "default"}
                         onClick={() => navigate(`/work-orders/${order.id}`)}
                       >
-                        {order.status === "completed" ? "Ver Fatura" : "Ver"}
+                        {order.status === "completed" ? "Ver Documento" : "Ver"}
                       </Button>
                     </div>
                   </div>
