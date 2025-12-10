@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ClipboardList, Users, CheckCircle, UserCheck, Calendar as CalendarIcon, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -50,6 +52,7 @@ export default function ManagerDashboard() {
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [pendingRequests, setPendingRequests] = useState<WorkOrder[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<Record<string, string>>({});
+  const [scheduledDates, setScheduledDates] = useState<Record<string, string>>({});
   const [stats, setStats] = useState<Stats>({ pending: 0, inProgress: 0, completed: 0, activeEmployees: 0, activeClients: 0 });
   const [recentOrders, setRecentOrders] = useState<WorkOrder[]>([]);
   const [calendarOrders, setCalendarOrders] = useState<WorkOrder[]>([]);
@@ -260,9 +263,16 @@ export default function ManagerDashboard() {
   };
 
   const approveRequest = async (requestId: string) => {
+    const scheduledDate = scheduledDates[requestId];
+    
+    const updateData: any = { status: "pending" };
+    if (scheduledDate) {
+      updateData.scheduled_date = new Date(scheduledDate).toISOString();
+    }
+
     const { error } = await supabase
       .from("work_orders")
-      .update({ status: "pending" })
+      .update(updateData)
       .eq("id", requestId);
 
     if (error) {
@@ -274,11 +284,12 @@ export default function ManagerDashboard() {
     } else {
       toast({
         title: "Sucesso",
-        description: "Solicitação aprovada",
+        description: scheduledDate ? "Solicitação aprovada e agendada" : "Solicitação aprovada",
       });
       fetchPendingRequests();
       fetchStats();
       fetchRecentOrders();
+      fetchCalendarOrders();
     }
   };
 
@@ -581,6 +592,18 @@ export default function ManagerDashboard() {
                       </div>
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                      <div className="flex flex-col gap-1">
+                        <Label htmlFor={`date-${request.id}`} className="text-xs text-muted-foreground">
+                          Data Agendada
+                        </Label>
+                        <Input
+                          id={`date-${request.id}`}
+                          type="datetime-local"
+                          value={scheduledDates[request.id] || ""}
+                          onChange={(e) => setScheduledDates({ ...scheduledDates, [request.id]: e.target.value })}
+                          className="w-full sm:w-auto"
+                        />
+                      </div>
                       <Button 
                         size="sm" 
                         onClick={() => approveRequest(request.id)}
