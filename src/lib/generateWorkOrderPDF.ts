@@ -17,6 +17,12 @@ interface WorkOrderData {
   completed_at: string;
 }
 
+function formatDecimalHoursToTime(decimalHours: number): string {
+  const hours = Math.floor(decimalHours);
+  const minutes = Math.round((decimalHours - hours) * 60);
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+}
+
 export async function generateWorkOrderPDF(
   workOrderData: WorkOrderData,
   signatureDataUrl: string,
@@ -29,7 +35,7 @@ export async function generateWorkOrderPDF(
   // Header
   doc.setFontSize(20);
   doc.setFont("helvetica", "bold");
-  doc.text("Ordem de Trabalho Concluída", 105, 20, { align: "center" });
+  doc.text("Folha de OT", 105, 20, { align: "center" });
   
   // Work Order Reference
   doc.setFontSize(14);
@@ -65,16 +71,16 @@ export async function generateWorkOrderPDF(
   
   doc.setFont("helvetica", "normal");
   doc.text(`Concluído por: ${employeeName}`, 20, 138);
-  doc.text(`Horas trabalhadas: ${hoursWorked}h`, 20, 146);
+  doc.text(`Horas trabalhadas: ${formatDecimalHoursToTime(hoursWorked)}`, 20, 146);
   doc.text(`Data de conclusão: ${new Date(workOrderData.completed_at).toLocaleString("pt-BR")}`, 20, 154);
   
   if (notes) {
     doc.text(`Notas: ${notes}`, 20, 162, { maxWidth: 170 });
   }
   
-  // Signature
+  // Client Signature
   doc.setFont("helvetica", "bold");
-  doc.text("Assinatura do Funcionário:", 20, 180);
+  doc.text("Assinatura do Cliente:", 20, 180);
   
   if (signatureDataUrl) {
     doc.addImage(signatureDataUrl, "PNG", 20, 185, 80, 30);
