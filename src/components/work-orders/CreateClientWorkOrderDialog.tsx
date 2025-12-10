@@ -171,6 +171,19 @@ export function CreateClientWorkOrderDialog({
       }
     }
 
+    // Send confirmation email to client
+    supabase.functions.invoke("send-notification-email", {
+      body: {
+        type: "work_order_request_received",
+        userId: clientId,
+        data: {
+          recipientName: clientProfile?.name || "Cliente",
+          workOrderReference: workOrder.reference || "",
+          workOrderTitle: formData.title,
+        },
+      },
+    });
+
     setLoading(false);
 
     toast({

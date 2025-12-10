@@ -9,24 +9,45 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+type NotificationType = 
+  | "welcome" 
+  | "account_approved"
+  | "account_rejected"
+  | "work_order_request_received"
+  | "work_order_approved"
+  | "work_order_rejected"
+  | "work_order_assigned" 
+  | "work_order_started"
+  | "work_order_paused"
+  | "work_order_resumed"
+  | "work_order_completed" 
+  | "work_order_created" 
+  | "work_order_updated" 
+  | "work_order_assignment_removed"
+  | "work_order_scheduled";
+
 interface NotificationEmailRequest {
-  type: "work_order_assigned" | "work_order_completed" | "work_order_created" | "work_order_updated" | "work_order_assignment_removed";
-  userId: string; // User ID instead of email
+  type: NotificationType;
+  userId: string;
   data: {
     recipientName: string;
-    workOrderReference: string;
-    workOrderTitle: string;
+    workOrderReference?: string;
+    workOrderTitle?: string;
     employeeName?: string;
     clientName?: string;
     completedBy?: string;
     isManager?: boolean;
+    isClient?: boolean;
+    isEmployee?: boolean;
     changes?: string;
     pdfUrl?: string;
+    scheduledDate?: string;
+    pauseReason?: string;
+    role?: string;
   };
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -49,17 +70,15 @@ const handler = async (req: Request): Promise<Response> => {
 
     let workOrderId: string | null = null;
 
-    // Get work order ID early for logging purposes
     if (data.workOrderReference) {
       const { data: woData } = await supabaseAdmin
         .from('work_orders')
         .select('id')
         .eq('reference', data.workOrderReference)
-        .single();
+        .maybeSingle();
       workOrderId = woData?.id || null;
     }
 
-    // Get user email
     const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
     
     if (userError || !user?.email) {
@@ -71,97 +90,283 @@ const handler = async (req: Request): Promise<Response> => {
     let html: string;
     let subject: string;
 
-    if (type === "work_order_assigned") {
-      subject = `Nova Ordem de Trabalho - ${data.workOrderReference}`;
-      html = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
-          <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">Nova Ordem de Trabalho Atribuída</h1>
-          <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
-          <p style="color: #333; font-size: 16px; line-height: 1.5;">Foi atribuído à seguinte ordem de trabalho:</p>
-          <div style="background-color: #f4f4f5; border-radius: 8px; padding: 24px; margin: 24px 0;">
-            <p style="color: #7c3aed; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${data.workOrderReference}</p>
-            <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
-            <p style="color: #71717a; font-size: 14px; margin: 8px 0 0 0;">Cliente: ${data.clientName || 'N/A'}</p>
+    switch (type) {
+      case "welcome":
+        subject = "Bem-vindo à Plataforma de Ordens de Trabalho";
+        html = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
+            <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">Bem-vindo!</h1>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">A sua conta foi criada com sucesso na nossa plataforma de gestão de ordens de trabalho.</p>
+            <div style="background-color: #f0f9ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 24px; margin: 24px 0;">
+              <p style="color: #3b82f6; font-size: 16px; font-weight: bold; margin: 0;">Próximos passos:</p>
+              <p style="color: #333; font-size: 14px; margin: 12px 0 0 0;">A sua conta está pendente de aprovação. Será notificado assim que um administrador aprovar o seu acesso.</p>
+            </div>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Obrigado por se juntar a nós!</p>
+            <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
           </div>
-          <p style="color: #333; font-size: 16px; line-height: 1.5;">Por favor, aceda ao sistema para ver todos os detalhes.</p>
-          <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
-        </div>
-      `;
-    } else if (type === "work_order_completed") {
-      subject = `Ordem Concluída - ${data.workOrderReference}`;
-      html = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
-          <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">Ordem de Trabalho Concluída</h1>
-          <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
-          <p style="color: #333; font-size: 16px; line-height: 1.5;">
-            ${data.isManager 
-              ? 'Uma ordem de trabalho foi concluída:'
-              : 'A sua ordem de trabalho foi concluída:'}
-          </p>
-          <div style="background-color: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 24px; margin: 24px 0;">
-            <p style="color: #16a34a; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${data.workOrderReference}</p>
-            <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
-            <p style="color: #71717a; font-size: 14px; margin: 8px 0 0 0;">Concluída por: ${data.completedBy || 'N/A'}</p>
+        `;
+        break;
+
+      case "account_approved":
+        subject = "Conta Aprovada - Acesso Concedido";
+        html = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
+            <h1 style="color: #16a34a; font-size: 24px; margin-bottom: 20px;">Conta Aprovada!</h1>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">A sua conta foi aprovada com sucesso!</p>
+            <div style="background-color: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 24px; margin: 24px 0;">
+              <p style="color: #16a34a; font-size: 16px; font-weight: bold; margin: 0;">Papel atribuído: ${data.role === 'manager' ? 'Gerente' : data.role === 'employee' ? 'Funcionário' : 'Cliente'}</p>
+              <p style="color: #333; font-size: 14px; margin: 12px 0 0 0;">Já pode aceder à plataforma e utilizar todas as funcionalidades disponíveis para o seu perfil.</p>
+            </div>
+            <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
           </div>
-          <p style="color: #333; font-size: 16px; line-height: 1.5;">
-            ${data.isManager 
-              ? 'Por favor, aceda ao sistema para rever os detalhes.'
-              : 'Obrigado por confiar nos nossos serviços.'}
-          </p>
-          <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
-        </div>
-      `;
-    } else if (type === "work_order_created") {
-      subject = `Nova Ordem Criada - ${data.workOrderReference}`;
-      html = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
-          <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">Nova Ordem de Trabalho Criada</h1>
-          <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
-          <p style="color: #333; font-size: 16px; line-height: 1.5;">Uma nova ordem de trabalho foi criada:</p>
-          <div style="background-color: #f0f9ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 24px; margin: 24px 0;">
-            <p style="color: #3b82f6; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${data.workOrderReference}</p>
-            <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
-            <p style="color: #71717a; font-size: 14px; margin: 8px 0 0 0;">Cliente: ${data.clientName || 'N/A'}</p>
+        `;
+        break;
+
+      case "account_rejected":
+        subject = "Conta Não Aprovada";
+        html = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
+            <h1 style="color: #ef4444; font-size: 24px; margin-bottom: 20px;">Conta Não Aprovada</h1>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Lamentamos informar que o seu pedido de conta não foi aprovado.</p>
+            <div style="background-color: #fef2f2; border: 1px solid #ef4444; border-radius: 8px; padding: 24px; margin: 24px 0;">
+              <p style="color: #333; font-size: 14px; margin: 0;">Se acredita que isto foi um erro, por favor entre em contacto connosco.</p>
+            </div>
+            <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
           </div>
-          <p style="color: #333; font-size: 16px; line-height: 1.5;">Por favor, aceda ao sistema para ver todos os detalhes.</p>
-          <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
-        </div>
-      `;
-    } else if (type === "work_order_updated") {
-      subject = `Ordem Atualizada - ${data.workOrderReference}`;
-      html = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
-          <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">Ordem de Trabalho Atualizada</h1>
-          <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
-          <p style="color: #333; font-size: 16px; line-height: 1.5;">Uma ordem de trabalho foi atualizada:</p>
-          <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 24px; margin: 24px 0;">
-            <p style="color: #f59e0b; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${data.workOrderReference}</p>
-            <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
-            ${data.changes ? `<p style="color: #71717a; font-size: 14px; margin: 8px 0 0 0;">Alterações: ${data.changes}</p>` : ''}
+        `;
+        break;
+
+      case "work_order_request_received":
+        subject = `Solicitação Recebida - ${data.workOrderReference}`;
+        html = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
+            <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">Solicitação de Serviço Recebida</h1>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">A sua solicitação de serviço foi recebida com sucesso e está aguardando aprovação.</p>
+            <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 24px; margin: 24px 0;">
+              <p style="color: #f59e0b; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${data.workOrderReference}</p>
+              <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
+              <p style="color: #71717a; font-size: 14px; margin: 8px 0 0 0;">Estado: Aguardando Aprovação</p>
+            </div>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Será notificado assim que a sua solicitação for aprovada.</p>
+            <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
           </div>
-          <p style="color: #333; font-size: 16px; line-height: 1.5;">Por favor, aceda ao sistema para ver todos os detalhes.</p>
-          <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
-        </div>
-      `;
-    } else if (type === "work_order_assignment_removed") {
-      subject = `Removido da Ordem - ${data.workOrderReference}`;
-      html = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
-          <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">Atribuição Removida</h1>
-          <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
-          <p style="color: #333; font-size: 16px; line-height: 1.5;">Foi removido da seguinte ordem de trabalho:</p>
-          <div style="background-color: #fef2f2; border: 1px solid #ef4444; border-radius: 8px; padding: 24px; margin: 24px 0;">
-            <p style="color: #ef4444; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${data.workOrderReference}</p>
-            <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
+        `;
+        break;
+
+      case "work_order_approved":
+        subject = `Solicitação Aprovada - ${data.workOrderReference}`;
+        html = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
+            <h1 style="color: #16a34a; font-size: 24px; margin-bottom: 20px;">Solicitação Aprovada!</h1>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">A sua solicitação de serviço foi aprovada.</p>
+            <div style="background-color: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 24px; margin: 24px 0;">
+              <p style="color: #16a34a; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${data.workOrderReference}</p>
+              <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
+              ${data.scheduledDate ? `<p style="color: #71717a; font-size: 14px; margin: 8px 0 0 0;">Data Agendada: ${data.scheduledDate}</p>` : ''}
+            </div>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">A nossa equipa entrará em contacto em breve.</p>
+            <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
           </div>
-          <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
-        </div>
-      `;
-    } else {
-      throw new Error("Invalid notification type");
+        `;
+        break;
+
+      case "work_order_rejected":
+        subject = `Solicitação Não Aprovada - ${data.workOrderReference}`;
+        html = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
+            <h1 style="color: #ef4444; font-size: 24px; margin-bottom: 20px;">Solicitação Não Aprovada</h1>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Lamentamos informar que a sua solicitação de serviço não foi aprovada.</p>
+            <div style="background-color: #fef2f2; border: 1px solid #ef4444; border-radius: 8px; padding: 24px; margin: 24px 0;">
+              <p style="color: #ef4444; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${data.workOrderReference}</p>
+              <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
+            </div>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Por favor, entre em contacto connosco para mais informações.</p>
+            <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
+          </div>
+        `;
+        break;
+
+      case "work_order_assigned":
+        subject = `Nova Ordem de Trabalho - ${data.workOrderReference}`;
+        html = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
+            <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">Nova Ordem de Trabalho Atribuída</h1>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Foi atribuído à seguinte ordem de trabalho:</p>
+            <div style="background-color: #f4f4f5; border-radius: 8px; padding: 24px; margin: 24px 0;">
+              <p style="color: #7c3aed; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${data.workOrderReference}</p>
+              <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
+              <p style="color: #71717a; font-size: 14px; margin: 8px 0 0 0;">Cliente: ${data.clientName || 'N/A'}</p>
+              ${data.scheduledDate ? `<p style="color: #71717a; font-size: 14px; margin: 8px 0 0 0;">Data Agendada: ${data.scheduledDate}</p>` : ''}
+            </div>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Por favor, aceda ao sistema para ver todos os detalhes.</p>
+            <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
+          </div>
+        `;
+        break;
+
+      case "work_order_started":
+        subject = `Trabalho Iniciado - ${data.workOrderReference}`;
+        html = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
+            <h1 style="color: #3b82f6; font-size: 24px; margin-bottom: 20px;">Trabalho Iniciado</h1>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">${data.isClient ? 'O trabalho na sua ordem de serviço foi iniciado.' : 'Um funcionário iniciou o trabalho na seguinte ordem:'}</p>
+            <div style="background-color: #f0f9ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 24px; margin: 24px 0;">
+              <p style="color: #3b82f6; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${data.workOrderReference}</p>
+              <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
+              ${data.employeeName ? `<p style="color: #71717a; font-size: 14px; margin: 8px 0 0 0;">Funcionário: ${data.employeeName}</p>` : ''}
+            </div>
+            <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
+          </div>
+        `;
+        break;
+
+      case "work_order_paused":
+        subject = `Trabalho Pausado - ${data.workOrderReference}`;
+        const pauseReasonText = data.pauseReason === 'falta_material' ? 'Falta de Material' :
+          data.pauseReason === 'enviado_oficina' ? 'Enviado para Oficina' :
+          data.pauseReason === 'enviado_orcamento' ? 'Enviado para Orçamento' :
+          data.pauseReason === 'assinatura_gerente' ? 'Aguarda Assinatura do Gerente' : data.pauseReason;
+        html = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
+            <h1 style="color: #f59e0b; font-size: 24px; margin-bottom: 20px;">Trabalho Pausado</h1>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">${data.isClient ? 'O trabalho na sua ordem de serviço foi temporariamente pausado.' : 'Uma ordem de trabalho foi pausada.'}</p>
+            <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 24px; margin: 24px 0;">
+              <p style="color: #f59e0b; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${data.workOrderReference}</p>
+              <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
+              <p style="color: #71717a; font-size: 14px; margin: 8px 0 0 0;">Motivo: ${pauseReasonText}</p>
+            </div>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Será notificado quando o trabalho for retomado.</p>
+            <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
+          </div>
+        `;
+        break;
+
+      case "work_order_resumed":
+        subject = `Trabalho Retomado - ${data.workOrderReference}`;
+        html = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
+            <h1 style="color: #3b82f6; font-size: 24px; margin-bottom: 20px;">Trabalho Retomado</h1>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">${data.isClient ? 'O trabalho na sua ordem de serviço foi retomado.' : 'O trabalho numa ordem foi retomado.'}</p>
+            <div style="background-color: #f0f9ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 24px; margin: 24px 0;">
+              <p style="color: #3b82f6; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${data.workOrderReference}</p>
+              <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
+            </div>
+            <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
+          </div>
+        `;
+        break;
+
+      case "work_order_completed":
+        subject = `Ordem Concluída - ${data.workOrderReference}`;
+        html = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
+            <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">Ordem de Trabalho Concluída</h1>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">
+              ${data.isManager 
+                ? 'Uma ordem de trabalho foi concluída:'
+                : data.isClient
+                  ? 'A sua ordem de trabalho foi concluída:'
+                  : 'A ordem de trabalho foi concluída:'}
+            </p>
+            <div style="background-color: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 24px; margin: 24px 0;">
+              <p style="color: #16a34a; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${data.workOrderReference}</p>
+              <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
+              ${data.completedBy ? `<p style="color: #71717a; font-size: 14px; margin: 8px 0 0 0;">Concluída por: ${data.completedBy}</p>` : ''}
+            </div>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">
+              ${data.isClient 
+                ? 'Obrigado por confiar nos nossos serviços. Em anexo encontra a folha de obra assinada.'
+                : 'Por favor, aceda ao sistema para rever os detalhes.'}
+            </p>
+            <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
+          </div>
+        `;
+        break;
+
+      case "work_order_created":
+        subject = `Nova Ordem Criada - ${data.workOrderReference}`;
+        html = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
+            <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">Nova Solicitação de Serviço</h1>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Uma nova solicitação de serviço foi criada e aguarda a sua aprovação:</p>
+            <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 24px; margin: 24px 0;">
+              <p style="color: #f59e0b; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${data.workOrderReference}</p>
+              <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
+              <p style="color: #71717a; font-size: 14px; margin: 8px 0 0 0;">Cliente: ${data.clientName || 'N/A'}</p>
+            </div>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Por favor, aceda ao sistema para aprovar ou rejeitar a solicitação.</p>
+            <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
+          </div>
+        `;
+        break;
+
+      case "work_order_updated":
+        subject = `Ordem Atualizada - ${data.workOrderReference}`;
+        html = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
+            <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">Ordem de Trabalho Atualizada</h1>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">${data.isClient ? 'A sua ordem de trabalho foi atualizada:' : 'Uma ordem de trabalho foi atualizada:'}</p>
+            <div style="background-color: #f0f9ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 24px; margin: 24px 0;">
+              <p style="color: #3b82f6; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${data.workOrderReference}</p>
+              <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
+              ${data.changes ? `<p style="color: #71717a; font-size: 14px; margin: 8px 0 0 0;">Alterações: ${data.changes}</p>` : ''}
+            </div>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Por favor, aceda ao sistema para ver todos os detalhes.</p>
+            <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
+          </div>
+        `;
+        break;
+
+      case "work_order_assignment_removed":
+        subject = `Removido da Ordem - ${data.workOrderReference}`;
+        html = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
+            <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">Atribuição Removida</h1>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Foi removido da seguinte ordem de trabalho:</p>
+            <div style="background-color: #fef2f2; border: 1px solid #ef4444; border-radius: 8px; padding: 24px; margin: 24px 0;">
+              <p style="color: #ef4444; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${data.workOrderReference}</p>
+              <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
+            </div>
+            <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
+          </div>
+        `;
+        break;
+
+      case "work_order_scheduled":
+        subject = `Ordem Agendada - ${data.workOrderReference}`;
+        html = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
+            <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">Ordem de Trabalho Agendada</h1>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">${data.isClient ? 'A sua ordem de trabalho foi agendada:' : 'Uma ordem de trabalho foi agendada:'}</p>
+            <div style="background-color: #f0f9ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 24px; margin: 24px 0;">
+              <p style="color: #3b82f6; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${data.workOrderReference}</p>
+              <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
+              ${data.scheduledDate ? `<p style="color: #16a34a; font-size: 14px; font-weight: bold; margin: 8px 0 0 0;">📅 Data: ${data.scheduledDate}</p>` : ''}
+            </div>
+            <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
+          </div>
+        `;
+        break;
+
+      default:
+        throw new Error("Invalid notification type");
     }
 
-    // Prepare email data for SendGrid
     const emailData: any = {
       personalizations: [
         {
@@ -186,11 +391,9 @@ const handler = async (req: Request): Promise<Response> => {
       try {
         console.log("Downloading PDF from storage:", data.pdfUrl);
         
-        // Extract the file path from the public URL
         const urlParts = data.pdfUrl.split('/work-order-attachments/');
         const filePath = urlParts[1];
         
-        // Download the PDF from Supabase storage
         const { data: pdfData, error: downloadError } = await supabaseAdmin.storage
           .from("work-order-attachments")
           .download(filePath);
@@ -198,7 +401,6 @@ const handler = async (req: Request): Promise<Response> => {
         if (downloadError) {
           console.error("Error downloading PDF:", downloadError);
         } else if (pdfData) {
-          // Convert blob to base64
           const buffer = await pdfData.arrayBuffer();
           const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
           
@@ -213,11 +415,9 @@ const handler = async (req: Request): Promise<Response> => {
         }
       } catch (pdfError) {
         console.error("Error processing PDF attachment:", pdfError);
-        // Continue sending email without attachment
       }
     }
 
-    // Send email using SendGrid API
     const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
       method: "POST",
       headers: {
@@ -231,7 +431,6 @@ const handler = async (req: Request): Promise<Response> => {
       const result = await response.text();
       console.error("Error sending email:", result);
       
-      // Log failed email attempt
       await supabaseAdmin.from('email_logs').insert({
         user_id: userId,
         email: to,
@@ -247,7 +446,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Email sent successfully to:", to);
 
-    // Log the email in the database
     await supabaseAdmin.from('email_logs').insert({
       user_id: userId,
       email: to,
