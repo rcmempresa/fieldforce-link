@@ -212,6 +212,9 @@ export default function ManagerDashboard() {
 
     const { data: { user } } = await supabase.auth.getUser();
     
+    // Get user profile for email
+    const pendingUser = pendingUsers.find(u => u.id === userId);
+    
     const { error } = await supabase
       .from("user_roles")
       .insert({
@@ -229,6 +232,20 @@ export default function ManagerDashboard() {
         variant: "destructive",
       });
     } else {
+      // Send approval email
+      if (pendingUser) {
+        supabase.functions.invoke("send-notification-email", {
+          body: {
+            type: "account_approved",
+            userId: userId,
+            data: {
+              recipientName: pendingUser.name,
+              role: role,
+            },
+          },
+        });
+      }
+      
       toast({
         title: "Sucesso",
         description: "Utilizador aprovado com sucesso",
@@ -240,6 +257,22 @@ export default function ManagerDashboard() {
 
   const rejectUser = async (userId: string) => {
     try {
+      // Get user info before deletion for email
+      const pendingUser = pendingUsers.find(u => u.id === userId);
+      
+      // Send rejection email before deleting (since user will be deleted)
+      if (pendingUser) {
+        await supabase.functions.invoke("send-notification-email", {
+          body: {
+            type: "account_rejected",
+            userId: userId,
+            data: {
+              recipientName: pendingUser.name,
+            },
+          },
+        });
+      }
+      
       // Call the secure edge function to delete user
       const { data, error } = await supabase.functions.invoke("delete-user", {
         body: { userId },
@@ -264,11 +297,19 @@ export default function ManagerDashboard() {
 
   const approveRequest = async (requestId: string) => {
     const scheduledDate = scheduledDates[requestId];
+    const request = pendingRequests.find(r => r.id === requestId);
     
     const updateData: any = { status: "pending" };
     if (scheduledDate) {
       updateData.scheduled_date = new Date(scheduledDate).toISOString();
     }
+
+    // Get client info for email
+    const { data: workOrderData } = await supabase
+      .from("work_orders")
+      .select("client_id, reference, title, profiles!work_orders_client_id_fkey(name)")
+      .eq("id", requestId)
+      .single();
 
     const { error } = await supabase
       .from("work_orders")
@@ -282,6 +323,28 @@ export default function ManagerDashboard() {
         variant: "destructive",
       });
     } else {
+      // Send approval email to client
+      if (workOrderData) {
+        const clientProfile = workOrderData.profiles as any;
+        const formattedDate = scheduledDate 
+          ? format(new Date(scheduledDate), "dd/MM/yyyy 'às' HH:mm", { locale: pt })
+          : undefined;
+          
+        supabase.functions.invoke("send-notification-email", {
+          body: {
+            type: "work_order_approved",
+            userId: workOrderData.client_id,
+            data: {
+              recipientName: clientProfile?.name || "Cliente",
+              workOrderReference: workOrderData.reference || "",
+              workOrderTitle: workOrderData.title || "",
+              scheduledDate: formattedDate,
+              isClient: true,
+            },
+          },
+        });
+      }
+      
       toast({
         title: "Sucesso",
         description: scheduledDate ? "Solicitação aprovada e agendada" : "Solicitação aprovada",
@@ -294,6 +357,13 @@ export default function ManagerDashboard() {
   };
 
   const rejectRequest = async (requestId: string) => {
+    // Get client info for email
+    const { data: workOrderData } = await supabase
+      .from("work_orders")
+      .select("client_id, reference, title, profiles!work_orders_client_id_fkey(name)")
+      .eq("id", requestId)
+      .single();
+
     const { error } = await supabase
       .from("work_orders")
       .update({ status: "cancelled" })
@@ -306,6 +376,23 @@ export default function ManagerDashboard() {
         variant: "destructive",
       });
     } else {
+      // Send rejection email to client
+      if (workOrderData) {
+        const clientProfile = workOrderData.profiles as any;
+        supabase.functions.invoke("send-notification-email", {
+          body: {
+            type: "work_order_rejected",
+            userId: workOrderData.client_id,
+            data: {
+              recipientName: clientProfile?.name || "Cliente",
+              workOrderReference: workOrderData.reference || "",
+              workOrderTitle: workOrderData.title || "",
+              isClient: true,
+            },
+          },
+        });
+      }
+      
       toast({
         title: "Sucesso",
         description: "Solicitação rejeitada",

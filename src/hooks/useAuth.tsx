@@ -95,7 +95,7 @@ export function useAuth() {
     try {
       const redirectUrl = `${window.location.origin}/`;
       
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -107,6 +107,20 @@ export function useAuth() {
       });
 
       if (error) throw error;
+      
+      // Send welcome email
+      if (data.user) {
+        supabase.functions.invoke("send-notification-email", {
+          body: {
+            type: "welcome",
+            userId: data.user.id,
+            data: {
+              recipientName: name,
+            },
+          },
+        });
+      }
+      
       toast.success("Conta criada com sucesso!");
       return { error: null };
     } catch (error: any) {
