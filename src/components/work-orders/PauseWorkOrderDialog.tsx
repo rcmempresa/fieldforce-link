@@ -145,21 +145,17 @@ export function PauseWorkOrderDialog({
         .eq("id", user?.id)
         .single();
 
-      // Get managers
-      const { data: managers } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "manager")
-        .eq("approved", true);
+      const clientName = workOrder.client?.name || "Cliente";
 
       // Send email to client
       if (workOrder.client_id) {
+        console.log("Sending missing material email to client:", workOrder.client_id);
         await supabase.functions.invoke("send-notification-email", {
           body: {
             type: "work_order_missing_material",
             userId: workOrder.client_id,
             data: {
-              recipientName: workOrder.client?.name || "Cliente",
+              recipientName: clientName,
               workOrderReference: workOrder.reference,
               workOrderTitle: workOrder.title,
               employeeName: employeeProfile?.name,
@@ -170,32 +166,21 @@ export function PauseWorkOrderDialog({
         });
       }
 
-      // Send email to all managers
-      if (managers) {
-        for (const manager of managers) {
-          const { data: managerProfile } = await supabase
-            .from("profiles")
-            .select("name")
-            .eq("id", manager.user_id)
-            .single();
-
-          await supabase.functions.invoke("send-notification-email", {
-            body: {
-              type: "work_order_missing_material",
-              userId: manager.user_id,
-              data: {
-                recipientName: managerProfile?.name || "Gerente",
-                workOrderReference: workOrder.reference,
-                workOrderTitle: workOrder.title,
-                employeeName: employeeProfile?.name,
-                clientName: workOrder.client?.name,
-                missingMaterial: materialDescription,
-                isManager: true,
-              },
-            },
-          });
-        }
-      }
+      // Send email to all managers via edge function (RLS bypass)
+      console.log("Sending missing material email to managers for work order:", workOrderId);
+      await supabase.functions.invoke("send-notification-email", {
+        body: {
+          type: "work_order_missing_material_managers",
+          data: {
+            workOrderId: workOrderId,
+            workOrderReference: workOrder.reference,
+            workOrderTitle: workOrder.title,
+            employeeName: employeeProfile?.name,
+            clientName: clientName,
+            missingMaterial: materialDescription,
+          },
+        },
+      });
     } catch (error) {
       console.error("Error sending missing material emails:", error);
     }
