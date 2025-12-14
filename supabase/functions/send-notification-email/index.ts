@@ -25,13 +25,15 @@ type NotificationType =
   | "work_order_updated" 
   | "work_order_assignment_removed"
   | "work_order_scheduled"
-  | "work_order_missing_material";
+  | "work_order_missing_material"
+  | "work_order_missing_material_managers";
 
 interface NotificationEmailRequest {
   type: NotificationType;
-  userId: string;
+  userId?: string;
   data: {
-    recipientName: string;
+    recipientName?: string;
+    workOrderId?: string;
     workOrderReference?: string;
     workOrderTitle?: string;
     employeeName?: string;
@@ -47,6 +49,135 @@ interface NotificationEmailRequest {
     role?: string;
     missingMaterial?: string;
   };
+}
+
+// Helper function to send missing material emails to all managers
+async function sendMissingMaterialToManagers(supabaseAdmin: any, data: any): Promise<Response> {
+  console.log("Sending missing material emails to all managers");
+
+  // Get all approved managers
+  const { data: managers, error: managersError } = await supabaseAdmin
+    .from("user_roles")
+    .select("user_id")
+    .eq("role", "manager")
+    .eq("approved", true);
+
+  if (managersError) {
+    console.error("Error fetching managers:", managersError);
+    throw new Error("Failed to fetch managers");
+  }
+
+  console.log("Found managers:", managers?.length || 0);
+
+  if (!managers || managers.length === 0) {
+    console.log("No approved managers found");
+    return new Response(JSON.stringify({ success: true, message: "No managers to notify" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }
+
+  let workOrderId: string | null = null;
+  if (data.workOrderId) {
+    workOrderId = data.workOrderId;
+  } else if (data.workOrderReference) {
+    const { data: woData } = await supabaseAdmin
+      .from('work_orders')
+      .select('id')
+      .eq('reference', data.workOrderReference)
+      .maybeSingle();
+    workOrderId = woData?.id || null;
+  }
+
+  const subject = `Falta de Material - ${data.workOrderReference}`;
+  
+  for (const manager of managers) {
+    try {
+      // Get manager profile
+      const { data: managerProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("name")
+        .eq("id", manager.user_id)
+        .single();
+
+      // Get manager email
+      const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(manager.user_id);
+      
+      if (userError || !user?.email) {
+        console.error("Failed to get manager email for:", manager.user_id);
+        continue;
+      }
+
+      const html = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
+          <h1 style="color: #ef4444; font-size: 24px; margin-bottom: 20px;">⚠️ Falta de Material</h1>
+          <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${managerProfile?.name || 'Gerente'}</strong>,</p>
+          <p style="color: #333; font-size: 16px; line-height: 1.5;">Uma ordem de trabalho foi pausada devido a falta de material.</p>
+          <div style="background-color: #fef2f2; border: 1px solid #ef4444; border-radius: 8px; padding: 24px; margin: 24px 0;">
+            <p style="color: #ef4444; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${data.workOrderReference}</p>
+            <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
+            ${data.clientName ? `<p style="color: #71717a; font-size: 14px; margin: 8px 0 0 0;">Cliente: ${data.clientName}</p>` : ''}
+            ${data.employeeName ? `<p style="color: #71717a; font-size: 14px; margin: 8px 0 0 0;">Funcionário: ${data.employeeName}</p>` : ''}
+          </div>
+          <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 24px; margin: 24px 0;">
+            <p style="color: #f59e0b; font-size: 14px; font-weight: bold; margin: 0 0 8px 0;">📦 Material em Falta:</p>
+            <p style="color: #333; font-size: 14px; margin: 0; white-space: pre-wrap;">${data.missingMaterial || 'Não especificado'}</p>
+          </div>
+          <p style="color: #333; font-size: 16px; line-height: 1.5;">Por favor, providencie o material necessário.</p>
+          <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
+        </div>
+      `;
+
+      const emailData = {
+        personalizations: [{ to: [{ email: user.email }] }],
+        from: { email: "geral@nrenergias.pt", name: "Ordens de Trabalho" },
+        subject,
+        content: [{ type: "text/html", value: html }]
+      };
+
+      const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${SENDGRID_API_KEY}`,
+        },
+        body: JSON.stringify(emailData),
+      });
+
+      if (!response.ok) {
+        const result = await response.text();
+        console.error("Error sending email to manager:", manager.user_id, result);
+        
+        await supabaseAdmin.from('email_logs').insert({
+          user_id: manager.user_id,
+          email: user.email,
+          subject,
+          notification_type: 'work_order_missing_material',
+          status: 'failed',
+          error_message: result,
+          work_order_id: workOrderId,
+        });
+      } else {
+        console.log("Email sent successfully to manager:", user.email);
+        
+        await supabaseAdmin.from('email_logs').insert({
+          user_id: manager.user_id,
+          email: user.email,
+          subject,
+          notification_type: 'work_order_missing_material',
+          status: 'sent',
+          work_order_id: workOrderId,
+        });
+      }
+    } catch (error) {
+      console.error("Error sending email to manager:", manager.user_id, error);
+    }
+  }
+
+  return new Response(JSON.stringify({ success: true }), {
+    status: 200,
+    headers: { "Content-Type": "application/json", ...corsHeaders },
+  });
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -69,6 +200,16 @@ const handler = async (req: Request): Promise<Response> => {
     const { type, userId, data }: NotificationEmailRequest = await req.json();
 
     console.log("Sending notification email:", { type, userId });
+
+    // Handle special case for sending to all managers
+    if (type === "work_order_missing_material_managers") {
+      return await sendMissingMaterialToManagers(supabaseAdmin, data);
+    }
+
+    // For all other types, userId is required
+    if (!userId) {
+      throw new Error("userId is required for this notification type");
+    }
 
     let workOrderId: string | null = null;
 
