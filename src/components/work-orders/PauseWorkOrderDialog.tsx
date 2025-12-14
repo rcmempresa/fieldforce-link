@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -31,6 +32,7 @@ export function PauseWorkOrderDialog({
   onPause,
 }: PauseWorkOrderDialogProps) {
   const [selectedReason, setSelectedReason] = useState<string>("");
+  const [missingMaterial, setMissingMaterial] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -41,6 +43,15 @@ export function PauseWorkOrderDialog({
       toast({
         title: "Erro",
         description: "Por favor, selecione um motivo para pausar",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (selectedReason === "falta_material" && !missingMaterial.trim()) {
+      toast({
+        title: "Erro",
+        description: "Por favor, descreva o material em falta",
         variant: "destructive",
       });
       return;
@@ -69,6 +80,7 @@ export function PauseWorkOrderDialog({
           end_time: now.toISOString(),
           duration_hours: durationHours,
           pause_reason: selectedReason as "falta_material" | "enviado_oficina" | "enviado_orcamento" | "assinatura_gerente",
+          note: selectedReason === "falta_material" ? `Material em falta: ${missingMaterial}` : null,
         })
         .eq("id", timeEntryId);
 
@@ -82,12 +94,18 @@ export function PauseWorkOrderDialog({
 
       if (updateError) throw updateError;
 
+      // If missing material, send emails to client and manager
+      if (selectedReason === "falta_material") {
+        await sendMissingMaterialEmails(workOrderId, missingMaterial);
+      }
+
       toast({
         title: "Trabalho Pausado",
         description: `Ordem ${workOrderReference} está agora pendente`,
       });
 
       setSelectedReason("");
+      setMissingMaterial("");
       onOpenChange(false);
       onPause();
     } catch (error) {
@@ -99,6 +117,87 @@ export function PauseWorkOrderDialog({
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const sendMissingMaterialEmails = async (workOrderId: string, materialDescription: string) => {
+    try {
+      // Get work order details with client info
+      const { data: workOrder } = await supabase
+        .from("work_orders")
+        .select(`
+          id,
+          reference,
+          title,
+          client_id,
+          client:profiles!work_orders_client_id_fkey(id, name)
+        `)
+        .eq("id", workOrderId)
+        .single();
+
+      if (!workOrder) return;
+
+      // Get current user (employee) name
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: employeeProfile } = await supabase
+        .from("profiles")
+        .select("name")
+        .eq("id", user?.id)
+        .single();
+
+      // Get managers
+      const { data: managers } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "manager")
+        .eq("approved", true);
+
+      // Send email to client
+      if (workOrder.client_id) {
+        await supabase.functions.invoke("send-notification-email", {
+          body: {
+            type: "work_order_missing_material",
+            userId: workOrder.client_id,
+            data: {
+              recipientName: workOrder.client?.name || "Cliente",
+              workOrderReference: workOrder.reference,
+              workOrderTitle: workOrder.title,
+              employeeName: employeeProfile?.name,
+              missingMaterial: materialDescription,
+              isClient: true,
+            },
+          },
+        });
+      }
+
+      // Send email to all managers
+      if (managers) {
+        for (const manager of managers) {
+          const { data: managerProfile } = await supabase
+            .from("profiles")
+            .select("name")
+            .eq("id", manager.user_id)
+            .single();
+
+          await supabase.functions.invoke("send-notification-email", {
+            body: {
+              type: "work_order_missing_material",
+              userId: manager.user_id,
+              data: {
+                recipientName: managerProfile?.name || "Gerente",
+                workOrderReference: workOrder.reference,
+                workOrderTitle: workOrder.title,
+                employeeName: employeeProfile?.name,
+                clientName: workOrder.client?.name,
+                missingMaterial: materialDescription,
+                isManager: true,
+              },
+            },
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error sending missing material emails:", error);
     }
   };
 
@@ -122,6 +221,23 @@ export function PauseWorkOrderDialog({
               ))}
             </RadioGroup>
           </div>
+
+          {selectedReason === "falta_material" && (
+            <div className="space-y-2">
+              <Label htmlFor="missingMaterial">Material em Falta *</Label>
+              <Textarea
+                id="missingMaterial"
+                placeholder="Descreva o material que está em falta..."
+                value={missingMaterial}
+                onChange={(e) => setMissingMaterial(e.target.value)}
+                rows={4}
+              />
+              <p className="text-xs text-muted-foreground">
+                Esta informação será enviada por email ao cliente e ao gerente.
+              </p>
+            </div>
+          )}
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar

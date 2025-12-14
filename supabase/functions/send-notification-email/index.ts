@@ -24,7 +24,8 @@ type NotificationType =
   | "work_order_created" 
   | "work_order_updated" 
   | "work_order_assignment_removed"
-  | "work_order_scheduled";
+  | "work_order_scheduled"
+  | "work_order_missing_material";
 
 interface NotificationEmailRequest {
   type: NotificationType;
@@ -44,6 +45,7 @@ interface NotificationEmailRequest {
     scheduledDate?: string;
     pauseReason?: string;
     role?: string;
+    missingMaterial?: string;
   };
 }
 
@@ -358,6 +360,28 @@ const handler = async (req: Request): Promise<Response> => {
               <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
               ${data.scheduledDate ? `<p style="color: #16a34a; font-size: 14px; font-weight: bold; margin: 8px 0 0 0;">📅 Data: ${data.scheduledDate}</p>` : ''}
             </div>
+            <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
+          </div>
+        `;
+        break;
+
+      case "work_order_missing_material":
+        subject = `Falta de Material - ${data.workOrderReference}`;
+        html = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
+            <h1 style="color: #ef4444; font-size: 24px; margin-bottom: 20px;">⚠️ Falta de Material</h1>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">Olá <strong>${data.recipientName}</strong>,</p>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">${data.isClient ? 'A sua ordem de trabalho foi pausada devido a falta de material.' : 'Uma ordem de trabalho foi pausada devido a falta de material.'}</p>
+            <div style="background-color: #fef2f2; border: 1px solid #ef4444; border-radius: 8px; padding: 24px; margin: 24px 0;">
+              <p style="color: #ef4444; font-size: 18px; font-weight: bold; margin: 0 0 8px 0;">${data.workOrderReference}</p>
+              <p style="color: #333; font-size: 16px; font-weight: 600; margin: 8px 0;">${data.workOrderTitle}</p>
+              ${data.employeeName ? `<p style="color: #71717a; font-size: 14px; margin: 8px 0 0 0;">Funcionário: ${data.employeeName}</p>` : ''}
+            </div>
+            <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 24px; margin: 24px 0;">
+              <p style="color: #f59e0b; font-size: 14px; font-weight: bold; margin: 0 0 8px 0;">📦 Material em Falta:</p>
+              <p style="color: #333; font-size: 14px; margin: 0; white-space: pre-wrap;">${data.missingMaterial || 'Não especificado'}</p>
+            </div>
+            <p style="color: #333; font-size: 16px; line-height: 1.5;">${data.isClient ? 'Entraremos em contacto assim que o material estiver disponível.' : 'Por favor, providencie o material necessário.'}</p>
             <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
           </div>
         `;
