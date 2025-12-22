@@ -3,6 +3,8 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { ClipboardList, Clock, CheckCircle, CalendarDays, Pause, Play, PlayCircle, Circle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { CompleteWorkOrderDialog } from "@/components/work-orders/CompleteWorkOrderDialog";
@@ -518,227 +520,238 @@ export default function EmployeeDashboard() {
           </Card>
         </div>
 
-        {/* Active Work Orders - Currently running */}
-        {activeOrders.length > 0 && (
-          <Card className="border-primary/50 bg-primary/5">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-primary">
-                <PlayCircle className="h-5 w-5 animate-pulse" />
-                Em Execução ({activeOrders.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {activeOrders.map((order) => (
-                  <div key={order.id} className="flex flex-col gap-4 rounded-lg border border-primary/20 bg-background p-4">
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium">{order.reference}</p>
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(order.priority)}`}>
-                          {getPriorityLabel(order.priority)}
-                        </span>
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
-                          {getStatusLabel(order.status)}
-                        </span>
-                        {order.active_time_entry_start && (
-                          <TimeTracker startTime={order.active_time_entry_start} />
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground">{order.title}</p>
-                      {order.client_name && (
-                        <p className="text-xs text-muted-foreground">Cliente: {order.client_name}</p>
-                      )}
-                      {order.scheduled_date && (
-                        <p className="text-xs text-muted-foreground">
-                          Agendado: {new Date(order.scheduled_date).toLocaleString("pt-BR")}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                      <Button 
-                        className="w-full sm:w-auto" 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handlePauseClick(order.id, order.reference, order.active_time_entry_id!)}
-                      >
-                        <Pause className="h-4 w-4 mr-1" />
-                        Pausar
-                      </Button>
-                      <Button className="w-full sm:w-auto" size="sm" onClick={() => handleCompleteClick(order.id, order.reference)}>
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Concluir
-                      </Button>
-                      <Button className="w-full sm:w-auto" size="sm" variant="outline" onClick={() => handleEditTimeEntriesClick(order.id, order.reference)}>
-                        <Clock className="h-4 w-4 mr-1" />
-                        Gerenciar Horas
-                      </Button>
-                      <Button className="w-full sm:w-auto" size="sm" variant="outline" onClick={() => navigate(`/work-orders/${order.id}`)}>
-                        Ver Detalhes
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Started but paused Work Orders */}
-        {startedOrders.length > 0 && (
-          <Card className="border-warning/50 bg-warning/5">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-warning">
-                <Pause className="h-5 w-5" />
-                Já Iniciadas - Pausadas ({startedOrders.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {startedOrders.map((order) => (
-                  <div key={order.id} className="flex flex-col gap-4 rounded-lg border border-warning/20 bg-background p-4">
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium">{order.reference}</p>
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(order.priority)}`}>
-                          {getPriorityLabel(order.priority)}
-                        </span>
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
-                          {getStatusLabel(order.status)}
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{order.title}</p>
-                      {order.client_name && (
-                        <p className="text-xs text-muted-foreground">Cliente: {order.client_name}</p>
-                      )}
-                      {order.scheduled_date && (
-                        <p className="text-xs text-muted-foreground">
-                          Agendado: {new Date(order.scheduled_date).toLocaleString("pt-BR")}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                      <Button className="w-full sm:w-auto" size="sm" onClick={() => handleStartWork(order.id, order.reference)}>
-                        <Play className="h-4 w-4 mr-1" />
-                        Retomar
-                      </Button>
-                      <Button className="w-full sm:w-auto" size="sm" variant="outline" onClick={() => handleEditTimeEntriesClick(order.id, order.reference)}>
-                        <Clock className="h-4 w-4 mr-1" />
-                        Gerenciar Horas
-                      </Button>
-                      <Button className="w-full sm:w-auto" size="sm" variant="outline" onClick={() => navigate(`/work-orders/${order.id}`)}>
-                        Ver Detalhes
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* New Work Orders - Never started */}
-        {newOrders.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Circle className="h-5 w-5" />
-                Novas Ordens ({newOrders.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {newOrders.map((order) => (
-                  <div key={order.id} className="flex flex-col gap-4 rounded-lg border p-4">
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium">{order.reference}</p>
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(order.priority)}`}>
-                          {getPriorityLabel(order.priority)}
-                        </span>
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
-                          {getStatusLabel(order.status)}
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{order.title}</p>
-                      {order.client_name && (
-                        <p className="text-xs text-muted-foreground">Cliente: {order.client_name}</p>
-                      )}
-                      {order.scheduled_date && (
-                        <p className="text-xs text-muted-foreground">
-                          Agendado: {new Date(order.scheduled_date).toLocaleString("pt-BR")}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                      <Button className="w-full sm:w-auto" size="sm" onClick={() => handleStartWork(order.id, order.reference)}>
-                        <Play className="h-4 w-4 mr-1" />
-                        Iniciar
-                      </Button>
-                      <Button className="w-full sm:w-auto" size="sm" variant="outline" onClick={() => navigate(`/work-orders/${order.id}`)}>
-                        Ver Detalhes
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Completed Work Orders */}
-        {completedOrders.length > 0 && (
-          <Card className="border-accent/50 bg-accent/5">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-accent">
-                <CheckCircle className="h-5 w-5" />
-                Concluídas ({completedOrders.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {completedOrders.map((order) => (
-                  <div key={order.id} className="flex flex-col gap-4 rounded-lg border border-accent/20 bg-background p-4">
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium">{order.reference}</p>
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(order.priority)}`}>
-                          {getPriorityLabel(order.priority)}
-                        </span>
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
-                          {getStatusLabel(order.status)}
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{order.title}</p>
-                      {order.client_name && (
-                        <p className="text-xs text-muted-foreground">Cliente: {order.client_name}</p>
-                      )}
-                    </div>
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                      <Button className="w-full sm:w-auto" size="sm" variant="outline" onClick={() => handleEditTimeEntriesClick(order.id, order.reference)}>
-                        <Clock className="h-4 w-4 mr-1" />
-                        Ver Horas
-                      </Button>
-                      <Button className="w-full sm:w-auto" size="sm" variant="outline" onClick={() => navigate(`/work-orders/${order.id}`)}>
-                        Ver Detalhes
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Empty state */}
-        {assignedOrders.length === 0 && (
-          <Card>
-            <CardContent className="py-8">
-              <p className="text-center text-muted-foreground">
+        {/* Work Orders with Tabs */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle>Minhas Ordens de Trabalho</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {assignedOrders.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
                 Nenhuma ordem de trabalho atribuída
               </p>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <Tabs defaultValue={activeOrders.length > 0 ? "active" : startedOrders.length > 0 ? "paused" : "new"} className="w-full">
+                <TabsList className="grid w-full grid-cols-4 mb-4">
+                  <TabsTrigger value="active" className="flex items-center gap-1.5 text-xs sm:text-sm">
+                    <PlayCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Em Execução</span>
+                    <span className="sm:hidden">Ativas</span>
+                    {activeOrders.length > 0 && (
+                      <Badge variant="default" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px] animate-pulse">
+                        {activeOrders.length}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="paused" className="flex items-center gap-1.5 text-xs sm:text-sm">
+                    <Pause className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Pausadas</span>
+                    <span className="sm:hidden">Paus.</span>
+                    {startedOrders.length > 0 && (
+                      <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px]">
+                        {startedOrders.length}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="new" className="flex items-center gap-1.5 text-xs sm:text-sm">
+                    <Circle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Novas</span>
+                    <span className="sm:hidden">Novas</span>
+                    {newOrders.length > 0 && (
+                      <Badge variant="outline" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px]">
+                        {newOrders.length}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="completed" className="flex items-center gap-1.5 text-xs sm:text-sm">
+                    <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Concluídas</span>
+                    <span className="sm:hidden">Concl.</span>
+                    {completedOrders.length > 0 && (
+                      <Badge variant="outline" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px] bg-accent/20">
+                        {completedOrders.length}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Active Orders Tab */}
+                <TabsContent value="active" className="mt-0">
+                  {activeOrders.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <PlayCircle className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                      <p>Nenhuma ordem em execução</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                      {activeOrders.map((order) => (
+                        <div key={order.id} className="flex flex-col gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                          <div className="space-y-1 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-medium text-sm">{order.reference}</p>
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(order.priority)}`}>
+                                {getPriorityLabel(order.priority)}
+                              </span>
+                              {order.active_time_entry_start && (
+                                <TimeTracker startTime={order.active_time_entry_start} />
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground line-clamp-1">{order.title}</p>
+                            {order.client_name && (
+                              <p className="text-xs text-muted-foreground">Cliente: {order.client_name}</p>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button size="sm" variant="outline" onClick={() => handlePauseClick(order.id, order.reference, order.active_time_entry_id!)}>
+                              <Pause className="h-3.5 w-3.5 mr-1" />
+                              Pausar
+                            </Button>
+                            <Button size="sm" onClick={() => handleCompleteClick(order.id, order.reference)}>
+                              <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                              Concluir
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
+                              Detalhes
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* Paused Orders Tab */}
+                <TabsContent value="paused" className="mt-0">
+                  {startedOrders.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Pause className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                      <p>Nenhuma ordem pausada</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                      {startedOrders.map((order) => (
+                        <div key={order.id} className="flex flex-col gap-3 rounded-lg border border-warning/30 bg-warning/5 p-3">
+                          <div className="space-y-1 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-medium text-sm">{order.reference}</p>
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(order.priority)}`}>
+                                {getPriorityLabel(order.priority)}
+                              </span>
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
+                                {getStatusLabel(order.status)}
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground line-clamp-1">{order.title}</p>
+                            {order.client_name && (
+                              <p className="text-xs text-muted-foreground">Cliente: {order.client_name}</p>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button size="sm" onClick={() => handleStartWork(order.id, order.reference)}>
+                              <Play className="h-3.5 w-3.5 mr-1" />
+                              Retomar
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => handleEditTimeEntriesClick(order.id, order.reference)}>
+                              <Clock className="h-3.5 w-3.5 mr-1" />
+                              Horas
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
+                              Detalhes
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* New Orders Tab */}
+                <TabsContent value="new" className="mt-0">
+                  {newOrders.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Circle className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                      <p>Nenhuma nova ordem</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                      {newOrders.map((order) => (
+                        <div key={order.id} className="flex flex-col gap-3 rounded-lg border p-3">
+                          <div className="space-y-1 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-medium text-sm">{order.reference}</p>
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(order.priority)}`}>
+                                {getPriorityLabel(order.priority)}
+                              </span>
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
+                                {getStatusLabel(order.status)}
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground line-clamp-1">{order.title}</p>
+                            {order.client_name && (
+                              <p className="text-xs text-muted-foreground">Cliente: {order.client_name}</p>
+                            )}
+                            {order.scheduled_date && (
+                              <p className="text-xs text-muted-foreground">
+                                Agendado: {new Date(order.scheduled_date).toLocaleString("pt-BR")}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button size="sm" onClick={() => handleStartWork(order.id, order.reference)}>
+                              <Play className="h-3.5 w-3.5 mr-1" />
+                              Iniciar
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
+                              Detalhes
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* Completed Orders Tab */}
+                <TabsContent value="completed" className="mt-0">
+                  {completedOrders.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <CheckCircle className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                      <p>Nenhuma ordem concluída</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                      {completedOrders.map((order) => (
+                        <div key={order.id} className="flex flex-col gap-3 rounded-lg border border-accent/30 bg-accent/5 p-3">
+                          <div className="space-y-1 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-medium text-sm">{order.reference}</p>
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(order.priority)}`}>
+                                {getPriorityLabel(order.priority)}
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground line-clamp-1">{order.title}</p>
+                            {order.client_name && (
+                              <p className="text-xs text-muted-foreground">Cliente: {order.client_name}</p>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button size="sm" variant="outline" onClick={() => handleEditTimeEntriesClick(order.id, order.reference)}>
+                              <Clock className="h-3.5 w-3.5 mr-1" />
+                              Ver Horas
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
+                              Detalhes
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {selectedWorkOrder && (
