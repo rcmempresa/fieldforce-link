@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ClipboardList, Users, CheckCircle, UserCheck, Calendar as CalendarIcon, Mail } from "lucide-react";
+import { ClipboardList, Users, CheckCircle, UserCheck, Calendar as CalendarIcon, Mail, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
@@ -34,9 +34,11 @@ interface WorkOrder {
   status: string;
   scheduled_date?: string | null;
   client_name?: string;
+  client_id?: string;
   service_type?: string;
   priority?: string;
   created_at?: string;
+  total_hours?: number;
 }
 
 interface Stats {
@@ -178,12 +180,27 @@ export default function ManagerDashboard() {
   const fetchCalendarOrders = async () => {
     const { data } = await supabase
       .from("work_orders")
-      .select("id, reference, title, status, scheduled_date")
+      .select(`
+        id, 
+        reference, 
+        title, 
+        status, 
+        scheduled_date,
+        client_id,
+        total_hours,
+        profiles!work_orders_client_id_fkey (
+          name
+        )
+      `)
       .not("scheduled_date", "is", null)
       .order("scheduled_date", { ascending: true });
 
     if (data) {
-      setCalendarOrders(data);
+      const formattedOrders = data.map((order: any) => ({
+        ...order,
+        client_name: order.profiles?.name || "N/A",
+      }));
+      setCalendarOrders(formattedOrders);
     }
   };
 
@@ -843,11 +860,24 @@ export default function ManagerDashboard() {
                         <div className="flex-1">
                           <p className="font-semibold text-sm">{order.reference}</p>
                           <p className="text-xs text-muted-foreground mt-0.5">{order.title}</p>
-                          {order.scheduled_date && (
-                            <p className="text-xs font-semibold text-primary mt-1">
-                              {format(new Date(order.scheduled_date), "HH:mm", { locale: pt })}
+                          {order.client_name && (
+                            <p className="text-xs text-muted-foreground">
+                              Cliente: {order.client_name}
                             </p>
                           )}
+                          <div className="flex items-center gap-3 mt-1">
+                            {order.scheduled_date && (
+                              <p className="text-xs font-semibold text-primary">
+                                {format(new Date(order.scheduled_date), "HH:mm", { locale: pt })}
+                              </p>
+                            )}
+                            {order.total_hours !== undefined && order.total_hours > 0 && (
+                              <p className="text-xs font-medium text-accent flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {Math.round(order.total_hours * 10) / 10}h trabalhadas
+                              </p>
+                            )}
+                          </div>
                         </div>
                         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusColor(order.status)}`}>
                           {getStatusLabel(order.status)}
