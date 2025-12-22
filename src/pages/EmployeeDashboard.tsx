@@ -27,7 +27,8 @@ interface WorkOrder {
   client_name?: string;
   active_time_entry_id?: string;
   active_time_entry_start?: string;
-  has_been_started?: boolean; // true if this work order has time entries (was started at least once)
+  has_been_started?: boolean;
+  total_hours_worked?: number;
 }
 
 interface Stats {
@@ -106,11 +107,18 @@ export default function EmployeeDashboard() {
 
       const { data: allTimeEntries } = await supabase
         .from("time_entries")
-        .select("work_order_id")
+        .select("work_order_id, duration_hours")
         .eq("user_id", user.id)
         .in("work_order_id", workOrderIds);
 
       const startedWorkOrderIds = new Set(allTimeEntries?.map(entry => entry.work_order_id) || []);
+
+      // Calculate total hours per work order
+      const hoursPerWorkOrder = new Map<string, number>();
+      allTimeEntries?.forEach(entry => {
+        const current = hoursPerWorkOrder.get(entry.work_order_id) || 0;
+        hoursPerWorkOrder.set(entry.work_order_id, current + (entry.duration_hours || 0));
+      });
 
       const orders = data
         .map((item: any) => {
@@ -123,6 +131,7 @@ export default function EmployeeDashboard() {
             active_time_entry_id: activeEntry?.id,
             active_time_entry_start: activeEntry?.start_time,
             has_been_started: startedWorkOrderIds.has(wo.id),
+            total_hours_worked: hoursPerWorkOrder.get(wo.id) || 0,
           };
         })
         .filter(Boolean);
@@ -644,6 +653,17 @@ export default function EmployeeDashboard() {
                             <p className="text-sm text-muted-foreground line-clamp-1">{order.title}</p>
                             {order.client_name && (
                               <p className="text-xs text-muted-foreground">Cliente: {order.client_name}</p>
+                            )}
+                            {order.scheduled_date && (
+                              <p className="text-xs text-muted-foreground">
+                                Agendado: {new Date(order.scheduled_date).toLocaleString("pt-BR")}
+                              </p>
+                            )}
+                            {order.total_hours_worked !== undefined && order.total_hours_worked > 0 && (
+                              <p className="text-xs font-medium text-primary">
+                                <Clock className="h-3 w-3 inline mr-1" />
+                                Horas trabalhadas: {Math.round(order.total_hours_worked * 10) / 10}h
+                              </p>
                             )}
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
