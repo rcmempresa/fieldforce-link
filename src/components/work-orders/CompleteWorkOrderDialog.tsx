@@ -68,30 +68,35 @@ export function CompleteWorkOrderDialog({
         .is("end_time", null)
         .single();
 
-      if (!activeTimeEntry) {
-        toast({
-          title: "Erro",
-          description: "Não há entrada de tempo ativa para esta ordem",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
+      let sessionDurationHours = 0;
+
+      // If there's an active time entry, finalize it
+      if (activeTimeEntry) {
+        const startTime = new Date(activeTimeEntry.start_time);
+        sessionDurationHours = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+
+        const { error: timeEntryError } = await supabase
+          .from("time_entries")
+          .update({
+            end_time: now.toISOString(),
+            duration_hours: sessionDurationHours,
+            note: note || null,
+          })
+          .eq("id", activeTimeEntry.id);
+
+        if (timeEntryError) throw timeEntryError;
       }
 
-      // Finalize the active time entry
-      const startTime = new Date(activeTimeEntry.start_time);
-      const durationHours = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-
-      const { error: timeEntryError } = await supabase
+      // Get total hours worked on this work order
+      const { data: allTimeEntries } = await supabase
         .from("time_entries")
-        .update({
-          end_time: now.toISOString(),
-          duration_hours: durationHours,
-          note: note || null,
-        })
-        .eq("id", activeTimeEntry.id);
-
-      if (timeEntryError) throw timeEntryError;
+        .select("duration_hours")
+        .eq("work_order_id", workOrderId);
+      
+      const totalHoursWorked = (allTimeEntries || []).reduce(
+        (sum, entry) => sum + (entry.duration_hours || 0), 
+        0
+      ) + sessionDurationHours;
 
       // Get work order details for notifications and PDF
       const { data: workOrder } = await supabase
@@ -148,7 +153,7 @@ export function CompleteWorkOrderDialog({
         },
         signatureDataUrl,
         currentProfile?.name || user.email || "Funcionário",
-        durationHours,
+        totalHoursWorked,
         note || null
       );
 
