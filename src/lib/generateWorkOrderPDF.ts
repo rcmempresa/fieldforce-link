@@ -78,16 +78,27 @@ export async function generateWorkOrderPDF(
   doc.text(`Horas trabalhadas: ${formatDecimalHoursToTime(hoursWorked)}`, 20, 146);
   doc.text(`Data de conclusão: ${new Date(workOrderData.completed_at).toLocaleString("pt-BR")}`, 20, 154);
   
+  // What was done section
+  let currentY = 166;
+  
   if (notes) {
-    doc.text(`Notas: ${notes}`, 20, 162, { maxWidth: 170 });
+    doc.setFont("helvetica", "bold");
+    doc.text("O que foi feito:", 20, currentY);
+    currentY += 8;
+    
+    doc.setFont("helvetica", "normal");
+    const splitNotes = doc.splitTextToSize(notes, 170);
+    doc.text(splitNotes, 20, currentY);
+    currentY += splitNotes.length * 6 + 10;
   }
   
   // Client Signature
   doc.setFont("helvetica", "bold");
-  doc.text("Assinatura do Cliente:", 20, 180);
+  doc.text("Assinatura do Cliente:", 20, Math.max(currentY, 180));
   
+  const signatureY = Math.max(currentY + 5, 185);
   if (signatureDataUrl) {
-    doc.addImage(signatureDataUrl, "PNG", 20, 185, 80, 30);
+    doc.addImage(signatureDataUrl, "PNG", 20, signatureY, 80, 30);
   }
   
   // Footer
