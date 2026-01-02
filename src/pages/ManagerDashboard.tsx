@@ -103,7 +103,8 @@ export default function ManagerDashboard() {
         priority,
         created_at,
         profiles!work_orders_client_id_fkey (
-          name
+          name,
+          company_name
         )
       `)
       .eq("status", "awaiting_approval")
@@ -112,7 +113,7 @@ export default function ManagerDashboard() {
     if (data) {
       const formattedData = data.map((order: any) => ({
         ...order,
-        client_name: order.profiles?.name || "N/A",
+        client_name: order.profiles?.company_name || order.profiles?.name || "N/A",
       }));
       setPendingRequests(formattedData);
     }
@@ -189,7 +190,8 @@ export default function ManagerDashboard() {
         client_id,
         total_hours,
         profiles!work_orders_client_id_fkey (
-          name
+          name,
+          company_name
         )
       `)
       .not("scheduled_date", "is", null)
@@ -198,7 +200,7 @@ export default function ManagerDashboard() {
     if (data) {
       const formattedOrders = data.map((order: any) => ({
         ...order,
-        client_name: order.profiles?.name || "N/A",
+        client_name: order.profiles?.company_name || order.profiles?.name || "N/A",
       }));
       setCalendarOrders(formattedOrders);
     }
