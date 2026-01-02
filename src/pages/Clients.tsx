@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Calendar } from "@/components/ui/calendar";
-import { format, isSameDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths, addMonths } from "date-fns";
+import { format, isSameDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths, addMonths, isSameMonth } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -89,6 +89,7 @@ export default function Clients() {
   const [selectedCalendarClient, setSelectedCalendarClient] = useState<Client | null>(null);
   const [calendarOrders, setCalendarOrders] = useState<WorkOrder[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [isManager, setIsManager] = useState(false);
   const [hoursStats, setHoursStats] = useState<HoursStats | null>(null);
@@ -721,26 +722,43 @@ export default function Clients() {
                       <TabsTrigger value="by-order">Por OT</TabsTrigger>
                     </TabsList>
                     <TabsContent value="summary" className="space-y-4 mt-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="rounded-lg border p-4 bg-primary/5">
-                          <p className="text-sm text-muted-foreground mb-1">Hoje</p>
-                          <p className="text-2xl font-bold text-primary">
-                            {hoursStats.today.toFixed(1)}h
-                          </p>
-                        </div>
-                        <div className="rounded-lg border p-4 bg-accent/5">
-                          <p className="text-sm text-muted-foreground mb-1">Esta Semana</p>
-                          <p className="text-2xl font-bold text-accent">
-                            {hoursStats.thisWeek.toFixed(1)}h
-                          </p>
-                        </div>
-                        <div className="rounded-lg border p-4 bg-green-500/5">
-                          <p className="text-sm text-muted-foreground mb-1">Este Mês</p>
-                          <p className="text-2xl font-bold text-green-600">
-                            {hoursStats.thisMonth.toFixed(1)}h
-                          </p>
-                        </div>
+                      {/* Show selected month info */}
+                      <div className="text-center mb-2">
+                        <p className="text-sm text-muted-foreground">
+                          Mês selecionado: <span className="font-medium capitalize">{format(calendarMonth, "MMMM 'de' yyyy", { locale: pt })}</span>
+                        </p>
                       </div>
+                      
+                      {/* Hours for selected calendar month */}
+                      <div className="rounded-lg border p-4 bg-primary/5">
+                        <p className="text-sm text-muted-foreground mb-1 capitalize">
+                          {format(calendarMonth, "MMMM 'de' yyyy", { locale: pt })}
+                        </p>
+                        <p className="text-3xl font-bold text-primary">
+                          {(hoursStats.monthlyHistory.find(m => 
+                            isSameMonth(m.month, calendarMonth)
+                          )?.hours || 0).toFixed(1)}h
+                        </p>
+                      </div>
+
+                      {/* Quick stats for current period */}
+                      {isSameMonth(calendarMonth, new Date()) && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="rounded-lg border p-4 bg-accent/5">
+                            <p className="text-sm text-muted-foreground mb-1">Hoje</p>
+                            <p className="text-2xl font-bold text-accent">
+                              {hoursStats.today.toFixed(1)}h
+                            </p>
+                          </div>
+                          <div className="rounded-lg border p-4 bg-green-500/5">
+                            <p className="text-sm text-muted-foreground mb-1">Esta Semana</p>
+                            <p className="text-2xl font-bold text-green-600">
+                              {hoursStats.thisWeek.toFixed(1)}h
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      
                       {/* Total all time */}
                       <div className="rounded-lg border p-4 bg-muted/50">
                         <p className="text-sm text-muted-foreground mb-1">Total (últimos 12 meses)</p>
@@ -821,6 +839,8 @@ export default function Clients() {
                     mode="single"
                     selected={selectedDate}
                     onSelect={(date) => date && setSelectedDate(date)}
+                    month={calendarMonth}
+                    onMonthChange={setCalendarMonth}
                     locale={pt}
                     modifiers={{
                       hasOrders: (date) => hasOrdersOnDate(date),
