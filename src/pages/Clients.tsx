@@ -3,7 +3,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Mail, Phone, Trash2, Edit, Building2, MapPin, Package, ChevronDown, ChevronUp, Plus, CalendarIcon, Briefcase, ArrowLeft, Clock } from "lucide-react";
+import { Search, Mail, Phone, Trash2, Edit, Building2, MapPin, Package, ChevronDown, ChevronUp, Plus, CalendarIcon, Briefcase, ArrowLeft, Clock, ChevronLeft, ChevronRight } from "lucide-react";
 import { EquipmentAttachments } from "@/components/equipments/EquipmentAttachments";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Calendar } from "@/components/ui/calendar";
-import { format, isSameDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
+import { format, isSameDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths, addMonths } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -60,10 +60,17 @@ interface WorkOrder {
   total_hours?: number;
 }
 
+interface MonthlyHours {
+  month: Date;
+  hours: number;
+  label: string;
+}
+
 interface HoursStats {
   today: number;
   thisWeek: number;
   thisMonth: number;
+  monthlyHistory: MonthlyHours[];
   byWorkOrder: { [key: string]: { hours: number; reference: string; title: string } };
 }
 
@@ -275,6 +282,7 @@ export default function Clients() {
           today: 0,
           thisWeek: 0,
           thisMonth: 0,
+          monthlyHistory: [],
           byWorkOrder: {},
         });
         setLoadingHours(false);
@@ -303,6 +311,14 @@ export default function Clients() {
       let weekHours = 0;
       let monthHours = 0;
       const workOrderHours: { [key: string]: { hours: number; reference: string; title: string } } = {};
+      
+      // Track hours by month (last 12 months)
+      const monthlyHoursMap: { [key: string]: number } = {};
+      for (let i = 0; i < 12; i++) {
+        const monthDate = subMonths(now, i);
+        const key = format(monthDate, 'yyyy-MM');
+        monthlyHoursMap[key] = 0;
+      }
 
       // Initialize workOrderHours with all work orders
       workOrders.forEach(wo => {
@@ -327,11 +343,30 @@ export default function Clients() {
           monthHours += hours;
         }
 
+        // Add to monthly history
+        const monthKey = format(entryDate, 'yyyy-MM');
+        if (monthlyHoursMap[monthKey] !== undefined) {
+          monthlyHoursMap[monthKey] += hours;
+        }
+
         const woId = entry.work_order_id;
         if (workOrderHours[woId]) {
           workOrderHours[woId].hours += hours;
         }
       });
+
+      // Convert monthly hours map to array
+      const monthlyHistory: MonthlyHours[] = Object.entries(monthlyHoursMap)
+        .map(([key, hours]) => {
+          const [year, month] = key.split('-');
+          const monthDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+          return {
+            month: monthDate,
+            hours,
+            label: format(monthDate, "MMMM 'de' yyyy", { locale: pt }),
+          };
+        })
+        .sort((a, b) => b.month.getTime() - a.month.getTime());
 
       // Filter out work orders with 0 hours
       const filteredWorkOrderHours: { [key: string]: { hours: number; reference: string; title: string } } = {};
@@ -345,6 +380,7 @@ export default function Clients() {
         today: todayHours,
         thisWeek: weekHours,
         thisMonth: monthHours,
+        monthlyHistory,
         byWorkOrder: filteredWorkOrderHours,
       });
     } catch (error) {
@@ -679,8 +715,9 @@ export default function Clients() {
                   <p className="text-center text-muted-foreground py-4">A carregar...</p>
                 ) : hoursStats ? (
                   <Tabs defaultValue="summary" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
+                    <TabsList className="grid w-full grid-cols-3">
                       <TabsTrigger value="summary">Resumo</TabsTrigger>
+                      <TabsTrigger value="monthly">Por Mês</TabsTrigger>
                       <TabsTrigger value="by-order">Por OT</TabsTrigger>
                     </TabsList>
                     <TabsContent value="summary" className="space-y-4 mt-4">
@@ -704,6 +741,40 @@ export default function Clients() {
                           </p>
                         </div>
                       </div>
+                      {/* Total all time */}
+                      <div className="rounded-lg border p-4 bg-muted/50">
+                        <p className="text-sm text-muted-foreground mb-1">Total (últimos 12 meses)</p>
+                        <p className="text-2xl font-bold">
+                          {hoursStats.monthlyHistory.reduce((sum, m) => sum + m.hours, 0).toFixed(1)}h
+                        </p>
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="monthly" className="mt-4">
+                      {hoursStats.monthlyHistory.length === 0 || hoursStats.monthlyHistory.every(m => m.hours === 0) ? (
+                        <p className="text-center text-muted-foreground py-8">
+                          Nenhuma hora registada
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {hoursStats.monthlyHistory
+                            .filter(m => m.hours > 0)
+                            .map((monthData, index) => (
+                              <div
+                                key={index}
+                                className="flex items-center justify-between rounded-lg border p-3"
+                              >
+                                <div className="flex-1">
+                                  <p className="font-medium text-sm capitalize">{monthData.label}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-lg font-bold text-primary">
+                                    {monthData.hours.toFixed(1)}h
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      )}
                     </TabsContent>
                     <TabsContent value="by-order" className="mt-4">
                       {Object.keys(hoursStats.byWorkOrder).length === 0 ? (
