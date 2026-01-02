@@ -1,11 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, Clock, CheckCircle, CalendarDays, Pause, Play, PlayCircle, Circle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ClipboardList, Clock, CheckCircle, CalendarDays, Pause, Play, PlayCircle, Circle, ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { CompleteWorkOrderDialog } from "@/components/work-orders/CompleteWorkOrderDialog";
 import { PauseWorkOrderDialog } from "@/components/work-orders/PauseWorkOrderDialog";
@@ -13,7 +14,7 @@ import { EditTimeEntriesDialog } from "@/components/work-orders/EditTimeEntriesD
 import { TimeTracker } from "@/components/work-orders/TimeTracker";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, isSameMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Notifications } from "@/components/Notifications";
 
@@ -39,6 +40,11 @@ interface Stats {
   completedOrders: number;
 }
 
+interface MonthlyHours {
+  month: Date;
+  hours: number;
+}
+
 export default function EmployeeDashboard() {
   const [assignedOrders, setAssignedOrders] = useState<WorkOrder[]>([]);
   const [stats, setStats] = useState<Stats>({ 
@@ -49,6 +55,8 @@ export default function EmployeeDashboard() {
     completedOrders: 0 
   });
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
+  const [monthlyHours, setMonthlyHours] = useState<MonthlyHours[]>([]);
   const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
   const [pauseDialogOpen, setPauseDialogOpen] = useState(false);
   const [editTimeEntriesDialogOpen, setEditTimeEntriesDialogOpen] = useState(false);
@@ -57,12 +65,14 @@ export default function EmployeeDashboard() {
     reference: string;
     timeEntryId?: string;
   } | null>(null);
+  const [clientFilter, setClientFilter] = useState<string>("all");
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
     fetchAssignedOrders();
     fetchStats();
+    fetchMonthlyHours();
   }, []);
 
   const fetchAssignedOrders = async () => {
@@ -207,6 +217,68 @@ export default function EmployeeDashboard() {
       hoursMonth: Math.round(hoursMonth * 10) / 10,
       completedOrders: completedAssignments?.length || 0,
     });
+  };
+
+  const fetchMonthlyHours = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Fetch all time entries for the last 12 months
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+
+    const { data: timeEntries } = await supabase
+      .from("time_entries")
+      .select("start_time, duration_hours")
+      .eq("user_id", user.id)
+      .gte("start_time", twelveMonthsAgo.toISOString());
+
+    if (timeEntries) {
+      const monthlyMap = new Map<string, { month: Date; hours: number }>();
+      
+      timeEntries.forEach(entry => {
+        const entryDate = new Date(entry.start_time);
+        const monthKey = `${entryDate.getFullYear()}-${entryDate.getMonth()}`;
+        
+        if (!monthlyMap.has(monthKey)) {
+          monthlyMap.set(monthKey, { 
+            month: new Date(entryDate.getFullYear(), entryDate.getMonth(), 1), 
+            hours: 0 
+          });
+        }
+        
+        const existing = monthlyMap.get(monthKey)!;
+        existing.hours += entry.duration_hours || 0;
+      });
+
+      const sortedMonths = Array.from(monthlyMap.values()).sort(
+        (a, b) => b.month.getTime() - a.month.getTime()
+      );
+      
+      setMonthlyHours(sortedMonths);
+    }
+  };
+
+  const getHoursForCalendarMonth = (): number => {
+    const monthData = monthlyHours.find(m => isSameMonth(m.month, calendarMonth));
+    return monthData ? Math.round(monthData.hours * 10) / 10 : 0;
+  };
+
+  // Get unique clients for filter
+  const uniqueClients = useMemo(() => {
+    const clients = new Set<string>();
+    assignedOrders.forEach(order => {
+      if (order.client_name) {
+        clients.add(order.client_name);
+      }
+    });
+    return Array.from(clients).sort();
+  }, [assignedOrders]);
+
+  // Filter orders by selected client
+  const filterOrdersByClient = (orders: WorkOrder[]) => {
+    if (clientFilter === "all") return orders;
+    return orders.filter(order => order.client_name === clientFilter);
   };
 
   const getPriorityColor = (priority: string) => {
@@ -408,12 +480,16 @@ export default function EmployeeDashboard() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Horas Mês</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Horas {format(calendarMonth, "MMM", { locale: ptBR })}
+              </CardTitle>
               <Clock className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.hoursMonth}h</div>
-              <p className="text-xs text-muted-foreground">Este mês</p>
+              <div className="text-2xl font-bold">{getHoursForCalendarMonth()}h</div>
+              <p className="text-xs text-muted-foreground">
+                {format(calendarMonth, "MMMM yyyy", { locale: ptBR })}
+              </p>
             </CardContent>
           </Card>
 
@@ -446,6 +522,8 @@ export default function EmployeeDashboard() {
                 mode="single"
                 selected={selectedDate}
                 onSelect={setSelectedDate}
+                month={calendarMonth}
+                onMonthChange={setCalendarMonth}
                 locale={ptBR}
                 modifiers={{
                   scheduled: getDatesWithOrders(),
@@ -532,23 +610,41 @@ export default function EmployeeDashboard() {
         {/* Work Orders with Tabs */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle>Minhas Ordens de Trabalho</CardTitle>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <CardTitle>Minhas Ordens de Trabalho</CardTitle>
+              {uniqueClients.length > 1 && (
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <Select value={clientFilter} onValueChange={setClientFilter}>
+                    <SelectTrigger className="w-[180px] h-8">
+                      <SelectValue placeholder="Filtrar por cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os clientes</SelectItem>
+                      {uniqueClients.map(client => (
+                        <SelectItem key={client} value={client}>{client}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
-            {assignedOrders.length === 0 ? (
+            {filterOrdersByClient(assignedOrders).length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
-                Nenhuma ordem de trabalho atribuída
+                {clientFilter === "all" ? "Nenhuma ordem de trabalho atribuída" : `Nenhuma ordem para ${clientFilter}`}
               </p>
             ) : (
-              <Tabs defaultValue={activeOrders.length > 0 ? "active" : startedOrders.length > 0 ? "paused" : "new"} className="w-full">
+              <Tabs defaultValue={filterOrdersByClient(activeOrders).length > 0 ? "active" : filterOrdersByClient(startedOrders).length > 0 ? "paused" : "new"} className="w-full">
                 <TabsList className="grid w-full grid-cols-4 mb-4">
                   <TabsTrigger value="active" className="flex items-center gap-1.5 text-xs sm:text-sm">
                     <PlayCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     <span className="hidden sm:inline">Em Execução</span>
                     <span className="sm:hidden">Ativas</span>
-                    {activeOrders.length > 0 && (
+                    {filterOrdersByClient(activeOrders).length > 0 && (
                       <Badge variant="default" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px] animate-pulse">
-                        {activeOrders.length}
+                        {filterOrdersByClient(activeOrders).length}
                       </Badge>
                     )}
                   </TabsTrigger>
@@ -556,9 +652,9 @@ export default function EmployeeDashboard() {
                     <Pause className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     <span className="hidden sm:inline">Pausadas</span>
                     <span className="sm:hidden">Paus.</span>
-                    {startedOrders.length > 0 && (
+                    {filterOrdersByClient(startedOrders).length > 0 && (
                       <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px]">
-                        {startedOrders.length}
+                        {filterOrdersByClient(startedOrders).length}
                       </Badge>
                     )}
                   </TabsTrigger>
@@ -566,9 +662,9 @@ export default function EmployeeDashboard() {
                     <Circle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     <span className="hidden sm:inline">Novas</span>
                     <span className="sm:hidden">Novas</span>
-                    {newOrders.length > 0 && (
+                    {filterOrdersByClient(newOrders).length > 0 && (
                       <Badge variant="outline" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px]">
-                        {newOrders.length}
+                        {filterOrdersByClient(newOrders).length}
                       </Badge>
                     )}
                   </TabsTrigger>
@@ -576,9 +672,9 @@ export default function EmployeeDashboard() {
                     <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     <span className="hidden sm:inline">Concluídas</span>
                     <span className="sm:hidden">Concl.</span>
-                    {completedOrders.length > 0 && (
+                    {filterOrdersByClient(completedOrders).length > 0 && (
                       <Badge variant="outline" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px] bg-accent/20">
-                        {completedOrders.length}
+                        {filterOrdersByClient(completedOrders).length}
                       </Badge>
                     )}
                   </TabsTrigger>
@@ -586,14 +682,14 @@ export default function EmployeeDashboard() {
 
                 {/* Active Orders Tab */}
                 <TabsContent value="active" className="mt-0">
-                  {activeOrders.length === 0 ? (
+                  {filterOrdersByClient(activeOrders).length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <PlayCircle className="h-12 w-12 mx-auto mb-2 opacity-30" />
                       <p>Nenhuma ordem em execução</p>
                     </div>
                   ) : (
                     <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                      {activeOrders.map((order) => (
+                      {filterOrdersByClient(activeOrders).map((order) => (
                         <div key={order.id} className="flex flex-col gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
                           <div className="space-y-1 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
@@ -629,16 +725,15 @@ export default function EmployeeDashboard() {
                   )}
                 </TabsContent>
 
-                {/* Paused Orders Tab */}
                 <TabsContent value="paused" className="mt-0">
-                  {startedOrders.length === 0 ? (
+                  {filterOrdersByClient(startedOrders).length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <Pause className="h-12 w-12 mx-auto mb-2 opacity-30" />
                       <p>Nenhuma ordem pausada</p>
                     </div>
                   ) : (
                     <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                      {startedOrders.map((order) => (
+                      {filterOrdersByClient(startedOrders).map((order) => (
                         <div key={order.id} className="flex flex-col gap-3 rounded-lg border border-warning/30 bg-warning/5 p-3">
                           <div className="space-y-1 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
@@ -687,14 +782,14 @@ export default function EmployeeDashboard() {
 
                 {/* New Orders Tab */}
                 <TabsContent value="new" className="mt-0">
-                  {newOrders.length === 0 ? (
+                  {filterOrdersByClient(newOrders).length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <Circle className="h-12 w-12 mx-auto mb-2 opacity-30" />
                       <p>Nenhuma nova ordem</p>
                     </div>
                   ) : (
                     <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                      {newOrders.map((order) => (
+                      {filterOrdersByClient(newOrders).map((order) => (
                         <div key={order.id} className="flex flex-col gap-3 rounded-lg border p-3">
                           <div className="space-y-1 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
@@ -733,14 +828,14 @@ export default function EmployeeDashboard() {
 
                 {/* Completed Orders Tab */}
                 <TabsContent value="completed" className="mt-0">
-                  {completedOrders.length === 0 ? (
+                  {filterOrdersByClient(completedOrders).length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <CheckCircle className="h-12 w-12 mx-auto mb-2 opacity-30" />
                       <p>Nenhuma ordem concluída</p>
                     </div>
                   ) : (
                     <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                      {completedOrders.map((order) => (
+                      {filterOrdersByClient(completedOrders).map((order) => (
                         <div key={order.id} className="flex flex-col gap-3 rounded-lg border border-accent/30 bg-accent/5 p-3">
                           <div className="space-y-1 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
