@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Wrench, CheckCircle, Plus, Pencil, Trash2 } from "lucide-react";
+import { ClipboardList, Wrench, CheckCircle, Plus, Pencil, Trash2, Clock, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { CreateEquipmentDialog } from "@/components/equipments/CreateEquipmentDialog";
 import { EditEquipmentDialog } from "@/components/equipments/EditEquipmentDialog";
@@ -11,12 +11,29 @@ import { CreateClientWorkOrderDialog } from "@/components/work-orders/CreateClie
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Notifications } from "@/components/Notifications";
+import { Calendar } from "@/components/ui/calendar";
+import { format, isSameDay, startOfMonth, endOfMonth, isSameMonth } from "date-fns";
+import { pt } from "date-fns/locale";
 
 interface WorkOrder {
   id: string;
   reference: string;
   title: string;
   status: string;
+  scheduled_date: string | null;
+  total_hours: number | null;
+}
+
+interface WorkOrderWithDetails extends WorkOrder {
+  assignments: {
+    user_id: string;
+    profiles: {
+      name: string;
+    } | null;
+  }[];
+  time_entries: {
+    duration_hours: number | null;
+  }[];
 }
 
 interface Equipment {
@@ -37,6 +54,7 @@ interface Stats {
 export default function ClientDashboard() {
   const navigate = useNavigate();
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [allWorkOrders, setAllWorkOrders] = useState<WorkOrderWithDetails[]>([]);
   const [stats, setStats] = useState<Stats>({ activeRequests: 0, myEquipments: 0, completedServices: 0 });
   const [equipments, setEquipments] = useState<Equipment[]>([]);
   const [showEquipments, setShowEquipments] = useState(false);
@@ -46,6 +64,8 @@ export default function ClientDashboard() {
   const [deleteEquipmentDialogOpen, setDeleteEquipmentDialogOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -57,6 +77,7 @@ export default function ClientDashboard() {
     };
     initUser();
     fetchWorkOrders();
+    fetchAllWorkOrders();
     fetchStats();
     fetchEquipments();
   }, []);
@@ -68,13 +89,36 @@ export default function ClientDashboard() {
 
     const { data } = await supabase
       .from("work_orders")
-      .select("id, reference, title, status")
+      .select("id, reference, title, status, scheduled_date, total_hours")
       .eq("client_id", user.id)
       .order("created_at", { ascending: false })
       .limit(5);
 
     if (data) {
       setWorkOrders(data);
+    }
+  };
+
+  const fetchAllWorkOrders = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) return;
+
+    const { data } = await supabase
+      .from("work_orders")
+      .select(`
+        id, reference, title, status, scheduled_date, total_hours,
+        assignments:work_order_assignments(
+          user_id,
+          profiles!work_order_assignments_user_id_fkey(name)
+        ),
+        time_entries(duration_hours)
+      `)
+      .eq("client_id", user.id)
+      .order("scheduled_date", { ascending: true });
+
+    if (data) {
+      setAllWorkOrders(data as unknown as WorkOrderWithDetails[]);
     }
   };
 
@@ -197,6 +241,42 @@ export default function ClientDashboard() {
     fetchEquipments();
   };
 
+  // Get work orders for the selected calendar month
+  const workOrdersForMonth = useMemo(() => {
+    const monthStart = startOfMonth(calendarMonth);
+    const monthEnd = endOfMonth(calendarMonth);
+    
+    return allWorkOrders.filter(wo => {
+      if (!wo.scheduled_date) return false;
+      const date = new Date(wo.scheduled_date);
+      return date >= monthStart && date <= monthEnd;
+    });
+  }, [allWorkOrders, calendarMonth]);
+
+  // Calculate total hours for the month
+  const totalHoursForMonth = useMemo(() => {
+    return workOrdersForMonth.reduce((sum, wo) => {
+      const woHours = wo.time_entries?.reduce((s, te) => s + (te.duration_hours || 0), 0) || 0;
+      return sum + woHours;
+    }, 0);
+  }, [workOrdersForMonth]);
+
+  // Get work orders for the selected date
+  const workOrdersForSelectedDate = useMemo(() => {
+    if (!selectedDate) return [];
+    return allWorkOrders.filter(wo => {
+      if (!wo.scheduled_date) return false;
+      return isSameDay(new Date(wo.scheduled_date), selectedDate);
+    });
+  }, [allWorkOrders, selectedDate]);
+
+  // Get dates that have work orders
+  const datesWithWorkOrders = useMemo(() => {
+    return allWorkOrders
+      .filter(wo => wo.scheduled_date)
+      .map(wo => new Date(wo.scheduled_date!));
+  }, [allWorkOrders]);
+
   return (
     <DashboardLayout title="Dashboard do Cliente">
       <div className="space-y-6">
@@ -238,6 +318,125 @@ export default function ClientDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Calendar Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5" />
+              Calendário de Ordens de Trabalho
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Calendar */}
+              <div className="flex flex-col items-center">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  month={calendarMonth}
+                  onMonthChange={setCalendarMonth}
+                  locale={pt}
+                  className="rounded-md border pointer-events-auto"
+                  modifiers={{
+                    hasWorkOrder: datesWithWorkOrders,
+                  }}
+                  modifiersClassNames={{
+                    hasWorkOrder: "bg-primary/20 font-bold",
+                  }}
+                />
+                <div className="mt-4 text-center">
+                  <p className="text-lg font-semibold capitalize">
+                    {format(calendarMonth, "MMMM yyyy", { locale: pt })}
+                  </p>
+                  <div className="flex items-center justify-center gap-2 mt-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">
+                      Total de horas: <span className="font-bold text-foreground">{totalHoursForMonth.toFixed(1)}h</span>
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {workOrdersForMonth.length} ordem(ns) de trabalho
+                  </p>
+                </div>
+              </div>
+
+              {/* Work Orders for Selected Date or Month */}
+              <div className="space-y-4">
+                <h4 className="font-medium">
+                  {selectedDate 
+                    ? `Ordens de ${format(selectedDate, "d 'de' MMMM", { locale: pt })}`
+                    : `Ordens de ${format(calendarMonth, "MMMM", { locale: pt })}`
+                  }
+                </h4>
+                
+                <div className="max-h-[350px] overflow-y-auto space-y-3 pr-2">
+                  {(selectedDate ? workOrdersForSelectedDate : workOrdersForMonth).length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      {selectedDate 
+                        ? "Nenhuma ordem de trabalho para esta data"
+                        : "Nenhuma ordem de trabalho este mês"
+                      }
+                    </p>
+                  ) : (
+                    (selectedDate ? workOrdersForSelectedDate : workOrdersForMonth).map((wo) => {
+                      const assignedEmployees = wo.assignments?.map(a => a.profiles?.name).filter(Boolean) || [];
+                      const woTotalHours = wo.time_entries?.reduce((s, te) => s + (te.duration_hours || 0), 0) || 0;
+                      
+                      return (
+                        <div 
+                          key={wo.id} 
+                          className="rounded-lg border p-3 hover:bg-muted/50 cursor-pointer transition-colors"
+                          onClick={() => navigate(`/work-orders/${wo.id}`)}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate">{wo.reference}</p>
+                              <p className="text-xs text-muted-foreground truncate">{wo.title}</p>
+                            </div>
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium shrink-0 ${getStatusColor(wo.status)}`}>
+                              {getStatusLabel(wo.status)}
+                            </span>
+                          </div>
+                          
+                          <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                            {assignedEmployees.length > 0 && (
+                              <div className="flex items-center gap-1">
+                                <User className="h-3 w-3" />
+                                <span>{assignedEmployees.join(", ")}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              <span>{woTotalHours.toFixed(1)}h</span>
+                            </div>
+                            {wo.scheduled_date && (
+                              <span>
+                                {format(new Date(wo.scheduled_date), "dd/MM/yyyy")}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {selectedDate && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setSelectedDate(undefined)}
+                    className="w-full"
+                  >
+                    Ver todas do mês
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Quick Actions */}
         <Card>
@@ -341,7 +540,7 @@ export default function ClientDashboard() {
         {/* My Requests */}
         <Card>
           <CardHeader>
-            <CardTitle>Minhas Solicitações</CardTitle>
+            <CardTitle>Últimas Solicitações</CardTitle>
           </CardHeader>
           <CardContent>
             {workOrders.length === 0 ? (
@@ -381,7 +580,7 @@ export default function ClientDashboard() {
       <CreateClientWorkOrderDialog
         open={createWorkOrderDialogOpen}
         onOpenChange={setCreateWorkOrderDialogOpen}
-        onSuccess={fetchWorkOrders}
+        onSuccess={() => { fetchWorkOrders(); fetchAllWorkOrders(); }}
         clientId={currentUserId}
       />
 
