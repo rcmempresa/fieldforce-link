@@ -84,6 +84,7 @@ export default function Clients() {
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
   const [createEquipmentDialogOpen, setCreateEquipmentDialogOpen] = useState(false);
   const [editEquipmentDialogOpen, setEditEquipmentDialogOpen] = useState(false);
+  const [deleteEquipmentDialogOpen, setDeleteEquipmentDialogOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
   const [currentClientId, setCurrentClientId] = useState<string | null>(null);
   const [selectedCalendarClient, setSelectedCalendarClient] = useState<Client | null>(null);
@@ -244,6 +245,55 @@ export default function Clients() {
       newExpanded.add(clientId);
     }
     setExpandedClients(newExpanded);
+  };
+
+  const handleDeleteEquipment = async () => {
+    if (!selectedEquipment) return;
+
+    try {
+      // First delete all attachments for this equipment from storage and database
+      const { data: attachments } = await supabase
+        .from('equipment_attachments')
+        .select('id, url')
+        .eq('equipment_id', selectedEquipment.id);
+
+      if (attachments && attachments.length > 0) {
+        // Delete files from storage
+        const filePaths = attachments.map(a => a.url);
+        await supabase.storage
+          .from('equipment-attachments')
+          .remove(filePaths);
+
+        // Delete attachment records
+        await supabase
+          .from('equipment_attachments')
+          .delete()
+          .eq('equipment_id', selectedEquipment.id);
+      }
+
+      // Delete the equipment
+      const { error } = await supabase
+        .from('equipments')
+        .delete()
+        .eq('id', selectedEquipment.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Equipamento eliminado com sucesso",
+      });
+      fetchClients();
+      setDeleteEquipmentDialogOpen(false);
+      setSelectedEquipment(null);
+    } catch (error: any) {
+      console.error('Error deleting equipment:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao eliminar equipamento",
+        variant: "destructive",
+      });
+    }
   };
 
   const fetchClientOrders = async (clientId: string) => {
@@ -659,6 +709,16 @@ export default function Clients() {
                                       >
                                         <Edit className="h-4 w-4" />
                                       </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          setSelectedEquipment(equipment);
+                                          setDeleteEquipmentDialogOpen(true);
+                                        }}
+                                      >
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                      </Button>
                                      </div>
                                    </div>
                                    {currentUserId && (
@@ -950,6 +1010,30 @@ export default function Clients() {
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deleteEquipmentDialogOpen} onOpenChange={setDeleteEquipmentDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Eliminação de Equipamento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem a certeza que deseja eliminar o equipamento{" "}
+              <strong>{selectedEquipment?.name}</strong>? Esta ação não pode ser revertida e
+              todos os anexos associados serão eliminados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedEquipment(null)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteEquipment}
               className="bg-destructive text-destructive-foreground"
             >
               Eliminar
