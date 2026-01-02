@@ -241,7 +241,7 @@ export default function ClientDashboard() {
     fetchEquipments();
   };
 
-  // Get work orders for the selected calendar month
+  // Get work orders for the selected calendar month (with scheduled date)
   const workOrdersForMonth = useMemo(() => {
     const monthStart = startOfMonth(calendarMonth);
     const monthEnd = endOfMonth(calendarMonth);
@@ -253,13 +253,27 @@ export default function ClientDashboard() {
     });
   }, [allWorkOrders, calendarMonth]);
 
-  // Calculate total hours for the month
+  // Get work orders without scheduled date (these have hours but no date)
+  const workOrdersWithoutDate = useMemo(() => {
+    return allWorkOrders.filter(wo => !wo.scheduled_date);
+  }, [allWorkOrders]);
+
+  // Calculate total hours for the month (including orders without date)
   const totalHoursForMonth = useMemo(() => {
-    return workOrdersForMonth.reduce((sum, wo) => {
+    const scheduledHours = workOrdersForMonth.reduce((sum, wo) => {
       const woHours = wo.time_entries?.reduce((s, te) => s + (te.duration_hours || 0), 0) || 0;
       return sum + woHours;
     }, 0);
+    return scheduledHours;
   }, [workOrdersForMonth]);
+
+  // Calculate total hours for orders without date
+  const totalHoursWithoutDate = useMemo(() => {
+    return workOrdersWithoutDate.reduce((sum, wo) => {
+      const woHours = wo.time_entries?.reduce((s, te) => s + (te.duration_hours || 0), 0) || 0;
+      return sum + woHours;
+    }, 0);
+  }, [workOrdersWithoutDate]);
 
   // Get work orders for the selected date
   const workOrdersForSelectedDate = useMemo(() => {
@@ -435,6 +449,57 @@ export default function ClientDashboard() {
                 )}
               </div>
             </div>
+
+            {/* Work Orders Without Scheduled Date */}
+            {workOrdersWithoutDate.length > 0 && (
+              <div className="mt-6 pt-6 border-t">
+                <h4 className="font-medium mb-3 flex items-center gap-2">
+                  <ClipboardList className="h-4 w-4" />
+                  Ordens Sem Data Agendada
+                  <span className="text-sm font-normal text-muted-foreground">
+                    ({totalHoursWithoutDate.toFixed(1)}h total)
+                  </span>
+                </h4>
+                <div className="max-h-[250px] overflow-y-auto space-y-3 pr-2">
+                  {workOrdersWithoutDate.map((wo) => {
+                    const assignedEmployees = wo.assignments?.map(a => a.profiles?.name).filter(Boolean) || [];
+                    const woTotalHours = wo.time_entries?.reduce((s, te) => s + (te.duration_hours || 0), 0) || 0;
+                    
+                    return (
+                      <div 
+                        key={wo.id} 
+                        className="rounded-lg border p-3 hover:bg-muted/50 cursor-pointer transition-colors"
+                        onClick={() => navigate(`/work-orders/${wo.id}`)}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{wo.reference}</p>
+                            <p className="text-xs text-muted-foreground truncate">{wo.title}</p>
+                          </div>
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium shrink-0 ${getStatusColor(wo.status)}`}>
+                            {getStatusLabel(wo.status)}
+                          </span>
+                        </div>
+                        
+                        <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                          {assignedEmployees.length > 0 && (
+                            <div className="flex items-center gap-1">
+                              <User className="h-3 w-3" />
+                              <span>{assignedEmployees.join(", ")}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            <span>{woTotalHours.toFixed(1)}h</span>
+                          </div>
+                          <span className="text-orange-500">Sem data agendada</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
