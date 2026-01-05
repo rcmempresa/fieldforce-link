@@ -15,6 +15,7 @@ import { TimeTracker } from "@/components/work-orders/TimeTracker";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfMonth, endOfMonth, isSameMonth } from "date-fns";
+import { formatHours } from "@/lib/formatHours";
 import { ptBR } from "date-fns/locale";
 import { Notifications } from "@/components/Notifications";
 
@@ -462,7 +463,7 @@ export default function EmployeeDashboard() {
               <Clock className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.hoursToday}h</div>
+              <div className="text-2xl font-bold">{formatHours(stats.hoursToday)}</div>
               <p className="text-xs text-muted-foreground">Hoje</p>
             </CardContent>
           </Card>
@@ -473,7 +474,7 @@ export default function EmployeeDashboard() {
               <Clock className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.hoursWeek}h</div>
+              <div className="text-2xl font-bold">{formatHours(stats.hoursWeek)}</div>
               <p className="text-xs text-muted-foreground">Esta semana</p>
             </CardContent>
           </Card>
@@ -486,7 +487,7 @@ export default function EmployeeDashboard() {
               <Clock className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{getHoursForCalendarMonth()}h</div>
+              <div className="text-2xl font-bold">{formatHours(getHoursForCalendarMonth())}</div>
               <p className="text-xs text-muted-foreground">
                 {format(calendarMonth, "MMMM yyyy", { locale: ptBR })}
               </p>
@@ -757,7 +758,7 @@ export default function EmployeeDashboard() {
                             {order.total_hours_worked !== undefined && order.total_hours_worked > 0 && (
                               <p className="text-xs font-medium text-primary">
                                 <Clock className="h-3 w-3 inline mr-1" />
-                                Horas trabalhadas: {Math.round(order.total_hours_worked * 10) / 10}h
+                                Horas trabalhadas: {formatHours(order.total_hours_worked)}
                               </p>
                             )}
                           </div>
