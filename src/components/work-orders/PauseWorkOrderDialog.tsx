@@ -86,10 +86,25 @@ export function PauseWorkOrderDialog({
 
       if (timeEntryError) throw timeEntryError;
 
-      // Update work order status back to pending
+      // Get total hours from all time entries for this work order
+      const { data: allTimeEntries } = await supabase
+        .from("time_entries")
+        .select("duration_hours")
+        .eq("work_order_id", workOrderId)
+        .not("duration_hours", "is", null);
+
+      const totalHours = (allTimeEntries || []).reduce(
+        (sum, entry) => sum + (entry.duration_hours || 0),
+        0
+      );
+
+      // Update work order status back to pending and update total_hours
       const { error: updateError } = await supabase
         .from("work_orders")
-        .update({ status: "pending" })
+        .update({ 
+          status: "pending",
+          total_hours: totalHours
+        })
         .eq("id", workOrderId);
 
       if (updateError) throw updateError;
