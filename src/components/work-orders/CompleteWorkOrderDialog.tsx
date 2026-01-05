@@ -87,7 +87,7 @@ export function CompleteWorkOrderDialog({
         if (timeEntryError) throw timeEntryError;
       }
 
-      // Get total hours worked on this work order
+      // Get total hours worked on this work order (sum of ALL employees' time entries)
       const { data: allTimeEntries } = await supabase
         .from("time_entries")
         .select("duration_hours")
@@ -96,7 +96,7 @@ export function CompleteWorkOrderDialog({
       const totalHoursWorked = (allTimeEntries || []).reduce(
         (sum, entry) => sum + (entry.duration_hours || 0), 
         0
-      ) + sessionDurationHours;
+      );
 
       // Get work order details for notifications and PDF
       const { data: workOrder } = await supabase
