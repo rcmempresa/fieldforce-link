@@ -26,6 +26,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format, isSameDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths, addMonths, isSameMonth } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
+import { formatHours } from "@/lib/formatHours";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Equipment {
@@ -948,7 +949,7 @@ export default function Clients() {
                               {order.total_hours !== undefined && order.total_hours > 0 && (
                                 <p className="text-xs font-medium text-accent flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
-                                  {Math.round(order.total_hours * 10) / 10}h
+                                  {formatHours(order.total_hours)}
                                 </p>
                               )}
                             </div>

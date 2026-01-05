@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ClipboardList, Users, CheckCircle, UserCheck, Calendar as CalendarIcon, Mail, Clock } from "lucide-react";
+import { formatHours } from "@/lib/formatHours";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
@@ -876,7 +877,7 @@ export default function ManagerDashboard() {
                             {order.total_hours !== undefined && order.total_hours > 0 && (
                               <p className="text-xs font-medium text-accent flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
-                                {Math.round(order.total_hours * 10) / 10}h trabalhadas
+                                {formatHours(order.total_hours)} trabalhadas
                               </p>
                             )}
                           </div>

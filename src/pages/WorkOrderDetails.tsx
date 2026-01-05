@@ -4,6 +4,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Calendar, User, Clock, FileText, Users, Plus, X, Wrench, Package } from "lucide-react";
+import { formatHoursDetailed } from "@/lib/formatHours";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -487,7 +488,7 @@ export default function WorkOrderDetails() {
                   <div>
                     <p className="text-sm font-medium">Total de Horas</p>
                     <p className="text-sm text-muted-foreground">
-                      {workOrder.total_hours || 0}h
+                      {formatHoursDetailed(workOrder.total_hours)}
                     </p>
                   </div>
                 </div>
