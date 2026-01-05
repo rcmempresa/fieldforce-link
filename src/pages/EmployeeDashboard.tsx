@@ -767,6 +767,10 @@ export default function EmployeeDashboard() {
                               <Play className="h-3.5 w-3.5 mr-1" />
                               Retomar
                             </Button>
+                            <Button size="sm" variant="secondary" onClick={() => handleCompleteClick(order.id, order.reference)}>
+                              <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                              Concluir
+                            </Button>
                             <Button size="sm" variant="outline" onClick={() => handleEditTimeEntriesClick(order.id, order.reference)}>
                               <Clock className="h-3.5 w-3.5 mr-1" />
                               Horas
