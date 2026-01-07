@@ -53,6 +53,12 @@ interface Assignment {
   };
 }
 
+interface EmployeeHours {
+  user_id: string;
+  name: string;
+  hours: number;
+}
+
 interface Equipment {
   id: string;
   name: string;
@@ -76,15 +82,67 @@ export default function WorkOrderDetails() {
   
   // Equipment states
   const [equipments, setEquipments] = useState<Equipment[]>([]);
+  
+  // Individual hours per employee
+  const [employeeHours, setEmployeeHours] = useState<EmployeeHours[]>([]);
 
   useEffect(() => {
     fetchWorkOrderDetails();
     fetchEquipments();
+    fetchEmployeeHours();
     if (isManager) {
       fetchAssignments();
       fetchEmployees();
     }
   }, [id, isManager]);
+
+  const fetchEmployeeHours = async () => {
+    const { data: timeEntries, error } = await supabase
+      .from("time_entries")
+      .select(`
+        user_id,
+        duration_hours,
+        profiles!time_entries_user_id_fkey (
+          name
+        )
+      `)
+      .eq("work_order_id", id);
+
+    if (error) {
+      console.error("Error fetching employee hours:", error);
+      return;
+    }
+
+    if (timeEntries) {
+      // Group hours by employee
+      const hoursMap = new Map<string, { name: string; hours: number }>();
+      
+      timeEntries.forEach((entry: any) => {
+        const userId = entry.user_id;
+        const existing = hoursMap.get(userId);
+        const hours = entry.duration_hours || 0;
+        
+        if (existing) {
+          existing.hours += hours;
+        } else {
+          hoursMap.set(userId, {
+            name: entry.profiles?.name || "N/A",
+            hours: hours,
+          });
+        }
+      });
+
+      const employeeHoursList: EmployeeHours[] = Array.from(hoursMap.entries()).map(
+        ([user_id, data]) => ({
+          user_id,
+          name: data.name,
+          hours: data.hours,
+        })
+      );
+
+      setEmployeeHours(employeeHoursList);
+    }
+  };
 
   const fetchWorkOrderDetails = async () => {
     const { data, error } = await supabase
@@ -485,11 +543,28 @@ export default function WorkOrderDetails() {
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
                   <Clock className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm font-medium">Total de Horas</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-lg font-semibold text-primary">
                       {formatHoursDetailed(workOrder.total_hours)}
                     </p>
+                    
+                    {employeeHours.length > 0 && (
+                      <div className="mt-3 space-y-2 border-t pt-3">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          Horas por Funcionário
+                        </p>
+                        {employeeHours.map((emp) => (
+                          <div
+                            key={emp.user_id}
+                            className="flex items-center justify-between text-sm"
+                          >
+                            <span className="text-muted-foreground">{emp.name}</span>
+                            <span className="font-medium">{formatHoursDetailed(emp.hours)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
