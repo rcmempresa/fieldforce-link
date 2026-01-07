@@ -116,15 +116,22 @@ export default function EmployeeDashboard() {
         .map((item: any) => item.work_orders?.id)
         .filter(Boolean);
 
-      const { data: allTimeEntries } = await supabase
+      // Get user's time entries to determine which orders this user has started
+      const { data: userTimeEntries } = await supabase
         .from("time_entries")
         .select("work_order_id, duration_hours")
         .eq("user_id", user.id)
         .in("work_order_id", workOrderIds);
 
-      const startedWorkOrderIds = new Set(allTimeEntries?.map(entry => entry.work_order_id) || []);
+      const startedWorkOrderIds = new Set(userTimeEntries?.map(entry => entry.work_order_id) || []);
 
-      // Calculate total hours per work order
+      // Get ALL time entries from ALL employees for these work orders to calculate total hours
+      const { data: allTimeEntries } = await supabase
+        .from("time_entries")
+        .select("work_order_id, duration_hours")
+        .in("work_order_id", workOrderIds);
+
+      // Calculate total hours per work order (sum of all employees)
       const hoursPerWorkOrder = new Map<string, number>();
       allTimeEntries?.forEach(entry => {
         const current = hoursPerWorkOrder.get(entry.work_order_id) || 0;
