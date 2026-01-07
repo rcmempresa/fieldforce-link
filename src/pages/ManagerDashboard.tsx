@@ -189,7 +189,6 @@ export default function ManagerDashboard() {
         status, 
         scheduled_date,
         client_id,
-        total_hours,
         profiles!work_orders_client_id_fkey (
           name,
           company_name
@@ -199,9 +198,25 @@ export default function ManagerDashboard() {
       .order("scheduled_date", { ascending: true });
 
     if (data) {
+      // Fetch total hours from time_entries for all work orders (sum of all employees)
+      const workOrderIds = data.map((order: any) => order.id);
+      
+      const { data: timeEntries } = await supabase
+        .from("time_entries")
+        .select("work_order_id, duration_hours")
+        .in("work_order_id", workOrderIds);
+
+      // Calculate total hours per work order from all employees
+      const hoursMap = new Map<string, number>();
+      timeEntries?.forEach((entry: any) => {
+        const current = hoursMap.get(entry.work_order_id) || 0;
+        hoursMap.set(entry.work_order_id, current + (entry.duration_hours || 0));
+      });
+
       const formattedOrders = data.map((order: any) => ({
         ...order,
         client_name: order.profiles?.company_name || order.profiles?.name || "N/A",
+        total_hours: hoursMap.get(order.id) || 0,
       }));
       setCalendarOrders(formattedOrders);
     }
