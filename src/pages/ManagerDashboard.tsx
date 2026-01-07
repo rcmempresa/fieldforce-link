@@ -28,6 +28,12 @@ interface PendingUser {
   created_at: string;
 }
 
+interface EmployeeHours {
+  user_id: string;
+  name: string;
+  hours: number;
+}
+
 interface WorkOrder {
   id: string;
   reference: string;
@@ -40,6 +46,7 @@ interface WorkOrder {
   priority?: string;
   created_at?: string;
   total_hours?: number;
+  employee_hours?: EmployeeHours[];
 }
 
 interface Stats {
@@ -198,26 +205,62 @@ export default function ManagerDashboard() {
       .order("scheduled_date", { ascending: true });
 
     if (data) {
-      // Fetch total hours from time_entries for all work orders (sum of all employees)
+      // Fetch time entries with user info for all work orders
       const workOrderIds = data.map((order: any) => order.id);
       
       const { data: timeEntries } = await supabase
         .from("time_entries")
-        .select("work_order_id, duration_hours")
+        .select(`
+          work_order_id, 
+          duration_hours,
+          user_id,
+          profiles!time_entries_user_id_fkey (
+            name
+          )
+        `)
         .in("work_order_id", workOrderIds);
 
-      // Calculate total hours per work order from all employees
-      const hoursMap = new Map<string, number>();
+      // Calculate total hours and individual hours per work order
+      const hoursMap = new Map<string, { total: number; byEmployee: Map<string, { name: string; hours: number }> }>();
+      
       timeEntries?.forEach((entry: any) => {
-        const current = hoursMap.get(entry.work_order_id) || 0;
-        hoursMap.set(entry.work_order_id, current + (entry.duration_hours || 0));
+        const woId = entry.work_order_id;
+        const userId = entry.user_id;
+        const hours = entry.duration_hours || 0;
+        const employeeName = entry.profiles?.name || "N/A";
+        
+        if (!hoursMap.has(woId)) {
+          hoursMap.set(woId, { total: 0, byEmployee: new Map() });
+        }
+        
+        const woData = hoursMap.get(woId)!;
+        woData.total += hours;
+        
+        const existingEmployee = woData.byEmployee.get(userId);
+        if (existingEmployee) {
+          existingEmployee.hours += hours;
+        } else {
+          woData.byEmployee.set(userId, { name: employeeName, hours });
+        }
       });
 
-      const formattedOrders = data.map((order: any) => ({
-        ...order,
-        client_name: order.profiles?.company_name || order.profiles?.name || "N/A",
-        total_hours: hoursMap.get(order.id) || 0,
-      }));
+      const formattedOrders = data.map((order: any) => {
+        const hoursData = hoursMap.get(order.id);
+        const employeeHours: EmployeeHours[] = hoursData 
+          ? Array.from(hoursData.byEmployee.entries()).map(([user_id, data]) => ({
+              user_id,
+              name: data.name,
+              hours: data.hours,
+            }))
+          : [];
+        
+        return {
+          ...order,
+          client_name: order.profiles?.company_name || order.profiles?.name || "N/A",
+          total_hours: hoursData?.total || 0,
+          employee_hours: employeeHours,
+        };
+      });
       setCalendarOrders(formattedOrders);
     }
   };
@@ -872,34 +915,54 @@ export default function ManagerDashboard() {
                     {getOrdersForDate(selectedDate).map((order) => (
                       <div
                         key={order.id}
-                        className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 hover:shadow-sm cursor-pointer transition-all duration-200"
+                        className="rounded-lg border p-3 hover:bg-muted/50 hover:shadow-sm cursor-pointer transition-all duration-200"
                         onClick={() => navigate(`/work-orders/${order.id}`)}
                       >
-                        <div className="flex-1">
-                          <p className="font-semibold text-sm">{order.reference}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{order.title}</p>
-                          {order.client_name && (
-                            <p className="text-xs text-muted-foreground">
-                              Cliente: {order.client_name}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-3 mt-1">
-                            {order.scheduled_date && (
-                              <p className="text-xs font-semibold text-primary">
-                                {format(new Date(order.scheduled_date), "HH:mm", { locale: pt })}
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <p className="font-semibold text-sm">{order.reference}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{order.title}</p>
+                            {order.client_name && (
+                              <p className="text-xs text-muted-foreground">
+                                Cliente: {order.client_name}
                               </p>
                             )}
-                            {order.total_hours !== undefined && order.total_hours > 0 && (
-                              <p className="text-xs font-medium text-accent flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {formatHours(order.total_hours)} trabalhadas
-                              </p>
-                            )}
+                            <div className="flex items-center gap-3 mt-1">
+                              {order.scheduled_date && (
+                                <p className="text-xs font-semibold text-primary">
+                                  {format(new Date(order.scheduled_date), "HH:mm", { locale: pt })}
+                                </p>
+                              )}
+                              {order.total_hours !== undefined && order.total_hours > 0 && (
+                                <p className="text-xs font-medium text-accent flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {formatHours(order.total_hours)} total
+                                </p>
+                              )}
+                            </div>
                           </div>
+                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusColor(order.status)}`}>
+                            {getStatusLabel(order.status)}
+                          </span>
                         </div>
-                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusColor(order.status)}`}>
-                          {getStatusLabel(order.status)}
-                        </span>
+                        
+                        {/* Individual employee hours */}
+                        {order.employee_hours && order.employee_hours.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-dashed">
+                            <p className="text-xs text-muted-foreground mb-1">Horas por funcionário:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {order.employee_hours.map((emp) => (
+                                <span 
+                                  key={emp.user_id}
+                                  className="inline-flex items-center gap-1 text-xs bg-muted px-2 py-0.5 rounded-full"
+                                >
+                                  <span className="text-muted-foreground">{emp.name}:</span>
+                                  <span className="font-medium">{formatHours(emp.hours)}</span>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
