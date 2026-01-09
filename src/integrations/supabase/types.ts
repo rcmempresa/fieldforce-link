@@ -470,6 +470,7 @@ export type Database = {
       }
       work_orders: {
         Row: {
+          address: string | null
           client_id: string
           created_at: string
           created_by: string
@@ -486,6 +487,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          address?: string | null
           client_id: string
           created_at?: string
           created_by: string
@@ -502,6 +504,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          address?: string | null
           client_id?: string
           created_at?: string
           created_by?: string

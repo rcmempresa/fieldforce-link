@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Calendar, User, Clock, FileText, Users, Plus, X, Wrench, Package } from "lucide-react";
+import { ArrowLeft, Calendar, User, Clock, FileText, Users, Plus, X, Wrench, Package, MapPin } from "lucide-react";
 import { formatHoursDetailed } from "@/lib/formatHours";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -30,6 +30,7 @@ interface WorkOrderDetails {
   created_at: string;
   total_hours: number;
   notes: string;
+  address: string | null;
   profiles: {
     name: string;
     email: string;
@@ -64,6 +65,7 @@ interface Equipment {
   name: string;
   model: string | null;
   serial_number: string | null;
+  location: string | null;
 }
 
 export default function WorkOrderDetails() {
@@ -222,7 +224,8 @@ export default function WorkOrderDetails() {
           id,
           name,
           model,
-          serial_number
+          serial_number,
+          location
         )
       `)
       .eq("work_order_id", id);
@@ -514,6 +517,21 @@ export default function WorkOrderDetails() {
               </CardContent>
             </Card>
 
+            {/* Address Card */}
+            {workOrder.address && (
+              <Card className="bg-muted/50 border-accent/20">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-3">
+                    <MapPin className="h-5 w-5 text-accent mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-accent">Morada do Local</p>
+                      <p className="text-base mt-1">{workOrder.address}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-4">
 
@@ -678,6 +696,12 @@ export default function WorkOrderDetails() {
                               {equipment.model && `Modelo: ${equipment.model}`}
                               {equipment.model && equipment.serial_number && " | "}
                               {equipment.serial_number && `S/N: ${equipment.serial_number}`}
+                            </p>
+                          )}
+                          {equipment.location && (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                              <MapPin className="h-3 w-3" />
+                              {equipment.location}
                             </p>
                           )}
                         </div>

@@ -42,6 +42,7 @@ export function CreateClientWorkOrderDialog({
     equipment_ids: [] as string[],
     service_type: "repair",
     priority: "medium",
+    address: "",
   });
   const { toast } = useToast();
 
@@ -91,6 +92,7 @@ export function CreateClientWorkOrderDialog({
         client_id: user.id, // Use authenticated user ID to satisfy RLS policy
         service_type: formData.service_type as "repair" | "maintenance" | "installation" | "warranty",
         priority: formData.priority as "low" | "medium" | "high",
+        address: formData.address || null,
         created_by: user.id,
         status: "awaiting_approval" as const,
       })
@@ -170,6 +172,7 @@ export function CreateClientWorkOrderDialog({
       equipment_ids: [],
       service_type: "repair",
       priority: "medium",
+      address: "",
     });
     onOpenChange(false);
     onSuccess();
@@ -241,6 +244,16 @@ export function CreateClientWorkOrderDialog({
                 <SelectItem value="high">Alta</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="address">Morada do Local</Label>
+            <Input
+              id="address"
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              placeholder="Ex: Rua do Exemplo, 123, Lisboa"
+            />
           </div>
 
           {equipments.length > 0 && (
