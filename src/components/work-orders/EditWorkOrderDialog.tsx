@@ -41,6 +41,7 @@ export function EditWorkOrderDialog({
     priority: "",
     scheduled_date: "",
     notes: "",
+    address: "",
   });
   const { toast } = useToast();
 
@@ -67,6 +68,7 @@ export function EditWorkOrderDialog({
           ? new Date(data.scheduled_date).toISOString().slice(0, 16)
           : "",
         notes: data.notes || "",
+        address: data.address || "",
       });
     }
   };
@@ -84,6 +86,7 @@ export function EditWorkOrderDialog({
         priority: formData.priority as "low" | "medium" | "high",
         scheduled_date: formData.scheduled_date || null,
         notes: formData.notes,
+        address: formData.address || null,
       })
       .eq("id", workOrder.id);
 
@@ -301,6 +304,16 @@ export function EditWorkOrderDialog({
               type="datetime-local"
               value={formData.scheduled_date}
               onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="address">Morada do Local</Label>
+            <Input
+              id="address"
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              placeholder="Ex: Rua do Exemplo, 123, Lisboa"
             />
           </div>
 

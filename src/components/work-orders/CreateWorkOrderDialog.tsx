@@ -48,6 +48,7 @@ export function CreateWorkOrderDialog({
     service_type: "repair",
     priority: "medium",
     scheduled_date: "",
+    address: "",
   });
   const { toast } = useToast();
 
@@ -148,6 +149,7 @@ export function CreateWorkOrderDialog({
         service_type: formData.service_type as "repair" | "maintenance" | "installation" | "warranty",
         priority: formData.priority as "low" | "medium" | "high",
         scheduled_date: formData.scheduled_date || null,
+        address: formData.address || null,
         created_by: user.id,
         status: "pending" as const,
       })
@@ -270,6 +272,7 @@ export function CreateWorkOrderDialog({
       service_type: "repair",
       priority: "medium",
       scheduled_date: "",
+      address: "",
     });
     onOpenChange(false);
     onSuccess();
@@ -396,6 +399,16 @@ export function CreateWorkOrderDialog({
               type="datetime-local"
               value={formData.scheduled_date}
               onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="address">Morada do Local</Label>
+            <Input
+              id="address"
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              placeholder="Ex: Rua do Exemplo, 123, Lisboa"
             />
           </div>
 
