@@ -98,11 +98,26 @@ export function PauseWorkOrderDialog({
         0
       );
 
-      // Update work order status back to pending and update total_hours
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      // Check if there are OTHER employees with active sessions
+      const { count: otherActiveSessions } = await supabase
+        .from("time_entries")
+        .select("*", { count: "exact", head: true })
+        .eq("work_order_id", workOrderId)
+        .is("end_time", null)
+        .neq("user_id", user.id);
+
+      // Only update status to pending if no other employees are actively working
+      const newStatus = (otherActiveSessions && otherActiveSessions > 0) ? "in_progress" : "pending";
+
+      // Update work order status and total_hours
       const { error: updateError } = await supabase
         .from("work_orders")
         .update({ 
-          status: "pending",
+          status: newStatus,
           total_hours: totalHours
         })
         .eq("id", workOrderId);
@@ -116,7 +131,9 @@ export function PauseWorkOrderDialog({
 
       toast({
         title: "Trabalho Pausado",
-        description: `Ordem ${workOrderReference} está agora pendente`,
+        description: newStatus === "in_progress" 
+          ? `A sua sessão foi pausada. Outros funcionários ainda estão a trabalhar nesta ordem.`
+          : `Ordem ${workOrderReference} está agora pendente`,
       });
 
       setSelectedReason("");

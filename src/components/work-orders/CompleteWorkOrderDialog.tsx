@@ -1,13 +1,14 @@
-import { useState, useRef } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useState, useRef, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import SignatureCanvas from "react-signature-canvas";
 import { generateWorkOrderPDF, uploadWorkOrderPDF } from "@/lib/generateWorkOrderPDF";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertTriangle, UserCheck, CheckCircle } from "lucide-react";
 
 interface CompleteWorkOrderDialogProps {
   open: boolean;
@@ -26,9 +27,51 @@ export function CompleteWorkOrderDialog({
 }: CompleteWorkOrderDialogProps) {
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"end_session" | "complete_order">("end_session");
+  const [hasActiveSession, setHasActiveSession] = useState(false);
+  const [otherActiveEmployees, setOtherActiveEmployees] = useState<{ name: string }[]>([]);
   const { toast } = useToast();
   const signatureRef = useRef<SignatureCanvas>(null);
   const [signatureEmpty, setSignatureEmpty] = useState(true);
+
+  useEffect(() => {
+    if (open) {
+      checkActiveSessions();
+    }
+  }, [open, workOrderId]);
+
+  const checkActiveSessions = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Check if current user has active session
+    const { data: mySession } = await supabase
+      .from("time_entries")
+      .select("id")
+      .eq("work_order_id", workOrderId)
+      .eq("user_id", user.id)
+      .is("end_time", null)
+      .maybeSingle();
+
+    setHasActiveSession(!!mySession);
+
+    // Check for other active sessions
+    const { data: otherSessions } = await supabase
+      .from("time_entries")
+      .select(`
+        user_id,
+        profiles!time_entries_user_id_fkey (name)
+      `)
+      .eq("work_order_id", workOrderId)
+      .is("end_time", null)
+      .neq("user_id", user.id);
+
+    if (otherSessions) {
+      setOtherActiveEmployees(
+        otherSessions.map((s: any) => ({ name: s.profiles?.name || "N/A" }))
+      );
+    }
+  };
 
   const clearSignature = () => {
     signatureRef.current?.clear();
@@ -39,7 +82,91 @@ export function CompleteWorkOrderDialog({
     setSignatureEmpty(signatureRef.current?.isEmpty() ?? true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleEndMySession = async () => {
+    setLoading(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      const now = new Date();
+
+      // Get active time entry for current user
+      const { data: activeTimeEntry } = await supabase
+        .from("time_entries")
+        .select("id, start_time")
+        .eq("work_order_id", workOrderId)
+        .eq("user_id", user.id)
+        .is("end_time", null)
+        .single();
+
+      if (!activeTimeEntry) {
+        toast({
+          title: "Aviso",
+          description: "Não tem uma sessão ativa para terminar",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Calculate duration
+      const startTime = new Date(activeTimeEntry.start_time);
+      const sessionDurationHours = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+
+      // Finalize time entry
+      const { error: timeEntryError } = await supabase
+        .from("time_entries")
+        .update({
+          end_time: now.toISOString(),
+          duration_hours: sessionDurationHours,
+          note: note || null,
+        })
+        .eq("id", activeTimeEntry.id);
+
+      if (timeEntryError) throw timeEntryError;
+
+      // Check if there are other active sessions
+      const { count: otherActiveSessions } = await supabase
+        .from("time_entries")
+        .select("*", { count: "exact", head: true })
+        .eq("work_order_id", workOrderId)
+        .is("end_time", null)
+        .neq("user_id", user.id);
+
+      // Update status based on other sessions
+      const newStatus = (otherActiveSessions && otherActiveSessions > 0) ? "in_progress" : "pending";
+
+      const { error: updateError } = await supabase
+        .from("work_orders")
+        .update({ status: newStatus })
+        .eq("id", workOrderId);
+
+      if (updateError) throw updateError;
+
+      toast({
+        title: "Sessão Terminada",
+        description: otherActiveSessions && otherActiveSessions > 0
+          ? "A sua sessão foi terminada. Outros funcionários ainda estão a trabalhar."
+          : "A sua sessão foi terminada. A ordem está agora pendente.",
+      });
+
+      setNote("");
+      onOpenChange(false);
+      onComplete();
+    } catch (error) {
+      console.error("Error ending session:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao terminar sessão",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCompleteOrder = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (signatureEmpty || !signatureRef.current) {
@@ -59,32 +186,27 @@ export function CompleteWorkOrderDialog({
 
       const now = new Date();
 
-      // Check if there's an active time entry (without end_time)
-      const { data: activeTimeEntry } = await supabase
+      // Finalize ALL active time entries for this work order
+      const { data: activeTimeEntries } = await supabase
         .from("time_entries")
-        .select("id, start_time")
+        .select("id, start_time, user_id")
         .eq("work_order_id", workOrderId)
-        .eq("user_id", user.id)
-        .is("end_time", null)
-        .single();
+        .is("end_time", null);
 
-      let sessionDurationHours = 0;
+      if (activeTimeEntries && activeTimeEntries.length > 0) {
+        for (const entry of activeTimeEntries) {
+          const startTime = new Date(entry.start_time);
+          const durationHours = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60);
 
-      // If there's an active time entry, finalize it
-      if (activeTimeEntry) {
-        const startTime = new Date(activeTimeEntry.start_time);
-        sessionDurationHours = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-
-        const { error: timeEntryError } = await supabase
-          .from("time_entries")
-          .update({
-            end_time: now.toISOString(),
-            duration_hours: sessionDurationHours,
-            note: note || null,
-          })
-          .eq("id", activeTimeEntry.id);
-
-        if (timeEntryError) throw timeEntryError;
+          await supabase
+            .from("time_entries")
+            .update({
+              end_time: now.toISOString(),
+              duration_hours: durationHours,
+              note: entry.user_id === user.id ? (note || null) : null,
+            })
+            .eq("id", entry.id);
+        }
       }
 
       // Get total hours worked on this work order (sum of ALL employees' time entries)
@@ -274,51 +396,135 @@ export function CompleteWorkOrderDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Concluir Ordem de Trabalho</DialogTitle>
+          <DialogTitle>Terminar Trabalho</DialogTitle>
+          <DialogDescription>
+            Escolha se quer apenas terminar a sua sessão ou concluir a ordem de trabalho completamente.
+          </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="note">Notas (opcional)</Label>
-            <Textarea
-              id="note"
-              placeholder="Adicione observações sobre o trabalho realizado..."
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={3}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Assinatura *</Label>
-            <div className="border-2 border-border rounded-md">
-              <SignatureCanvas
-                ref={signatureRef}
-                canvasProps={{
-                  className: "w-full h-40 cursor-crosshair",
-                }}
-                onEnd={handleSignatureEnd}
+        
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="end_session" className="flex items-center gap-1.5 text-xs">
+              <UserCheck className="h-4 w-4" />
+              Terminar Sessão
+            </TabsTrigger>
+            <TabsTrigger value="complete_order" className="flex items-center gap-1.5 text-xs">
+              <CheckCircle className="h-4 w-4" />
+              Concluir OT
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="end_session" className="mt-4 space-y-4">
+            <div className="rounded-lg border bg-muted/50 p-3">
+              <p className="text-sm text-muted-foreground">
+                Terminar apenas a sua sessão de trabalho. A ordem de trabalho continuará disponível para outros funcionários ou para retomar mais tarde.
+              </p>
+            </div>
+
+            {!hasActiveSession && (
+              <div className="rounded-lg border border-warning/50 bg-warning/10 p-3 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-warning mt-0.5" />
+                <p className="text-sm text-warning">
+                  Não tem uma sessão ativa para terminar.
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="note-session">Notas (opcional)</Label>
+              <Textarea
+                id="note-session"
+                placeholder="Adicione observações sobre o trabalho realizado..."
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={3}
               />
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={clearSignature}
-              className="w-full"
-            >
-              Limpar Assinatura
-            </Button>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Salvando..." : "Concluir Ordem"}
-            </Button>
-          </DialogFooter>
-        </form>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancelar
+              </Button>
+              <Button 
+                onClick={handleEndMySession} 
+                disabled={loading || !hasActiveSession}
+              >
+                {loading ? "A terminar..." : "Terminar Minha Sessão"}
+              </Button>
+            </DialogFooter>
+          </TabsContent>
+
+          <TabsContent value="complete_order" className="mt-4">
+            <form onSubmit={handleCompleteOrder} className="space-y-4">
+              {otherActiveEmployees.length > 0 && (
+                <div className="rounded-lg border border-warning/50 bg-warning/10 p-3 flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-warning mt-0.5" />
+                  <div className="text-sm text-warning">
+                    <p className="font-medium">Atenção!</p>
+                    <p>
+                      Os seguintes funcionários ainda estão a trabalhar nesta ordem e as suas sessões serão terminadas automaticamente:
+                    </p>
+                    <ul className="list-disc list-inside mt-1">
+                      {otherActiveEmployees.map((emp, idx) => (
+                        <li key={idx}>{emp.name}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-lg border bg-muted/50 p-3">
+                <p className="text-sm text-muted-foreground">
+                  Concluir a ordem de trabalho completamente. Isto irá terminar todas as sessões ativas e marcar a ordem como concluída.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="note-complete">Notas (opcional)</Label>
+                <Textarea
+                  id="note-complete"
+                  placeholder="Adicione observações sobre o trabalho realizado..."
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Assinatura *</Label>
+                <div className="border-2 border-border rounded-md">
+                  <SignatureCanvas
+                    ref={signatureRef}
+                    canvasProps={{
+                      className: "w-full h-40 cursor-crosshair",
+                    }}
+                    onEnd={handleSignatureEnd}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={clearSignature}
+                  className="w-full"
+                >
+                  Limpar Assinatura
+                </Button>
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={loading}>
+                  {loading ? "A concluir..." : "Concluir Ordem"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

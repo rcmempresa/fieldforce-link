@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Calendar, User, Clock, FileText, Users, Plus, X, Wrench, Package, MapPin } from "lucide-react";
+import { ArrowLeft, Calendar, User, Clock, FileText, Users, Plus, X, Wrench, Package, MapPin, Play, Pause, Circle } from "lucide-react";
 import { formatHoursDetailed } from "@/lib/formatHours";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -58,6 +58,7 @@ interface EmployeeHours {
   user_id: string;
   name: string;
   hours: number;
+  status: "active" | "paused" | "new";
 }
 
 interface Equipment {
@@ -99,11 +100,13 @@ export default function WorkOrderDetails() {
   }, [id, isManager]);
 
   const fetchEmployeeHours = async () => {
+    // Get all time entries for this work order
     const { data: timeEntries, error } = await supabase
       .from("time_entries")
       .select(`
         user_id,
         duration_hours,
+        end_time,
         profiles!time_entries_user_id_fkey (
           name
         )
@@ -115,30 +118,60 @@ export default function WorkOrderDetails() {
       return;
     }
 
-    if (timeEntries) {
-      // Group hours by employee
-      const hoursMap = new Map<string, { name: string; hours: number }>();
-      
-      timeEntries.forEach((entry: any) => {
-        const userId = entry.user_id;
-        const existing = hoursMap.get(userId);
-        const hours = entry.duration_hours || 0;
-        
-        if (existing) {
-          existing.hours += hours;
-        } else {
-          hoursMap.set(userId, {
-            name: entry.profiles?.name || "N/A",
-            hours: hours,
+    // Get all assigned employees
+    const { data: assignments } = await supabase
+      .from("work_order_assignments")
+      .select(`
+        user_id,
+        profiles!work_order_assignments_user_id_fkey (name)
+      `)
+      .eq("work_order_id", id);
+
+    if (timeEntries || assignments) {
+      // Group hours by employee and determine status
+      const employeeMap = new Map<string, { name: string; hours: number; hasActiveSession: boolean; hasWorked: boolean }>();
+
+      // Initialize with all assigned employees
+      assignments?.forEach((assignment: any) => {
+        if (!employeeMap.has(assignment.user_id)) {
+          employeeMap.set(assignment.user_id, {
+            name: assignment.profiles?.name || "N/A",
+            hours: 0,
+            hasActiveSession: false,
+            hasWorked: false,
           });
         }
       });
 
-      const employeeHoursList: EmployeeHours[] = Array.from(hoursMap.entries()).map(
+      // Process time entries
+      timeEntries?.forEach((entry: any) => {
+        const userId = entry.user_id;
+        const hours = entry.duration_hours || 0;
+        const isActive = entry.end_time === null;
+
+        if (!employeeMap.has(userId)) {
+          employeeMap.set(userId, {
+            name: entry.profiles?.name || "N/A",
+            hours: 0,
+            hasActiveSession: false,
+            hasWorked: false,
+          });
+        }
+
+        const existing = employeeMap.get(userId)!;
+        existing.hours += hours;
+        existing.hasWorked = true;
+        if (isActive) {
+          existing.hasActiveSession = true;
+        }
+      });
+
+      const employeeHoursList: EmployeeHours[] = Array.from(employeeMap.entries()).map(
         ([user_id, data]) => ({
           user_id,
           name: data.name,
           hours: data.hours,
+          status: data.hasActiveSession ? "active" : data.hasWorked ? "paused" : "new",
         })
       );
 
@@ -577,7 +610,27 @@ export default function WorkOrderDetails() {
                             key={emp.user_id}
                             className="flex items-center justify-between text-sm"
                           >
-                            <span className="text-muted-foreground">{emp.name}</span>
+                            <div className="flex items-center gap-2">
+                              {emp.status === "active" && (
+                                <Play className="h-3 w-3 text-primary animate-pulse" />
+                              )}
+                              {emp.status === "paused" && (
+                                <Pause className="h-3 w-3 text-warning" />
+                              )}
+                              {emp.status === "new" && (
+                                <Circle className="h-3 w-3 text-muted-foreground" />
+                              )}
+                              <span className="text-muted-foreground">{emp.name}</span>
+                              <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                emp.status === "active" 
+                                  ? "bg-primary/10 text-primary" 
+                                  : emp.status === "paused"
+                                  ? "bg-warning/10 text-warning"
+                                  : "bg-muted text-muted-foreground"
+                              }`}>
+                                {emp.status === "active" ? "Ativo" : emp.status === "paused" ? "Pausado" : "Novo"}
+                              </span>
+                            </div>
                             <span className="font-medium">{formatHoursDetailed(emp.hours)}</span>
                           </div>
                         ))}

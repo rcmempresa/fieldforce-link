@@ -346,6 +346,24 @@ export default function EmployeeDashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
+      // Check if user already has an active session for this work order
+      const { data: existingActiveSession } = await supabase
+        .from("time_entries")
+        .select("id")
+        .eq("work_order_id", workOrderId)
+        .eq("user_id", user.id)
+        .is("end_time", null)
+        .maybeSingle();
+
+      if (existingActiveSession) {
+        toast({
+          title: "Aviso",
+          description: "Já tem uma sessão ativa para esta ordem de trabalho",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Create time entry
       const { error: timeEntryError } = await supabase
         .from("time_entries")
@@ -357,17 +375,25 @@ export default function EmployeeDashboard() {
 
       if (timeEntryError) throw timeEntryError;
 
-      // Update work order status
-      const { error } = await supabase
+      // Update work order status to in_progress (only if not already)
+      const { data: workOrder } = await supabase
         .from("work_orders")
-        .update({ status: "in_progress" })
-        .eq("id", workOrderId);
+        .select("status")
+        .eq("id", workOrderId)
+        .single();
 
-      if (error) throw error;
+      if (workOrder && workOrder.status !== "in_progress") {
+        const { error } = await supabase
+          .from("work_orders")
+          .update({ status: "in_progress" })
+          .eq("id", workOrderId);
+
+        if (error) throw error;
+      }
 
       toast({
         title: "Trabalho Iniciado",
-        description: `Ordem ${reference} está agora em progresso`,
+        description: `A sua sessão na ordem ${reference} foi iniciada`,
       });
 
       await fetchAssignedOrders();
@@ -434,13 +460,16 @@ export default function EmployeeDashboard() {
 
   const ordersForSelectedDate = getOrdersForSelectedDate();
 
-  // Separate orders into categories
+  // Separate orders into categories based on THE EMPLOYEE's state (not global status)
+  // Active: employee has an active session (time entry without end_time)
   const activeOrders = assignedOrders.filter(
-    (order) => order.status === "in_progress" && order.active_time_entry_id
+    (order) => order.active_time_entry_id && order.status !== "completed"
   );
+  // Started/Paused: employee has worked on this before but doesn't have an active session
   const startedOrders = assignedOrders.filter(
-    (order) => order.has_been_started && order.status !== "completed" && !activeOrders.some(ao => ao.id === order.id)
+    (order) => order.has_been_started && !order.active_time_entry_id && order.status !== "completed"
   );
+  // New: employee has never worked on this order
   const newOrders = assignedOrders.filter(
     (order) => !order.has_been_started && order.status !== "completed"
   );
