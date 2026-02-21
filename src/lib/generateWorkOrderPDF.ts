@@ -56,34 +56,39 @@ export async function generateWorkOrderPDF(
   
   doc.setFont("helvetica", "normal");
   doc.text(`Título: ${workOrderData.title}`, 20, 58);
-  doc.text(`Descrição: ${workOrderData.description || "N/A"}`, 20, 66);
-  doc.text(`Tipo de Serviço: ${workOrderData.service_type}`, 20, 74);
-  doc.text(`Prioridade: ${workOrderData.priority}`, 20, 82);
-  doc.text(`Status: Concluída`, 20, 90);
+  const descriptionText = workOrderData.description || "N/A";
+  const splitDescription = doc.splitTextToSize(`Descrição: ${descriptionText}`, 170);
+  doc.text(splitDescription, 20, 66);
+  const descEndY = 66 + splitDescription.length * 6;
+  
+  doc.text(`Tipo de Serviço: ${workOrderData.service_type}`, 20, descEndY + 2);
+  doc.text(`Prioridade: ${workOrderData.priority}`, 20, descEndY + 10);
+  doc.text(`Status: Concluída`, 20, descEndY + 18);
   
   // Client Information
+  let sectionY = descEndY + 30;
   doc.setFont("helvetica", "bold");
-  doc.text("Informações do Cliente:", 20, 102);
+  doc.text("Informações do Cliente:", 20, sectionY);
   
   doc.setFont("helvetica", "normal");
-  doc.text(`Nome: ${workOrderData.client_name}`, 20, 110);
-  doc.text(`Email: ${workOrderData.client_email}`, 20, 118);
+  doc.text(`Nome: ${workOrderData.client_name}`, 20, sectionY + 8);
+  doc.text(`Email: ${workOrderData.client_email}`, 20, sectionY + 16);
   
   // Completion Details
   doc.setFont("helvetica", "bold");
-  doc.text("Detalhes da Conclusão:", 20, 130);
+  doc.text("Detalhes da Conclusão:", 20, sectionY + 28);
   
   doc.setFont("helvetica", "normal");
-  doc.text(`Concluído por: ${employeeName}`, 20, 138);
-  doc.text(`Horas trabalhadas: ${formatDecimalHoursToTime(hoursWorked)}`, 20, 146);
-  doc.text(`Data de conclusão: ${new Date(workOrderData.completed_at).toLocaleString("pt-BR")}`, 20, 154);
+  doc.text(`Concluído por: ${employeeName}`, 20, sectionY + 36);
+  doc.text(`Horas trabalhadas: ${formatDecimalHoursToTime(hoursWorked)}`, 20, sectionY + 44);
+  doc.text(`Data de conclusão: ${new Date(workOrderData.completed_at).toLocaleString("pt-BR")}`, 20, sectionY + 52);
   
-  // What was done section
-  let currentY = 166;
+  // Observations section
+  let currentY = sectionY + 64;
   
   if (notes) {
     doc.setFont("helvetica", "bold");
-    doc.text("O que foi feito:", 20, currentY);
+    doc.text("Observações:", 20, currentY);
     currentY += 8;
     
     doc.setFont("helvetica", "normal");
