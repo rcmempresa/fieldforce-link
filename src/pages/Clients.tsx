@@ -321,10 +321,10 @@ export default function Clients() {
   const fetchClientHours = async (clientId: string) => {
     setLoadingHours(true);
     try {
-      // Get all work orders for this client
+      // Get all work orders for this client with scheduled_date
       const { data: workOrders, error: woError } = await supabase
         .from('work_orders')
-        .select('id, reference, title')
+        .select('id, reference, title, scheduled_date, total_hours')
         .eq('client_id', clientId);
 
       if (woError) throw woError;
@@ -346,7 +346,7 @@ export default function Clients() {
       // Get all time entries for those work orders
       const { data: timeEntries, error: teError } = await supabase
         .from('time_entries')
-        .select('id, duration_hours, created_at, work_order_id')
+        .select('id, duration_hours, work_order_id')
         .in('work_order_id', workOrderIds);
 
       if (teError) throw teError;
@@ -381,29 +381,40 @@ export default function Clients() {
         };
       });
 
+      // Aggregate time entry hours per work order
+      const hoursPerWO: { [key: string]: number } = {};
       timeEntries?.forEach((entry: any) => {
-        const entryDate = new Date(entry.created_at);
         const hours = Number(entry.duration_hours) || 0;
-
-        if (entryDate >= todayStart && entryDate <= todayEnd) {
-          todayHours += hours;
-        }
-        if (entryDate >= weekStart && entryDate <= weekEnd) {
-          weekHours += hours;
-        }
-        if (entryDate >= monthStart && entryDate <= monthEnd) {
-          monthHours += hours;
-        }
-
-        // Add to monthly history
-        const monthKey = format(entryDate, 'yyyy-MM');
-        if (monthlyHoursMap[monthKey] !== undefined) {
-          monthlyHoursMap[monthKey] += hours;
-        }
-
         const woId = entry.work_order_id;
+        hoursPerWO[woId] = (hoursPerWO[woId] || 0) + hours;
         if (workOrderHours[woId]) {
           workOrderHours[woId].hours += hours;
+        }
+      });
+
+      // Use scheduled_date of each work order for date-based stats
+      workOrders.forEach(wo => {
+        const woHours = hoursPerWO[wo.id] || 0;
+        if (woHours === 0) return;
+
+        if (wo.scheduled_date) {
+          const scheduledDate = new Date(wo.scheduled_date);
+
+          if (scheduledDate >= todayStart && scheduledDate <= todayEnd) {
+            todayHours += woHours;
+          }
+          if (scheduledDate >= weekStart && scheduledDate <= weekEnd) {
+            weekHours += woHours;
+          }
+          if (scheduledDate >= monthStart && scheduledDate <= monthEnd) {
+            monthHours += woHours;
+          }
+
+          // Add to monthly history
+          const monthKey = format(scheduledDate, 'yyyy-MM');
+          if (monthlyHoursMap[monthKey] !== undefined) {
+            monthlyHoursMap[monthKey] += woHours;
+          }
         }
       });
 
