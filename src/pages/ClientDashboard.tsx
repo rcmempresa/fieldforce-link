@@ -260,19 +260,12 @@ export default function ClientDashboard() {
 
   // Calculate total hours for the month (including orders without date)
   const totalHoursForMonth = useMemo(() => {
-    const scheduledHours = workOrdersForMonth.reduce((sum, wo) => {
-      const woHours = wo.time_entries?.reduce((s, te) => s + (te.duration_hours || 0), 0) || 0;
-      return sum + woHours;
-    }, 0);
-    return scheduledHours;
+    return workOrdersForMonth.reduce((sum, wo) => sum + (wo.total_hours || 0), 0);
   }, [workOrdersForMonth]);
 
   // Calculate total hours for orders without date
   const totalHoursWithoutDate = useMemo(() => {
-    return workOrdersWithoutDate.reduce((sum, wo) => {
-      const woHours = wo.time_entries?.reduce((s, te) => s + (te.duration_hours || 0), 0) || 0;
-      return sum + woHours;
-    }, 0);
+    return workOrdersWithoutDate.reduce((sum, wo) => sum + (wo.total_hours || 0), 0);
   }, [workOrdersWithoutDate]);
 
   // Get work orders for the selected date
@@ -396,7 +389,7 @@ export default function ClientDashboard() {
                   ) : (
                     (selectedDate ? workOrdersForSelectedDate : workOrdersForMonth).map((wo) => {
                       const assignedEmployees = wo.assignments?.map(a => a.profiles?.name).filter(Boolean) || [];
-                      const woTotalHours = wo.time_entries?.reduce((s, te) => s + (te.duration_hours || 0), 0) || 0;
+                      const woTotalHours = wo.total_hours || 0;
                       
                       return (
                         <div 
@@ -463,7 +456,7 @@ export default function ClientDashboard() {
                 <div className="max-h-[250px] overflow-y-auto space-y-3 pr-2">
                   {workOrdersWithoutDate.map((wo) => {
                     const assignedEmployees = wo.assignments?.map(a => a.profiles?.name).filter(Boolean) || [];
-                    const woTotalHours = wo.time_entries?.reduce((s, te) => s + (te.duration_hours || 0), 0) || 0;
+                    const woTotalHours = wo.total_hours || 0;
                     
                     return (
                       <div 
