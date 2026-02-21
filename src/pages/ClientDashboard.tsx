@@ -624,6 +624,12 @@ export default function ClientDashboard() {
                       <span className={`rounded-full px-3 py-1 text-xs font-medium text-center ${getStatusColor(order.status)}`}>
                         {getStatusLabel(order.status)}
                       </span>
+                      {(order.total_hours != null && order.total_hours > 0) && (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          {order.total_hours.toFixed(1)}h
+                        </span>
+                      )}
                       <Button 
                         size="sm" 
                         className="w-full sm:w-auto"
