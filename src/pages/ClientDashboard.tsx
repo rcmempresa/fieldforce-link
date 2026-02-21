@@ -259,59 +259,59 @@ export default function ClientDashboard() {
     return allWorkOrders.filter(wo => !wo.scheduled_date);
   }, [allWorkOrders]);
 
-  // Flatten all time entries from all work orders for accurate date-based calculations
-  const allTimeEntries = useMemo(() => {
-    return allWorkOrders.flatMap(wo => 
-      (wo.time_entries || []).map(te => ({
-        duration_hours: te.duration_hours || 0,
-        start_time: new Date(te.start_time),
-      }))
-    );
+  // Build work order hours grouped by scheduled_date
+  const workOrderHoursByDate = useMemo(() => {
+    return allWorkOrders
+      .filter(wo => wo.scheduled_date)
+      .map(wo => ({
+        date: new Date(wo.scheduled_date!),
+        hours: (wo.time_entries || []).reduce((sum, te) => sum + (te.duration_hours || 0), 0),
+      }));
   }, [allWorkOrders]);
 
-  // Calculate total hours for the calendar month (based on time entries start_time)
+  // Calculate total hours for the calendar month (based on work order scheduled_date)
   const totalHoursForMonth = useMemo(() => {
     const monthStart = startOfMonth(calendarMonth);
     const monthEnd = endOfMonth(calendarMonth);
-    return allTimeEntries
-      .filter(te => te.start_time >= monthStart && te.start_time <= monthEnd)
-      .reduce((sum, te) => sum + te.duration_hours, 0);
-  }, [allTimeEntries, calendarMonth]);
+    return workOrderHoursByDate
+      .filter(wo => wo.date >= monthStart && wo.date <= monthEnd)
+      .reduce((sum, wo) => sum + wo.hours, 0);
+  }, [workOrderHoursByDate, calendarMonth]);
 
   // Calculate total hours for orders without date
   const totalHoursWithoutDate = useMemo(() => {
     return workOrdersWithoutDate.reduce((sum, wo) => sum + (wo.total_hours || 0), 0);
   }, [workOrdersWithoutDate]);
 
-  // Weekly hours (based on when work was actually done)
+  // Weekly hours (based on work order scheduled_date)
   const totalHoursThisWeek = useMemo(() => {
     const now = new Date();
     const weekStart = startOfWeek(now, { weekStartsOn: 1 });
     const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
-    return allTimeEntries
-      .filter(te => te.start_time >= weekStart && te.start_time <= weekEnd)
-      .reduce((sum, te) => sum + te.duration_hours, 0);
-  }, [allTimeEntries]);
+    return workOrderHoursByDate
+      .filter(wo => wo.date >= weekStart && wo.date <= weekEnd)
+      .reduce((sum, wo) => sum + wo.hours, 0);
+  }, [workOrderHoursByDate]);
 
-  // Monthly hours (based on when work was actually done)
+  // Monthly hours (based on work order scheduled_date)
   const totalHoursThisMonth = useMemo(() => {
     const now = new Date();
     const mStart = startOfMonth(now);
     const mEnd = endOfMonth(now);
-    return allTimeEntries
-      .filter(te => te.start_time >= mStart && te.start_time <= mEnd)
-      .reduce((sum, te) => sum + te.duration_hours, 0);
-  }, [allTimeEntries]);
+    return workOrderHoursByDate
+      .filter(wo => wo.date >= mStart && wo.date <= mEnd)
+      .reduce((sum, wo) => sum + wo.hours, 0);
+  }, [workOrderHoursByDate]);
 
-  // Yearly hours (based on when work was actually done)
+  // Yearly hours (based on work order scheduled_date)
   const totalHoursThisYear = useMemo(() => {
     const now = new Date();
     const yStart = startOfYear(now);
     const yEnd = endOfYear(now);
-    return allTimeEntries
-      .filter(te => te.start_time >= yStart && te.start_time <= yEnd)
-      .reduce((sum, te) => sum + te.duration_hours, 0);
-  }, [allTimeEntries]);
+    return workOrderHoursByDate
+      .filter(wo => wo.date >= yStart && wo.date <= yEnd)
+      .reduce((sum, wo) => sum + wo.hours, 0);
+  }, [workOrderHoursByDate]);
 
   // Get work orders for the selected date
   const workOrdersForSelectedDate = useMemo(() => {
