@@ -30,6 +30,7 @@ interface Equipment {
   name: string;
   model: string | null;
   serial_number: string | null;
+  location: string | null;
 }
 
 export function CreateWorkOrderDialog({
@@ -115,7 +116,7 @@ export function CreateWorkOrderDialog({
   const fetchEquipments = async (clientId: string) => {
     const { data } = await supabase
       .from("equipments")
-      .select("id, name, model, serial_number")
+      .select("id, name, model, serial_number, location")
       .eq("client_id", clientId);
 
     if (data) {
@@ -342,11 +343,13 @@ export function CreateWorkOrderDialog({
                     />
                     <div className="flex-1">
                       <div className="font-medium text-sm">{equipment.name}</div>
-                      {(equipment.model || equipment.serial_number) && (
+                      {(equipment.model || equipment.serial_number || equipment.location) && (
                         <div className="text-xs text-muted-foreground">
                           {equipment.model && `Modelo: ${equipment.model}`}
-                          {equipment.model && equipment.serial_number && " • "}
+                          {equipment.model && (equipment.serial_number || equipment.location) && " • "}
                           {equipment.serial_number && `S/N: ${equipment.serial_number}`}
+                          {equipment.serial_number && equipment.location && " • "}
+                          {equipment.location && `📍 ${equipment.location}`}
                         </div>
                       )}
                     </div>
