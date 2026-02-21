@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Wrench, CheckCircle, Plus, Pencil, Trash2, Clock, User } from "lucide-react";
+import { ClipboardList, Wrench, CheckCircle, Plus, Pencil, Trash2, Clock, User, CalendarDays } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { CreateEquipmentDialog } from "@/components/equipments/CreateEquipmentDialog";
 import { EditEquipmentDialog } from "@/components/equipments/EditEquipmentDialog";
@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { Notifications } from "@/components/Notifications";
 import { Calendar } from "@/components/ui/calendar";
-import { format, isSameDay, startOfMonth, endOfMonth, isSameMonth } from "date-fns";
+import { format, isSameDay, startOfMonth, endOfMonth, isSameMonth, startOfWeek, endOfWeek, startOfYear, endOfYear } from "date-fns";
 import { pt } from "date-fns/locale";
 
 interface WorkOrder {
@@ -268,6 +268,36 @@ export default function ClientDashboard() {
     return workOrdersWithoutDate.reduce((sum, wo) => sum + (wo.total_hours || 0), 0);
   }, [workOrdersWithoutDate]);
 
+  // Weekly hours
+  const totalHoursThisWeek = useMemo(() => {
+    const now = new Date();
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+    return allWorkOrders
+      .filter(wo => wo.scheduled_date && new Date(wo.scheduled_date) >= weekStart && new Date(wo.scheduled_date) <= weekEnd)
+      .reduce((sum, wo) => sum + (wo.total_hours || 0), 0);
+  }, [allWorkOrders]);
+
+  // Monthly hours (current calendar month)
+  const totalHoursThisMonth = useMemo(() => {
+    const now = new Date();
+    const mStart = startOfMonth(now);
+    const mEnd = endOfMonth(now);
+    return allWorkOrders
+      .filter(wo => wo.scheduled_date && new Date(wo.scheduled_date) >= mStart && new Date(wo.scheduled_date) <= mEnd)
+      .reduce((sum, wo) => sum + (wo.total_hours || 0), 0);
+  }, [allWorkOrders]);
+
+  // Yearly hours
+  const totalHoursThisYear = useMemo(() => {
+    const now = new Date();
+    const yStart = startOfYear(now);
+    const yEnd = endOfYear(now);
+    return allWorkOrders
+      .filter(wo => wo.scheduled_date && new Date(wo.scheduled_date) >= yStart && new Date(wo.scheduled_date) <= yEnd)
+      .reduce((sum, wo) => sum + (wo.total_hours || 0), 0);
+  }, [allWorkOrders]);
+
   // Get work orders for the selected date
   const workOrdersForSelectedDate = useMemo(() => {
     if (!selectedDate) return [];
@@ -322,6 +352,42 @@ export default function ClientDashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{stats.completedServices}</div>
               <p className="text-xs text-muted-foreground">Total</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Hours Summary Cards */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Horas Semanais</CardTitle>
+              <Clock className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalHoursThisWeek.toFixed(1)}h</div>
+              <p className="text-xs text-muted-foreground">Esta semana</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Horas Mensais</CardTitle>
+              <CalendarDays className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalHoursThisMonth.toFixed(1)}h</div>
+              <p className="text-xs text-muted-foreground">{format(new Date(), "MMMM", { locale: pt })}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Horas Anuais</CardTitle>
+              <CalendarDays className="h-4 w-4 text-accent" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalHoursThisYear.toFixed(1)}h</div>
+              <p className="text-xs text-muted-foreground">{new Date().getFullYear()}</p>
             </CardContent>
           </Card>
         </div>
