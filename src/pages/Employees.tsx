@@ -295,7 +295,7 @@ export default function Employees() {
         .select(`
           id,
           duration_hours,
-          created_at,
+          start_time,
           work_order_id,
           work_orders (
             reference,
@@ -320,7 +320,7 @@ export default function Employees() {
       const workOrderHours: { [key: string]: { hours: number; reference: string; title: string } } = {};
 
       data?.forEach((entry: any) => {
-        const entryDate = new Date(entry.created_at);
+        const entryDate = new Date(entry.start_time);
         const hours = Number(entry.duration_hours) || 0;
 
         if (entryDate >= todayStart && entryDate <= todayEnd) {
