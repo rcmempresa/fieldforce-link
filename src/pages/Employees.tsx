@@ -299,7 +299,8 @@ export default function Employees() {
           work_order_id,
           work_orders (
             reference,
-            title
+            title,
+            scheduled_date
           )
         `)
         .eq('user_id', employeeId);
@@ -320,17 +321,19 @@ export default function Employees() {
       const workOrderHours: { [key: string]: { hours: number; reference: string; title: string } } = {};
 
       data?.forEach((entry: any) => {
-        const entryDate = new Date(entry.start_time);
+        const scheduledDate = entry.work_orders?.scheduled_date ? new Date(entry.work_orders.scheduled_date) : null;
         const hours = Number(entry.duration_hours) || 0;
 
-        if (entryDate >= todayStart && entryDate <= todayEnd) {
-          todayHours += hours;
-        }
-        if (entryDate >= weekStart && entryDate <= weekEnd) {
-          weekHours += hours;
-        }
-        if (entryDate >= monthStart && entryDate <= monthEnd) {
-          monthHours += hours;
+        if (scheduledDate) {
+          if (scheduledDate >= todayStart && scheduledDate <= todayEnd) {
+            todayHours += hours;
+          }
+          if (scheduledDate >= weekStart && scheduledDate <= weekEnd) {
+            weekHours += hours;
+          }
+          if (scheduledDate >= monthStart && scheduledDate <= monthEnd) {
+            monthHours += hours;
+          }
         }
 
         const woId = entry.work_order_id;
