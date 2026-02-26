@@ -1,8 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
-// SendGrid API
-const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -52,11 +51,34 @@ interface NotificationEmailRequest {
   };
 }
 
+async function sendEmailViaResend(to: string, subject: string, html: string, attachments?: any[]): Promise<Response> {
+  const payload: any = {
+    from: "Ordens de Trabalho <geral@nrenergias.pt>",
+    to: [to],
+    subject,
+    html,
+  };
+
+  if (attachments && attachments.length > 0) {
+    payload.attachments = attachments;
+  }
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${RESEND_API_KEY}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return response;
+}
+
 // Helper function to send missing material emails to all managers
 async function sendMissingMaterialToManagers(supabaseAdmin: any, data: any): Promise<Response> {
   console.log("Sending missing material emails to all managers");
 
-  // Get all approved managers
   const { data: managers, error: managersError } = await supabaseAdmin
     .from("user_roles")
     .select("user_id")
@@ -94,14 +116,12 @@ async function sendMissingMaterialToManagers(supabaseAdmin: any, data: any): Pro
   
   for (const manager of managers) {
     try {
-      // Get manager profile
       const { data: managerProfile } = await supabaseAdmin
         .from("profiles")
         .select("name")
         .eq("id", manager.user_id)
         .single();
 
-      // Get manager email
       const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(manager.user_id);
       
       if (userError || !user?.email) {
@@ -129,21 +149,7 @@ async function sendMissingMaterialToManagers(supabaseAdmin: any, data: any): Pro
         </div>
       `;
 
-      const emailData = {
-        personalizations: [{ to: [{ email: user.email }] }],
-        from: { email: "geral@nrenergias.pt", name: "Ordens de Trabalho" },
-        subject,
-        content: [{ type: "text/html", value: html }]
-      };
-
-      const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${SENDGRID_API_KEY}`,
-        },
-        body: JSON.stringify(emailData),
-      });
+      const response = await sendEmailViaResend(user.email, subject, html);
 
       if (!response.ok) {
         const result = await response.text();
@@ -159,7 +165,8 @@ async function sendMissingMaterialToManagers(supabaseAdmin: any, data: any): Pro
           work_order_id: workOrderId,
         });
       } else {
-        console.log("Email sent successfully to manager:", user.email);
+        const result = await response.json();
+        console.log("Email sent successfully to manager:", user.email, result);
         
         await supabaseAdmin.from('email_logs').insert({
           user_id: manager.user_id,
@@ -185,7 +192,6 @@ async function sendMissingMaterialToManagers(supabaseAdmin: any, data: any): Pro
 async function sendWorkOrderCreatedToManagers(supabaseAdmin: any, data: any): Promise<Response> {
   console.log("Sending new work order emails to all managers");
 
-  // Get all approved managers
   const { data: managers, error: managersError } = await supabaseAdmin
     .from("user_roles")
     .select("user_id")
@@ -212,14 +218,12 @@ async function sendWorkOrderCreatedToManagers(supabaseAdmin: any, data: any): Pr
   
   for (const manager of managers) {
     try {
-      // Get manager profile
       const { data: managerProfile } = await supabaseAdmin
         .from("profiles")
         .select("name")
         .eq("id", manager.user_id)
         .single();
 
-      // Get manager email
       const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(manager.user_id);
       
       if (userError || !user?.email) {
@@ -243,21 +247,7 @@ async function sendWorkOrderCreatedToManagers(supabaseAdmin: any, data: any): Pr
         </div>
       `;
 
-      const emailData = {
-        personalizations: [{ to: [{ email: user.email }] }],
-        from: { email: "geral@nrenergias.pt", name: "Ordens de Trabalho" },
-        subject,
-        content: [{ type: "text/html", value: html }]
-      };
-
-      const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${SENDGRID_API_KEY}`,
-        },
-        body: JSON.stringify(emailData),
-      });
+      const response = await sendEmailViaResend(user.email, subject, html);
 
       if (!response.ok) {
         const result = await response.text();
@@ -273,7 +263,8 @@ async function sendWorkOrderCreatedToManagers(supabaseAdmin: any, data: any): Pr
           work_order_id: workOrderId,
         });
       } else {
-        console.log("Email sent successfully to manager:", user.email);
+        const result = await response.json();
+        console.log("Email sent successfully to manager:", user.email, result);
         
         await supabaseAdmin.from('email_logs').insert({
           user_id: manager.user_id,
@@ -652,26 +643,8 @@ const handler = async (req: Request): Promise<Response> => {
         throw new Error("Invalid notification type");
     }
 
-    const emailData: any = {
-      personalizations: [
-        {
-          to: [{ email: to }]
-        }
-      ],
-      from: { 
-        email: "geral@nrenergias.pt",
-        name: "Ordens de Trabalho"
-      },
-      subject,
-      content: [
-        {
-          type: "text/html",
-          value: html
-        }
-      ]
-    };
-
-    // If there's a PDF URL for work_order_completed, download and attach it
+    // Handle PDF attachment for completed work orders
+    let attachments: any[] | undefined;
     if (type === "work_order_completed" && data.pdfUrl) {
       try {
         console.log("Downloading PDF from storage:", data.pdfUrl);
@@ -689,11 +662,9 @@ const handler = async (req: Request): Promise<Response> => {
           const buffer = await pdfData.arrayBuffer();
           const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
           
-          emailData.attachments = [{
+          attachments = [{
             content: base64,
             filename: `${data.workOrderReference}_concluido.pdf`,
-            type: "application/pdf",
-            disposition: "attachment"
           }];
           
           console.log("PDF attached to email successfully");
@@ -703,14 +674,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${SENDGRID_API_KEY}`,
-      },
-      body: JSON.stringify(emailData),
-    });
+    const response = await sendEmailViaResend(to, subject, html, attachments);
 
     if (!response.ok) {
       const result = await response.text();
@@ -726,10 +690,16 @@ const handler = async (req: Request): Promise<Response> => {
         work_order_id: workOrderId,
       });
 
-      throw new Error(result || "Failed to send email");
+      // Don't throw - log the error but return success to avoid blocking the caller
+      console.error("Email failed but not blocking:", result);
+      return new Response(JSON.stringify({ success: false, error: "Email sending failed" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
-    console.log("Email sent successfully to:", to);
+    const resultJson = await response.json();
+    console.log("Email sent successfully to:", to, resultJson);
 
     await supabaseAdmin.from('email_logs').insert({
       user_id: userId,
@@ -750,10 +720,11 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("Error in send-notification-email function:", error);
     
+    // Return 200 with error info to avoid blocking callers
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ success: false, error: error.message }),
       {
-        status: 500,
+        status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
