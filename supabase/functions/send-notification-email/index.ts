@@ -53,7 +53,7 @@ interface NotificationEmailRequest {
 
 async function sendEmailViaResend(to: string, subject: string, html: string, attachments?: any[]): Promise<Response> {
   const payload: any = {
-    from: "Ordens de Trabalho <geral@nrenergias.pt>",
+    from: "Ordens de Trabalho <geral@nrtechsolucion.pt>",
     to: [to],
     subject,
     html,
