@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Wrench, CheckCircle, Plus, Pencil, Trash2, Clock, User, CalendarDays } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { ClipboardList, Wrench, CheckCircle, Plus, Pencil, Trash2, Clock, User, CalendarDays, Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { CreateEquipmentDialog } from "@/components/equipments/CreateEquipmentDialog";
 import { EditEquipmentDialog } from "@/components/equipments/EditEquipmentDialog";
@@ -67,6 +68,7 @@ export default function ClientDashboard() {
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [contractedHours, setContractedHours] = useState<number | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -81,6 +83,7 @@ export default function ClientDashboard() {
     fetchAllWorkOrders();
     fetchStats();
     fetchEquipments();
+    fetchContractedHours();
   }, []);
 
   const fetchWorkOrders = async () => {
@@ -153,6 +156,23 @@ export default function ClientDashboard() {
       myEquipments: equipmentsCount || 0,
       completedServices: completedCount || 0,
     });
+  };
+
+  const fetchContractedHours = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    
+    const currentYear = new Date().getFullYear();
+    const { data } = await supabase
+      .from("client_hour_quotas" as any)
+      .select("contracted_hours")
+      .eq("client_id", user.id)
+      .eq("year", currentYear)
+      .maybeSingle();
+    
+    if (data) {
+      setContractedHours(Number((data as any).contracted_hours));
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -406,6 +426,39 @@ export default function ClientDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Contracted Hours Card */}
+        {contractedHours !== null && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Target className="h-4 w-4 text-primary" />
+                Horas Contratadas {new Date().getFullYear()}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-end justify-between">
+                <div>
+                  <div className="text-3xl font-bold text-primary">{totalHoursThisYear.toFixed(1)}h</div>
+                  <p className="text-sm text-muted-foreground">utilizadas de {contractedHours}h contratadas</p>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-muted-foreground">
+                    {Math.max(0, contractedHours - totalHoursThisYear).toFixed(1)}h
+                  </div>
+                  <p className="text-sm text-muted-foreground">restantes</p>
+                </div>
+              </div>
+              <Progress 
+                value={Math.min(100, (totalHoursThisYear / contractedHours) * 100)} 
+                className="h-3"
+              />
+              <p className="text-xs text-muted-foreground text-right">
+                {((totalHoursThisYear / contractedHours) * 100).toFixed(1)}% utilizado
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Calendar Section */}
         <Card>
