@@ -56,6 +56,41 @@ export type Database = {
           },
         ]
       }
+      client_hour_quotas: {
+        Row: {
+          client_id: string
+          contracted_hours: number
+          created_at: string
+          id: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          client_id: string
+          contracted_hours?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          client_id?: string
+          contracted_hours?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_hour_quotas_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_logs: {
         Row: {
           created_at: string
