@@ -84,12 +84,23 @@ export async function generateWorkOrderPDF(
   doc.text("Detalhes da Conclusão:", 20, sectionY + 28);
   
   doc.setFont("helvetica", "normal");
-  doc.text(`Concluído por: ${employeeName}`, 20, sectionY + 36);
-  doc.text(`Horas trabalhadas: ${formatDecimalHoursToTime(hoursWorked)}`, 20, sectionY + 44);
-  doc.text(`Data de conclusão: ${new Date(workOrderData.completed_at).toLocaleString("pt-BR")}`, 20, sectionY + 52);
+  
+  // Per-employee breakdown
+  let empY = sectionY + 36;
+  for (const emp of employeeHoursList) {
+    doc.text(`• ${emp.name}: ${formatDecimalHoursToTime(emp.hours)}`, 25, empY);
+    empY += 7;
+  }
+  
+  doc.setFont("helvetica", "bold");
+  doc.text(`Total: ${formatDecimalHoursToTime(totalHoursWorked)}`, 20, empY + 2);
+  empY += 10;
+  
+  doc.setFont("helvetica", "normal");
+  doc.text(`Data de conclusão: ${new Date(workOrderData.completed_at).toLocaleString("pt-BR")}`, 20, empY);
   
   // Observations section
-  let currentY = sectionY + 64;
+  let currentY = empY + 12;
   
   if (notes) {
     doc.setFont("helvetica", "bold");
