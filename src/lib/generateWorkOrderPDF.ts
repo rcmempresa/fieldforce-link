@@ -1,6 +1,11 @@
 import { jsPDF } from "jspdf";
 import { supabase } from "@/integrations/supabase/client";
 
+interface EmployeeHours {
+  name: string;
+  hours: number;
+}
+
 interface WorkOrderData {
   reference: string;
   title: string;
