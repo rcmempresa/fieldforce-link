@@ -209,16 +209,21 @@ export function CompleteWorkOrderDialog({
         }
       }
 
-      // Get total hours worked on this work order (sum of ALL employees' time entries)
+      // Get all time entries grouped by employee for the PDF breakdown
       const { data: allTimeEntries } = await supabase
         .from("time_entries")
-        .select("duration_hours")
+        .select("duration_hours, user_id, profiles!time_entries_user_id_fkey(name)")
         .eq("work_order_id", workOrderId);
       
-      const totalHoursWorked = (allTimeEntries || []).reduce(
-        (sum, entry) => sum + (entry.duration_hours || 0), 
-        0
-      );
+      const employeeHoursMap = new Map<string, { name: string; hours: number }>();
+      for (const entry of allTimeEntries || []) {
+        const empName = (entry as any).profiles?.name || "N/A";
+        const existing = employeeHoursMap.get(entry.user_id) || { name: empName, hours: 0 };
+        existing.hours += entry.duration_hours || 0;
+        employeeHoursMap.set(entry.user_id, existing);
+      }
+      const employeeHoursList = Array.from(employeeHoursMap.values());
+      const totalHoursWorked = employeeHoursList.reduce((sum, e) => sum + e.hours, 0);
 
       // Get work order details for notifications and PDF
       const { data: workOrder } = await supabase
@@ -274,7 +279,7 @@ export function CompleteWorkOrderDialog({
           completed_at: now.toISOString(),
         },
         signatureDataUrl,
-        currentProfile?.name || user.email || "Funcionário",
+        employeeHoursList,
         totalHoursWorked,
         note || null
       );
