@@ -35,8 +35,8 @@ function formatDecimalHoursToTime(decimalHours: number): string {
 export async function generateWorkOrderPDF(
   workOrderData: WorkOrderData,
   signatureDataUrl: string,
-  employeeName: string,
-  hoursWorked: number,
+  employeeHoursList: EmployeeHours[],
+  totalHoursWorked: number,
   notes: string | null
 ): Promise<Blob> {
   const doc = new jsPDF();
