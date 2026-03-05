@@ -279,7 +279,7 @@ export function CompleteWorkOrderDialog({
           completed_at: now.toISOString(),
         },
         signatureDataUrl,
-        currentProfile?.name || user.email || "Funcionário",
+        employeeHoursList,
         totalHoursWorked,
         note || null
       );
