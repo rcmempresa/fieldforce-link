@@ -70,6 +70,9 @@ export default function EmployeeDashboard() {
     timeEntryId?: string;
   } | null>(null);
   const [clientFilter, setClientFilter] = useState<string>("all");
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportWorkOrder, setReportWorkOrder] = useState<{ id: string; reference: string } | null>(null);
+  const [reportType, setReportType] = useState<"electricity" | "hvac" | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
