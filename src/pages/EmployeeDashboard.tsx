@@ -844,10 +844,7 @@ export default function EmployeeDashboard() {
                               <Clock className="h-3.5 w-3.5 mr-1" />
                               Horas
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
-                              <FileText className="h-3.5 w-3.5 mr-1" />
-                              Relatórios
-                            </Button>
+                            {renderReportButton(order.id, order.reference)}
                             <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
                               Detalhes
                             </Button>
