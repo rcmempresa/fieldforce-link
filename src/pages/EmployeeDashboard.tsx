@@ -466,6 +466,7 @@ export default function EmployeeDashboard() {
     </DropdownMenu>
   );
 
+  const handleEditTimeEntriesUpdate = () => {
     fetchAssignedOrders();
     fetchStats();
   };
