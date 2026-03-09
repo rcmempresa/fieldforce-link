@@ -816,16 +816,12 @@ export default function EmployeeDashboard() {
                               Horas
                             </Button>
                             <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
+                              <FileText className="h-3.5 w-3.5 mr-1" />
+                              Relatórios
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
                               Detalhes
                             </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </TabsContent>
-
-                {/* New Orders Tab */}
                 <TabsContent value="new" className="mt-0">
                   {filterOrdersByClient(newOrders).length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
