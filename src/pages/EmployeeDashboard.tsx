@@ -872,6 +872,14 @@ export default function EmployeeDashboard() {
                             <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
                               Detalhes
                             </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* Completed Orders Tab */}
                 <TabsContent value="completed" className="mt-0">
                   {filterOrdersByClient(completedOrders).length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
