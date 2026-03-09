@@ -6,7 +6,9 @@ import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ClipboardList, Clock, CheckCircle, CalendarDays, Pause, Play, PlayCircle, Circle, ChevronLeft, ChevronRight, Filter, FileText } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { ClipboardList, Clock, CheckCircle, CalendarDays, Pause, Play, PlayCircle, Circle, ChevronLeft, ChevronRight, Filter, FileText, Zap, Wind } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { CompleteWorkOrderDialog } from "@/components/work-orders/CompleteWorkOrderDialog";
 import { PauseWorkOrderDialog } from "@/components/work-orders/PauseWorkOrderDialog";
@@ -18,6 +20,7 @@ import { format, startOfMonth, endOfMonth, isSameMonth } from "date-fns";
 import { formatHours } from "@/lib/formatHours";
 import { ptBR } from "date-fns/locale";
 import { Notifications } from "@/components/Notifications";
+import { MaintenanceReportForm } from "@/components/work-orders/MaintenanceReportForm";
 
 interface WorkOrder {
   id: string;
@@ -67,6 +70,9 @@ export default function EmployeeDashboard() {
     timeEntryId?: string;
   } | null>(null);
   const [clientFilter, setClientFilter] = useState<string>("all");
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportWorkOrder, setReportWorkOrder] = useState<{ id: string; reference: string } | null>(null);
+  const [reportType, setReportType] = useState<"electricity" | "hvac" | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -433,6 +439,33 @@ export default function EmployeeDashboard() {
     setEditTimeEntriesDialogOpen(true);
   };
 
+  const handleOpenReport = (workOrderId: string, reference: string, type: "electricity" | "hvac") => {
+    setReportWorkOrder({ id: workOrderId, reference });
+    setReportType(type);
+    setReportDialogOpen(true);
+  };
+
+  const renderReportButton = (orderId: string, reference: string) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" variant="ghost">
+          <FileText className="h-3.5 w-3.5 mr-1" />
+          Relatórios
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="bg-popover">
+        <DropdownMenuItem onClick={() => handleOpenReport(orderId, reference, "electricity")}>
+          <Zap className="h-4 w-4 mr-2 text-yellow-500" />
+          Eletricidade
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleOpenReport(orderId, reference, "hvac")}>
+          <Wind className="h-4 w-4 mr-2 text-blue-500" />
+          Climatização
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   const handleEditTimeEntriesUpdate = () => {
     fetchAssignedOrders();
     fetchStats();
@@ -752,10 +785,7 @@ export default function EmployeeDashboard() {
                               <CheckCircle className="h-3.5 w-3.5 mr-1" />
                               Concluir
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
-                              <FileText className="h-3.5 w-3.5 mr-1" />
-                              Relatórios
-                            </Button>
+                            {renderReportButton(order.id, order.reference)}
                             <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
                               Detalhes
                             </Button>
@@ -815,10 +845,7 @@ export default function EmployeeDashboard() {
                               <Clock className="h-3.5 w-3.5 mr-1" />
                               Horas
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
-                              <FileText className="h-3.5 w-3.5 mr-1" />
-                              Relatórios
-                            </Button>
+                            {renderReportButton(order.id, order.reference)}
                             <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
                               Detalhes
                             </Button>
@@ -865,10 +892,7 @@ export default function EmployeeDashboard() {
                               <Play className="h-3.5 w-3.5 mr-1" />
                               Iniciar
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
-                              <FileText className="h-3.5 w-3.5 mr-1" />
-                              Relatórios
-                            </Button>
+                            {renderReportButton(order.id, order.reference)}
                             <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
                               Detalhes
                             </Button>
@@ -907,10 +931,7 @@ export default function EmployeeDashboard() {
                               <Clock className="h-3.5 w-3.5 mr-1" />
                               Ver Horas
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
-                              <FileText className="h-3.5 w-3.5 mr-1" />
-                              Relatórios
-                            </Button>
+                            {renderReportButton(order.id, order.reference)}
                             <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
                               Detalhes
                             </Button>
@@ -954,6 +975,24 @@ export default function EmployeeDashboard() {
           />
         </>
       )}
+
+      <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          {reportWorkOrder && reportType && (
+            <MaintenanceReportForm
+              workOrderId={reportWorkOrder.id}
+              reportId={null}
+              reportType={reportType}
+              canEdit={true}
+              onClose={() => {
+                setReportDialogOpen(false);
+                setReportWorkOrder(null);
+                setReportType(null);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
