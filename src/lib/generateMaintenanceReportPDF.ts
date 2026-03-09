@@ -1,0 +1,281 @@
+import { jsPDF } from "jspdf";
+import { supabase } from "@/integrations/supabase/client";
+import type { ChecklistItem, Measurement, Material } from "./maintenanceReportDefaults";
+
+interface ReportData {
+  report_type: string;
+  report_date: string | null;
+  technician_name: string | null;
+  technician_id: string | null;
+  supervisor_name: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  building: string | null;
+  floor_number: string | null;
+  specific_location: string | null;
+  equipment_name: string | null;
+  equipment_serial: string | null;
+  designation: string | null;
+  designation_serial: string | null;
+  checklist_items: ChecklistItem[];
+  measurements: Measurement[];
+  materials: Material[];
+  general_observations: string | null;
+  recommendations: string | null;
+  next_maintenance: string | null;
+  approved_by_name: string | null;
+  approval_date: string | null;
+  technician_signature: string | null;
+  supervisor_signature: string | null;
+  work_order_reference: string;
+}
+
+export function generateMaintenanceReportPDF(data: ReportData): Blob {
+  const doc = new jsPDF();
+  const isElectricity = data.report_type === "electricity";
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 15;
+  const contentWidth = pageWidth - margin * 2;
+  let y = 15;
+
+  const checkPageBreak = (needed: number) => {
+    if (y + needed > 275) {
+      doc.addPage();
+      y = 15;
+    }
+  };
+
+  const drawSectionHeader = (icon: string, title: string) => {
+    checkPageBreak(15);
+    doc.setFillColor(240, 245, 255);
+    doc.roundedRect(margin, y - 4, contentWidth, 10, 2, 2, "F");
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 64, 175);
+    doc.text(`${icon} ${title}`, margin + 3, y + 3);
+    doc.setTextColor(0, 0, 0);
+    y += 12;
+  };
+
+  const drawField = (label: string, value: string, x: number, width: number) => {
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    doc.text(label, x, y);
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "normal");
+    const val = value || "—";
+    doc.text(val, x, y + 5);
+    doc.setDrawColor(200, 200, 200);
+    doc.line(x, y + 7, x + width - 5, y + 7);
+  };
+
+  // === HEADER ===
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  const title = isElectricity ? "⚡ Folha de Manutenção - Eletricidade" : "❄️ Folha de Manutenção - Climatização";
+  doc.text(title, pageWidth / 2, y, { align: "center" });
+  y += 6;
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 100, 100);
+  doc.text(`OT: ${data.work_order_reference}`, pageWidth / 2, y, { align: "center" });
+  doc.setTextColor(0, 0, 0);
+  y += 10;
+
+  // === IDENTIFICATION ===
+  drawSectionHeader("📋", "Identificação do Relatório");
+  const halfW = contentWidth / 2;
+  drawField("Nº Relatório", data.work_order_reference, margin, halfW);
+  drawField("Data", data.report_date ? new Date(data.report_date).toLocaleDateString("pt-PT") : "", margin + halfW, halfW);
+  y += 14;
+  drawField("Tipo de Manutenção", isElectricity ? "Eletricidade" : "Climatização", margin, halfW);
+  drawField("Prioridade", "", margin + halfW, halfW);
+  y += 14;
+
+  // === TECHNICIAN ===
+  drawSectionHeader("👤", "Dados do Técnico");
+  drawField("Nome do Técnico", data.technician_name || "", margin, halfW);
+  drawField("ID / Nº Funcionário", data.technician_id || "", margin + halfW, halfW);
+  y += 14;
+  drawField("Supervisor", data.supervisor_name || "", margin, halfW);
+  y += 14;
+  drawField("Hora de Início", data.start_time || "", margin, halfW);
+  drawField("Hora de Fim", data.end_time || "", margin + halfW, halfW);
+  y += 14;
+
+  // === LOCATION ===
+  drawSectionHeader("📍", "Localização & Equipamento");
+  drawField("Edifício", data.building || "", margin, halfW);
+  drawField("Piso / Zona", data.floor_number || "", margin + halfW, halfW);
+  y += 14;
+  drawField("Localização Específica", data.specific_location || "", margin, contentWidth);
+  y += 14;
+  drawField("Equipamento", data.equipment_name || "", margin, halfW);
+  drawField("Nº Série", data.equipment_serial || "", margin + halfW, halfW);
+  y += 14;
+  drawField("Designação", data.designation || "", margin, halfW);
+  drawField("Nº Série", data.designation_serial || "", margin + halfW, halfW);
+  y += 14;
+
+  // === CHECKLIST ===
+  drawSectionHeader("✅", `Checklist de Inspeção ${isElectricity ? "Elétrica" : "AVAC"}`);
+  for (const item of data.checklist_items) {
+    checkPageBreak(14);
+    const check = item.checked ? "☑" : "☐";
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${check} ${item.label}`, margin + 2, y);
+    y += 5;
+    if (item.observation) {
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      const obsLines = doc.splitTextToSize(`Obs: ${item.observation}`, contentWidth - 10);
+      doc.text(obsLines, margin + 8, y);
+      y += obsLines.length * 4;
+      doc.setTextColor(0, 0, 0);
+    }
+    y += 3;
+  }
+
+  // === MEASUREMENTS ===
+  checkPageBreak(30);
+  drawSectionHeader("📏", `Medições ${isElectricity ? "Elétricas" : "AVAC"}`);
+  
+  // Table header
+  doc.setFillColor(230, 235, 245);
+  doc.rect(margin, y - 3, contentWidth, 8, "F");
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.text("Parâmetro", margin + 3, y + 2);
+  doc.text("Valor", margin + contentWidth * 0.55, y + 2);
+  doc.text("Unidade", margin + contentWidth * 0.8, y + 2);
+  y += 10;
+
+  for (const m of data.measurements) {
+    checkPageBreak(8);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(m.parameter, margin + 3, y);
+    doc.text(m.value || "—", margin + contentWidth * 0.55, y);
+    doc.text(m.unit, margin + contentWidth * 0.8, y);
+    doc.setDrawColor(230, 230, 230);
+    doc.line(margin, y + 2, margin + contentWidth, y + 2);
+    y += 7;
+  }
+  y += 5;
+
+  // === MATERIALS ===
+  if (data.materials.length > 0) {
+    checkPageBreak(20);
+    drawSectionHeader("🔧", "Materiais Utilizados");
+    for (const mat of data.materials) {
+      checkPageBreak(8);
+      doc.setFontSize(9);
+      doc.text(`• ${mat.description} — Qtd: ${mat.quantity} ${mat.unit}`, margin + 3, y);
+      y += 7;
+    }
+    y += 5;
+  }
+
+  // === OBSERVATIONS ===
+  checkPageBreak(25);
+  drawSectionHeader("📝", "Observações & Recomendações");
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  if (data.general_observations) {
+    doc.setFont("helvetica", "bold");
+    doc.text("Observações Gerais:", margin, y);
+    y += 5;
+    doc.setFont("helvetica", "normal");
+    const obsLines = doc.splitTextToSize(data.general_observations, contentWidth);
+    doc.text(obsLines, margin, y);
+    y += obsLines.length * 5 + 5;
+  }
+  if (data.recommendations) {
+    checkPageBreak(15);
+    doc.setFont("helvetica", "bold");
+    doc.text("Recomendações:", margin, y);
+    y += 5;
+    doc.setFont("helvetica", "normal");
+    const recLines = doc.splitTextToSize(data.recommendations, contentWidth);
+    doc.text(recLines, margin, y);
+    y += recLines.length * 5 + 5;
+  }
+
+  // === APPROVAL ===
+  checkPageBreak(35);
+  drawSectionHeader("✔️", "Aprovação & Seguimento");
+  drawField("Próxima Manutenção", data.next_maintenance || "", margin, halfW);
+  y += 14;
+  drawField("Aprovado por", data.approved_by_name || "", margin, halfW);
+  drawField("Data de Aprovação", data.approval_date ? new Date(data.approval_date).toLocaleDateString("pt-PT") : "", margin + halfW, halfW);
+  y += 14;
+
+  // === SIGNATURES ===
+  checkPageBreak(45);
+  drawSectionHeader("✍️", "Assinaturas");
+  
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.text("Assinatura do Técnico", margin, y);
+  doc.text("Assinatura do Supervisor", margin + halfW, y);
+  y += 5;
+
+  if (data.technician_signature) {
+    try {
+      doc.addImage(data.technician_signature, "PNG", margin, y, 70, 25);
+    } catch (e) { /* ignore */ }
+  }
+  if (data.supervisor_signature) {
+    try {
+      doc.addImage(data.supervisor_signature, "PNG", margin + halfW, y, 70, 25);
+    } catch (e) { /* ignore */ }
+  }
+  y += 30;
+
+  // Footer
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(150, 150, 150);
+  doc.text(
+    `Documento gerado automaticamente em ${new Date().toLocaleString("pt-PT")}`,
+    pageWidth / 2,
+    285,
+    { align: "center" }
+  );
+
+  return doc.output("blob");
+}
+
+export async function uploadMaintenanceReportPDF(
+  workOrderId: string,
+  pdfBlob: Blob,
+  reportType: string,
+  reference: string,
+  userId: string
+): Promise<string> {
+  const typeLabel = reportType === "electricity" ? "eletricidade" : "climatizacao";
+  const fileName = `${reference}_relatorio_${typeLabel}_${Date.now()}.pdf`;
+  const filePath = `${workOrderId}/${fileName}`;
+
+  const { error } = await supabase.storage
+    .from("work-order-attachments")
+    .upload(filePath, pdfBlob, {
+      contentType: "application/pdf",
+      upsert: false,
+    });
+
+  if (error) throw error;
+
+  // Save to attachments table
+  await supabase.from("attachments").insert({
+    work_order_id: workOrderId,
+    uploaded_by: userId,
+    url: filePath,
+    filename: fileName,
+  });
+
+  return filePath;
+}

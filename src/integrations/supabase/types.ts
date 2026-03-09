@@ -259,6 +259,123 @@ export type Database = {
           },
         ]
       }
+      maintenance_reports: {
+        Row: {
+          approval_date: string | null
+          approved_by_name: string | null
+          building: string | null
+          checklist_items: Json | null
+          created_at: string | null
+          created_by: string
+          designation: string | null
+          designation_serial: string | null
+          end_time: string | null
+          equipment_name: string | null
+          equipment_serial: string | null
+          floor_number: string | null
+          general_observations: string | null
+          id: string
+          materials: Json | null
+          measurements: Json | null
+          next_maintenance: string | null
+          pdf_url: string | null
+          recommendations: string | null
+          report_date: string | null
+          report_type: string
+          specific_location: string | null
+          start_time: string | null
+          status: string | null
+          supervisor_name: string | null
+          supervisor_signature: string | null
+          technician_id: string | null
+          technician_name: string | null
+          technician_signature: string | null
+          updated_at: string | null
+          work_order_id: string
+        }
+        Insert: {
+          approval_date?: string | null
+          approved_by_name?: string | null
+          building?: string | null
+          checklist_items?: Json | null
+          created_at?: string | null
+          created_by: string
+          designation?: string | null
+          designation_serial?: string | null
+          end_time?: string | null
+          equipment_name?: string | null
+          equipment_serial?: string | null
+          floor_number?: string | null
+          general_observations?: string | null
+          id?: string
+          materials?: Json | null
+          measurements?: Json | null
+          next_maintenance?: string | null
+          pdf_url?: string | null
+          recommendations?: string | null
+          report_date?: string | null
+          report_type: string
+          specific_location?: string | null
+          start_time?: string | null
+          status?: string | null
+          supervisor_name?: string | null
+          supervisor_signature?: string | null
+          technician_id?: string | null
+          technician_name?: string | null
+          technician_signature?: string | null
+          updated_at?: string | null
+          work_order_id: string
+        }
+        Update: {
+          approval_date?: string | null
+          approved_by_name?: string | null
+          building?: string | null
+          checklist_items?: Json | null
+          created_at?: string | null
+          created_by?: string
+          designation?: string | null
+          designation_serial?: string | null
+          end_time?: string | null
+          equipment_name?: string | null
+          equipment_serial?: string | null
+          floor_number?: string | null
+          general_observations?: string | null
+          id?: string
+          materials?: Json | null
+          measurements?: Json | null
+          next_maintenance?: string | null
+          pdf_url?: string | null
+          recommendations?: string | null
+          report_date?: string | null
+          report_type?: string
+          specific_location?: string | null
+          start_time?: string | null
+          status?: string | null
+          supervisor_name?: string | null
+          supervisor_signature?: string | null
+          technician_id?: string | null
+          technician_name?: string | null
+          technician_signature?: string | null
+          updated_at?: string | null
+          work_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_reports_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_reports_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           channel: Database["public"]["Enums"]["notification_channel"]
