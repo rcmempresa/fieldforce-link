@@ -974,6 +974,24 @@ export default function EmployeeDashboard() {
           />
         </>
       )}
+
+      <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          {reportWorkOrder && reportType && (
+            <MaintenanceReportForm
+              workOrderId={reportWorkOrder.id}
+              reportId={null}
+              reportType={reportType}
+              canEdit={true}
+              onClose={() => {
+                setReportDialogOpen(false);
+                setReportWorkOrder(null);
+                setReportType(null);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
