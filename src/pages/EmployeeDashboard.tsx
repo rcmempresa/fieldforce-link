@@ -6,7 +6,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ClipboardList, Clock, CheckCircle, CalendarDays, Pause, Play, PlayCircle, Circle, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { ClipboardList, Clock, CheckCircle, CalendarDays, Pause, Play, PlayCircle, Circle, ChevronLeft, ChevronRight, Filter, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { CompleteWorkOrderDialog } from "@/components/work-orders/CompleteWorkOrderDialog";
 import { PauseWorkOrderDialog } from "@/components/work-orders/PauseWorkOrderDialog";
