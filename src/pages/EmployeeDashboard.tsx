@@ -439,7 +439,33 @@ export default function EmployeeDashboard() {
     setEditTimeEntriesDialogOpen(true);
   };
 
-  const handleEditTimeEntriesUpdate = () => {
+  const handleOpenReport = (workOrderId: string, reference: string, type: "electricity" | "hvac") => {
+    setReportWorkOrder({ id: workOrderId, reference });
+    setReportType(type);
+    setReportDialogOpen(true);
+  };
+
+  const renderReportButton = (orderId: string, reference: string) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" variant="ghost">
+          <FileText className="h-3.5 w-3.5 mr-1" />
+          Relatórios
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="bg-popover">
+        <DropdownMenuItem onClick={() => handleOpenReport(orderId, reference, "electricity")}>
+          <Zap className="h-4 w-4 mr-2 text-yellow-500" />
+          Eletricidade
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleOpenReport(orderId, reference, "hvac")}>
+          <Wind className="h-4 w-4 mr-2 text-blue-500" />
+          Climatização
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
     fetchAssignedOrders();
     fetchStats();
   };
