@@ -20,6 +20,7 @@ import { format, startOfMonth, endOfMonth, isSameMonth } from "date-fns";
 import { formatHours } from "@/lib/formatHours";
 import { ptBR } from "date-fns/locale";
 import { Notifications } from "@/components/Notifications";
+import { MaintenanceReportForm } from "@/components/work-orders/MaintenanceReportForm";
 
 interface WorkOrder {
   id: string;
