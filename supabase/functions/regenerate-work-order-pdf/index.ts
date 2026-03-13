@@ -16,51 +16,8 @@ function formatDecimalHoursToTime(decimalHours: number): string {
   return `${hours}h ${minutes.toString().padStart(2, "0")}min`;
 }
 
-// Extract signature image bytes from the original PDF
-async function extractSignatureImage(originalPdfBytes: Uint8Array): Promise<{ bytes: Uint8Array; width: number; height: number } | null> {
-  try {
-    const pdfDoc = await PDFDocument.load(originalPdfBytes);
-    const page = pdfDoc.getPages()[0];
-    const resources = page.node.get(PDFName.of('Resources'));
-    if (!resources) return null;
-
-    const xObjectDict = resources.get(PDFName.of('XObject'));
-    if (!xObjectDict) return null;
-
-    // Look through XObjects for image streams
-    const context = pdfDoc.context;
-    const xObjMap = context.lookup(xObjectDict);
-    if (!xObjMap || typeof xObjMap.entries !== 'function') return null;
-
-    for (const [_name, ref] of xObjMap.entries()) {
-      const obj = context.lookup(ref);
-      if (!obj) continue;
-
-      // Check if it's an image
-      const subtypeRef = obj.get ? obj.get(PDFName.of('Subtype')) : null;
-      if (!subtypeRef) continue;
-      const subtype = subtypeRef.toString();
-      if (subtype !== '/Image') continue;
-
-      const widthObj = obj.get(PDFName.of('Width'));
-      const heightObj = obj.get(PDFName.of('Height'));
-      const width = widthObj ? Number(widthObj.toString()) : 0;
-      const height = heightObj ? Number(heightObj.toString()) : 0;
-
-      // Get the raw stream contents
-      if (obj instanceof PDFRawStream || obj instanceof PDFStream) {
-        const contents = obj.getContents();
-        if (contents && contents.length > 100) {
-          return { bytes: contents, width, height };
-        }
-      }
-    }
-    return null;
-  } catch (err) {
-    console.error("Error extracting signature:", err);
-    return null;
-  }
-}
+// Instead of extracting the signature, we merge the original page as page 2
+// This is more reliable than trying to extract embedded images from PDFs
 
 function buildCompletePdf(
   wo: any,
