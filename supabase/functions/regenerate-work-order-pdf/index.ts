@@ -16,7 +16,7 @@ function formatDecimalHoursToTime(decimalHours: number): string {
   return `${hours}h ${minutes.toString().padStart(2, "0")}min`;
 }
 
-function generateCorrectedPage(doc: any, wo: any, clientEmail: string, empList: { name: string; hours: number }[], totalHours: number, completedAt: string) {
+function buildCorrectedPage(doc: any, wo: any, clientEmail: string, empList: { name: string; hours: number }[], totalHours: number, completedAt: string, includeSignatureNote: boolean) {
   doc.setFontSize(20);
   doc.setFont("helvetica", "bold");
   doc.text("Folha de OT", 105, 20, { align: "center" });
@@ -81,14 +81,17 @@ function generateCorrectedPage(doc: any, wo: any, clientEmail: string, empList: 
 
   doc.setFont("helvetica", "bold");
   doc.text("Assinatura do Cliente:", 20, Math.max(currentY, 180));
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(9);
-  doc.text("Ver p\u00E1gina seguinte (documento original com assinatura)", 20, Math.max(currentY + 8, 188));
+  
+  if (includeSignatureNote) {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(9);
+    doc.text("Ver p\u00E1gina seguinte (documento original com assinatura do cliente)", 20, Math.max(currentY + 8, 188));
+  }
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "italic");
   doc.text(
-    `Documento corrigido gerado automaticamente em ${new Date().toLocaleString("pt-PT")}`,
+    `Documento gerado automaticamente em ${new Date().toLocaleString("pt-PT")}`,
     105, 280, { align: "center" }
   );
 }
@@ -154,25 +157,24 @@ serve(async (req) => {
 
         // Generate corrected page with jsPDF
         const doc = new jsPDF();
-        generateCorrectedPage(doc, wo, clientEmail, empList, totalHours, completedAt);
+        buildCorrectedPage(doc, wo, clientEmail, empList, totalHours, completedAt, !!mergeOriginal);
         const correctedPdfBytes = new Uint8Array(doc.output("arraybuffer"));
 
         let finalPdfBytes: Uint8Array;
 
         if (mergeOriginal) {
-          // Find the original PDF (the first one without "_corrigido")
+          // Find the original PDF (first one without _corrigido or _completo)
           const { data: attachments } = await supabase
             .from("attachments")
             .select("url, filename")
             .eq("work_order_id", workOrderId)
             .order("uploaded_at", { ascending: true });
 
-          const originalAttachment = attachments?.find(a => 
-            a.filename.includes("_concluido_") && !a.filename.includes("_corrigido")
+          const originalAttachment = attachments?.find(a =>
+            a.filename.includes("_concluido_") && !a.filename.includes("_corrigido") && !a.filename.includes("_completo")
           );
 
           if (originalAttachment) {
-            // Download original PDF from storage
             const { data: originalFile, error: dlError } = await supabase.storage
               .from("work-order-attachments")
               .download(originalAttachment.url);
@@ -180,7 +182,7 @@ serve(async (req) => {
             if (originalFile && !dlError) {
               const originalPdfBytes = new Uint8Array(await originalFile.arrayBuffer());
 
-              // Merge: corrected page first, then original page(s)
+              // Merge: corrected page 1 + original page(s) as page 2+
               const mergedPdf = await PDFDocument.create();
               const correctedDoc = await PDFDocument.load(correctedPdfBytes);
               const originalDoc = await PDFDocument.load(originalPdfBytes);
@@ -194,6 +196,7 @@ serve(async (req) => {
               }
 
               finalPdfBytes = new Uint8Array(await mergedPdf.save());
+              console.log("Successfully merged corrected + original PDF");
             } else {
               console.error("Failed to download original PDF:", dlError);
               finalPdfBytes = correctedPdfBytes;
@@ -234,7 +237,7 @@ serve(async (req) => {
           filename: fileName,
         });
 
-        results.push({ workOrderId, reference: wo.reference, success: true, fileName });
+        results.push({ workOrderId, reference: wo.reference, success: true, fileName, merged: !!mergeOriginal });
       } catch (err) {
         results.push({ workOrderId, error: err.message });
       }
