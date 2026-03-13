@@ -84,10 +84,8 @@ function buildCorrectedPageWithJsPDF(wo: any, clientEmail: string, empList: { na
     currentY += splitNotes.length * 6 + 10;
   }
 
-  // Signature label
+  // Signature will be overlaid from original PDF - no label needed here
   const sigLabelY = Math.max(currentY, 180);
-  doc.setFont("helvetica", "bold");
-  doc.text("Assinatura do Cliente:", 20, sigLabelY);
 
   // Footer
   doc.setFontSize(9);
