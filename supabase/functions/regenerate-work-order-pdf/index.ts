@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { jsPDF } from "https://esm.sh/jspdf@3.0.3";
-import { PDFDocument, PDFName, PDFRawStream, PDFStream } from "https://esm.sh/pdf-lib@1.17.1";
+import { PDFDocument } from "https://esm.sh/pdf-lib@1.17.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,19 +16,7 @@ function formatDecimalHoursToTime(decimalHours: number): string {
   return `${hours}h ${minutes.toString().padStart(2, "0")}min`;
 }
 
-// Instead of extracting the signature, we merge the original page as page 2
-// This is more reliable than trying to extract embedded images from PDFs
-
-function buildCompletePdf(
-  wo: any,
-  clientEmail: string,
-  empList: { name: string; hours: number }[],
-  totalHours: number,
-  completedAt: string,
-  signatureDataUrl: string | null
-): Uint8Array {
-  const doc = new jsPDF();
-
+function buildCorrectedPage(doc: any, wo: any, clientEmail: string, empList: { name: string; hours: number }[], totalHours: number, completedAt: string, includeSignatureNote: boolean) {
   doc.setFontSize(20);
   doc.setFont("helvetica", "bold");
   doc.text("Folha de OT", 105, 20, { align: "center" });
@@ -91,24 +79,13 @@ function buildCompletePdf(
     currentY += splitNotes.length * 6 + 10;
   }
 
-  // Client Signature
   doc.setFont("helvetica", "bold");
   doc.text("Assinatura do Cliente:", 20, Math.max(currentY, 180));
-
-  const signatureY = Math.max(currentY + 5, 185);
-  if (signatureDataUrl) {
-    try {
-      doc.addImage(signatureDataUrl, "PNG", 20, signatureY, 80, 30);
-    } catch (imgErr) {
-      console.error("Failed to add signature image:", imgErr);
-      doc.setFont("helvetica", "italic");
-      doc.setFontSize(9);
-      doc.text("[Assinatura n\u00E3o dispon\u00EDvel]", 20, signatureY + 5);
-    }
-  } else {
+  
+  if (includeSignatureNote) {
     doc.setFont("helvetica", "italic");
     doc.setFontSize(9);
-    doc.text("[Assinatura n\u00E3o dispon\u00EDvel]", 20, signatureY + 5);
+    doc.text("Ver p\u00E1gina seguinte (documento original com assinatura do cliente)", 20, Math.max(currentY + 8, 188));
   }
 
   doc.setFontSize(9);
@@ -117,8 +94,6 @@ function buildCompletePdf(
     `Documento gerado automaticamente em ${new Date().toLocaleString("pt-PT")}`,
     105, 280, { align: "center" }
   );
-
-  return new Uint8Array(doc.output("arraybuffer"));
 }
 
 serve(async (req) => {
@@ -180,10 +155,15 @@ serve(async (req) => {
 
         const completedAt = lastEntry?.end_time || wo.updated_at;
 
-        // Try to extract signature from the original PDF
-        let signatureDataUrl: string | null = null;
+        // Generate corrected page with jsPDF
+        const doc = new jsPDF();
+        buildCorrectedPage(doc, wo, clientEmail, empList, totalHours, completedAt, !!mergeOriginal);
+        const correctedPdfBytes = new Uint8Array(doc.output("arraybuffer"));
+
+        let finalPdfBytes: Uint8Array;
 
         if (mergeOriginal) {
+          // Find the original PDF (first one without _corrigido or _completo)
           const { data: attachments } = await supabase
             .from("attachments")
             .select("url, filename")
@@ -195,27 +175,39 @@ serve(async (req) => {
           );
 
           if (originalAttachment) {
-            const { data: originalFile } = await supabase.storage
+            const { data: originalFile, error: dlError } = await supabase.storage
               .from("work-order-attachments")
               .download(originalAttachment.url);
 
-            if (originalFile) {
-              const originalBytes = new Uint8Array(await originalFile.arrayBuffer());
-              const sigImage = await extractSignatureImage(originalBytes);
-              if (sigImage) {
-                // Convert raw image bytes to base64 data URL for jsPDF
-                const base64 = btoa(String.fromCharCode(...sigImage.bytes));
-                signatureDataUrl = `data:image/png;base64,${base64}`;
-                console.log(`Extracted signature image: ${sigImage.width}x${sigImage.height}, ${sigImage.bytes.length} bytes`);
-              } else {
-                console.log("Could not extract signature image from original PDF");
-              }
-            }
-          }
-        }
+            if (originalFile && !dlError) {
+              const originalPdfBytes = new Uint8Array(await originalFile.arrayBuffer());
 
-        // Build the complete single-page PDF
-        const finalPdfBytes = buildCompletePdf(wo, clientEmail, empList, totalHours, completedAt, signatureDataUrl);
+              // Merge: corrected page 1 + original page(s) as page 2+
+              const mergedPdf = await PDFDocument.create();
+              const correctedDoc = await PDFDocument.load(correctedPdfBytes);
+              const originalDoc = await PDFDocument.load(originalPdfBytes);
+
+              const [correctedPage] = await mergedPdf.copyPages(correctedDoc, [0]);
+              mergedPdf.addPage(correctedPage);
+
+              const originalPages = await mergedPdf.copyPages(originalDoc, originalDoc.getPageIndices());
+              for (const page of originalPages) {
+                mergedPdf.addPage(page);
+              }
+
+              finalPdfBytes = new Uint8Array(await mergedPdf.save());
+              console.log("Successfully merged corrected + original PDF");
+            } else {
+              console.error("Failed to download original PDF:", dlError);
+              finalPdfBytes = correctedPdfBytes;
+            }
+          } else {
+            console.log("No original PDF found, using corrected only");
+            finalPdfBytes = correctedPdfBytes;
+          }
+        } else {
+          finalPdfBytes = correctedPdfBytes;
+        }
 
         const suffix = mergeOriginal ? "_completo" : "_corrigido";
         const fileName = `${wo.reference}_concluido${suffix}_${Date.now()}.pdf`;
@@ -245,7 +237,7 @@ serve(async (req) => {
           filename: fileName,
         });
 
-        results.push({ workOrderId, reference: wo.reference, success: true, fileName, hasSignature: !!signatureDataUrl });
+        results.push({ workOrderId, reference: wo.reference, success: true, fileName, merged: !!mergeOriginal });
       } catch (err) {
         results.push({ workOrderId, error: err.message });
       }
