@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { jsPDF } from "https://esm.sh/jspdf@3.0.3";
-import { PDFDocument } from "https://esm.sh/pdf-lib@1.17.1";
+import { PDFDocument, PDFName, PDFRawStream, PDFStream } from "https://esm.sh/pdf-lib@1.17.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,7 +16,62 @@ function formatDecimalHoursToTime(decimalHours: number): string {
   return `${hours}h ${minutes.toString().padStart(2, "0")}min`;
 }
 
-function generateCorrectedPage(doc: any, wo: any, clientEmail: string, empList: { name: string; hours: number }[], totalHours: number, completedAt: string) {
+// Extract signature image bytes from the original PDF
+async function extractSignatureImage(originalPdfBytes: Uint8Array): Promise<{ bytes: Uint8Array; width: number; height: number } | null> {
+  try {
+    const pdfDoc = await PDFDocument.load(originalPdfBytes);
+    const page = pdfDoc.getPages()[0];
+    const resources = page.node.get(PDFName.of('Resources'));
+    if (!resources) return null;
+
+    const xObjectDict = resources.get(PDFName.of('XObject'));
+    if (!xObjectDict) return null;
+
+    // Look through XObjects for image streams
+    const context = pdfDoc.context;
+    const xObjMap = context.lookup(xObjectDict);
+    if (!xObjMap || typeof xObjMap.entries !== 'function') return null;
+
+    for (const [_name, ref] of xObjMap.entries()) {
+      const obj = context.lookup(ref);
+      if (!obj) continue;
+
+      // Check if it's an image
+      const subtypeRef = obj.get ? obj.get(PDFName.of('Subtype')) : null;
+      if (!subtypeRef) continue;
+      const subtype = subtypeRef.toString();
+      if (subtype !== '/Image') continue;
+
+      const widthObj = obj.get(PDFName.of('Width'));
+      const heightObj = obj.get(PDFName.of('Height'));
+      const width = widthObj ? Number(widthObj.toString()) : 0;
+      const height = heightObj ? Number(heightObj.toString()) : 0;
+
+      // Get the raw stream contents
+      if (obj instanceof PDFRawStream || obj instanceof PDFStream) {
+        const contents = obj.getContents();
+        if (contents && contents.length > 100) {
+          return { bytes: contents, width, height };
+        }
+      }
+    }
+    return null;
+  } catch (err) {
+    console.error("Error extracting signature:", err);
+    return null;
+  }
+}
+
+function buildCompletePdf(
+  wo: any,
+  clientEmail: string,
+  empList: { name: string; hours: number }[],
+  totalHours: number,
+  completedAt: string,
+  signatureDataUrl: string | null
+): Uint8Array {
+  const doc = new jsPDF();
+
   doc.setFontSize(20);
   doc.setFont("helvetica", "bold");
   doc.text("Folha de OT", 105, 20, { align: "center" });
@@ -79,18 +134,34 @@ function generateCorrectedPage(doc: any, wo: any, clientEmail: string, empList: 
     currentY += splitNotes.length * 6 + 10;
   }
 
+  // Client Signature
   doc.setFont("helvetica", "bold");
   doc.text("Assinatura do Cliente:", 20, Math.max(currentY, 180));
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(9);
-  doc.text("Ver p\u00E1gina seguinte (documento original com assinatura)", 20, Math.max(currentY + 8, 188));
+
+  const signatureY = Math.max(currentY + 5, 185);
+  if (signatureDataUrl) {
+    try {
+      doc.addImage(signatureDataUrl, "PNG", 20, signatureY, 80, 30);
+    } catch (imgErr) {
+      console.error("Failed to add signature image:", imgErr);
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(9);
+      doc.text("[Assinatura n\u00E3o dispon\u00EDvel]", 20, signatureY + 5);
+    }
+  } else {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(9);
+    doc.text("[Assinatura n\u00E3o dispon\u00EDvel]", 20, signatureY + 5);
+  }
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "italic");
   doc.text(
-    `Documento corrigido gerado automaticamente em ${new Date().toLocaleString("pt-PT")}`,
+    `Documento gerado automaticamente em ${new Date().toLocaleString("pt-PT")}`,
     105, 280, { align: "center" }
   );
+
+  return new Uint8Array(doc.output("arraybuffer"));
 }
 
 serve(async (req) => {
@@ -152,59 +223,42 @@ serve(async (req) => {
 
         const completedAt = lastEntry?.end_time || wo.updated_at;
 
-        // Generate corrected page with jsPDF
-        const doc = new jsPDF();
-        generateCorrectedPage(doc, wo, clientEmail, empList, totalHours, completedAt);
-        const correctedPdfBytes = new Uint8Array(doc.output("arraybuffer"));
-
-        let finalPdfBytes: Uint8Array;
+        // Try to extract signature from the original PDF
+        let signatureDataUrl: string | null = null;
 
         if (mergeOriginal) {
-          // Find the original PDF (the first one without "_corrigido")
           const { data: attachments } = await supabase
             .from("attachments")
             .select("url, filename")
             .eq("work_order_id", workOrderId)
             .order("uploaded_at", { ascending: true });
 
-          const originalAttachment = attachments?.find(a => 
-            a.filename.includes("_concluido_") && !a.filename.includes("_corrigido")
+          const originalAttachment = attachments?.find(a =>
+            a.filename.includes("_concluido_") && !a.filename.includes("_corrigido") && !a.filename.includes("_completo")
           );
 
           if (originalAttachment) {
-            // Download original PDF from storage
-            const { data: originalFile, error: dlError } = await supabase.storage
+            const { data: originalFile } = await supabase.storage
               .from("work-order-attachments")
               .download(originalAttachment.url);
 
-            if (originalFile && !dlError) {
-              const originalPdfBytes = new Uint8Array(await originalFile.arrayBuffer());
-
-              // Merge: corrected page first, then original page(s)
-              const mergedPdf = await PDFDocument.create();
-              const correctedDoc = await PDFDocument.load(correctedPdfBytes);
-              const originalDoc = await PDFDocument.load(originalPdfBytes);
-
-              const [correctedPage] = await mergedPdf.copyPages(correctedDoc, [0]);
-              mergedPdf.addPage(correctedPage);
-
-              const originalPages = await mergedPdf.copyPages(originalDoc, originalDoc.getPageIndices());
-              for (const page of originalPages) {
-                mergedPdf.addPage(page);
+            if (originalFile) {
+              const originalBytes = new Uint8Array(await originalFile.arrayBuffer());
+              const sigImage = await extractSignatureImage(originalBytes);
+              if (sigImage) {
+                // Convert raw image bytes to base64 data URL for jsPDF
+                const base64 = btoa(String.fromCharCode(...sigImage.bytes));
+                signatureDataUrl = `data:image/png;base64,${base64}`;
+                console.log(`Extracted signature image: ${sigImage.width}x${sigImage.height}, ${sigImage.bytes.length} bytes`);
+              } else {
+                console.log("Could not extract signature image from original PDF");
               }
-
-              finalPdfBytes = new Uint8Array(await mergedPdf.save());
-            } else {
-              console.error("Failed to download original PDF:", dlError);
-              finalPdfBytes = correctedPdfBytes;
             }
-          } else {
-            console.log("No original PDF found, using corrected only");
-            finalPdfBytes = correctedPdfBytes;
           }
-        } else {
-          finalPdfBytes = correctedPdfBytes;
         }
+
+        // Build the complete single-page PDF
+        const finalPdfBytes = buildCompletePdf(wo, clientEmail, empList, totalHours, completedAt, signatureDataUrl);
 
         const suffix = mergeOriginal ? "_completo" : "_corrigido";
         const fileName = `${wo.reference}_concluido${suffix}_${Date.now()}.pdf`;
@@ -234,7 +288,7 @@ serve(async (req) => {
           filename: fileName,
         });
 
-        results.push({ workOrderId, reference: wo.reference, success: true, fileName });
+        results.push({ workOrderId, reference: wo.reference, success: true, fileName, hasSignature: !!signatureDataUrl });
       } catch (err) {
         results.push({ workOrderId, error: err.message });
       }
