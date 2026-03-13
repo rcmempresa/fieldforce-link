@@ -16,7 +16,12 @@ function formatDecimalHoursToTime(decimalHours: number): string {
   return `${hours}h ${minutes.toString().padStart(2, "0")}min`;
 }
 
-function buildCorrectedPage(doc: any, wo: any, clientEmail: string, empList: { name: string; hours: number }[], totalHours: number, completedAt: string, includeSignatureNote: boolean) {
+// mm to PDF points
+const mm = (v: number) => v * 2.835;
+
+function buildCorrectedPageWithJsPDF(wo: any, clientEmail: string, empList: { name: string; hours: number }[], totalHours: number, completedAt: string): { pdfBytes: Uint8Array; signatureLabelY: number } {
+  const doc = new jsPDF();
+
   doc.setFontSize(20);
   doc.setFont("helvetica", "bold");
   doc.text("Folha de OT", 105, 20, { align: "center" });
@@ -79,21 +84,23 @@ function buildCorrectedPage(doc: any, wo: any, clientEmail: string, empList: { n
     currentY += splitNotes.length * 6 + 10;
   }
 
+  // Signature label
+  const sigLabelY = Math.max(currentY, 180);
   doc.setFont("helvetica", "bold");
-  doc.text("Assinatura do Cliente:", 20, Math.max(currentY, 180));
-  
-  if (includeSignatureNote) {
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(9);
-    doc.text("Ver p\u00E1gina seguinte (documento original com assinatura do cliente)", 20, Math.max(currentY + 8, 188));
-  }
+  doc.text("Assinatura do Cliente:", 20, sigLabelY);
 
+  // Footer
   doc.setFontSize(9);
   doc.setFont("helvetica", "italic");
   doc.text(
     `Documento gerado automaticamente em ${new Date().toLocaleString("pt-PT")}`,
     105, 280, { align: "center" }
   );
+
+  return {
+    pdfBytes: new Uint8Array(doc.output("arraybuffer")),
+    signatureLabelY: sigLabelY,
+  };
 }
 
 serve(async (req) => {
@@ -155,15 +162,13 @@ serve(async (req) => {
 
         const completedAt = lastEntry?.end_time || wo.updated_at;
 
-        // Generate corrected page with jsPDF
-        const doc = new jsPDF();
-        buildCorrectedPage(doc, wo, clientEmail, empList, totalHours, completedAt, !!mergeOriginal);
-        const correctedPdfBytes = new Uint8Array(doc.output("arraybuffer"));
+        // Build corrected page with jsPDF
+        const { pdfBytes: correctedPdfBytes, signatureLabelY } = buildCorrectedPageWithJsPDF(wo, clientEmail, empList, totalHours, completedAt);
 
-        let finalPdfBytes: Uint8Array;
+        let finalPdfBytes: Uint8Array = correctedPdfBytes;
 
         if (mergeOriginal) {
-          // Find the original PDF (first one without _corrigido or _completo)
+          // Find original PDF with signature
           const { data: attachments } = await supabase
             .from("attachments")
             .select("url, filename")
@@ -175,38 +180,61 @@ serve(async (req) => {
           );
 
           if (originalAttachment) {
-            const { data: originalFile, error: dlError } = await supabase.storage
+            const { data: originalFile } = await supabase.storage
               .from("work-order-attachments")
               .download(originalAttachment.url);
 
-            if (originalFile && !dlError) {
+            if (originalFile) {
               const originalPdfBytes = new Uint8Array(await originalFile.arrayBuffer());
 
-              // Merge: corrected page 1 + original page(s) as page 2+
-              const mergedPdf = await PDFDocument.create();
-              const correctedDoc = await PDFDocument.load(correctedPdfBytes);
-              const originalDoc = await PDFDocument.load(originalPdfBytes);
+              try {
+                // Load both PDFs with pdf-lib
+                const correctedDoc = await PDFDocument.load(correctedPdfBytes);
+                const originalDoc = await PDFDocument.load(originalPdfBytes);
 
-              const [correctedPage] = await mergedPdf.copyPages(correctedDoc, [0]);
-              mergedPdf.addPage(correctedPage);
+                const correctedPage = correctedDoc.getPages()[0];
+                const originalPage = originalDoc.getPages()[0];
+                const { width: origW, height: origH } = originalPage.getSize();
 
-              const originalPages = await mergedPdf.copyPages(originalDoc, originalDoc.getPageIndices());
-              for (const page of originalPages) {
-                mergedPdf.addPage(page);
+                // The signature in the original PDF is at approximately:
+                // jsPDF y ~185mm from top → PDF y = (297-185)*2.835 ≈ 317pt from bottom
+                // Signature image: x=20mm, y=185mm, w=80mm, h=30mm in jsPDF
+                // In PDF coords: x=56.7pt, bottom=~232pt, top=~317pt from page bottom
+                // We clip a generous area around the signature
+                const clipBottom = mm(297 - 225); // 225mm from top in jsPDF
+                const clipTop = mm(297 - 178);    // 178mm from top in jsPDF  
+                const clipLeft = mm(15);
+                const clipRight = mm(110);
+
+                // Embed the original page, clipped to the signature area
+                const embeddedPage = await correctedDoc.embedPage(originalPage, {
+                  left: clipLeft,
+                  bottom: clipBottom,
+                  right: clipRight,
+                  top: clipTop,
+                });
+
+                // Position the clipped signature on the corrected page
+                // Place it right after the "Assinatura do Cliente:" label
+                const drawY = mm(297 - (signatureLabelY + 5)); // convert jsPDF mm to PDF points
+                const clipW = clipRight - clipLeft;
+                const clipH = clipTop - clipBottom;
+
+                correctedPage.drawPage(embeddedPage, {
+                  x: mm(18),
+                  y: drawY - clipH,
+                  width: clipW,
+                  height: clipH,
+                });
+
+                finalPdfBytes = new Uint8Array(await correctedDoc.save());
+                console.log(`Merged signature onto single page. Clip area: ${clipW.toFixed(0)}x${clipH.toFixed(0)}pt, drawn at y=${(drawY - clipH).toFixed(0)}`);
+              } catch (mergeErr) {
+                console.error("Error merging signature:", mergeErr);
+                // Fallback: just use the corrected page without signature
               }
-
-              finalPdfBytes = new Uint8Array(await mergedPdf.save());
-              console.log("Successfully merged corrected + original PDF");
-            } else {
-              console.error("Failed to download original PDF:", dlError);
-              finalPdfBytes = correctedPdfBytes;
             }
-          } else {
-            console.log("No original PDF found, using corrected only");
-            finalPdfBytes = correctedPdfBytes;
           }
-        } else {
-          finalPdfBytes = correctedPdfBytes;
         }
 
         const suffix = mergeOriginal ? "_completo" : "_corrigido";
@@ -237,7 +265,7 @@ serve(async (req) => {
           filename: fileName,
         });
 
-        results.push({ workOrderId, reference: wo.reference, success: true, fileName, merged: !!mergeOriginal });
+        results.push({ workOrderId, reference: wo.reference, success: true, fileName });
       } catch (err) {
         results.push({ workOrderId, error: err.message });
       }
