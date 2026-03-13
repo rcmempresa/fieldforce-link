@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { jsPDF } from "https://esm.sh/jspdf@3.0.3";
+import { PDFDocument } from "https://esm.sh/pdf-lib@1.17.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,6 +16,83 @@ function formatDecimalHoursToTime(decimalHours: number): string {
   return `${hours}h ${minutes.toString().padStart(2, "0")}min`;
 }
 
+function generateCorrectedPage(doc: any, wo: any, clientEmail: string, empList: { name: string; hours: number }[], totalHours: number, completedAt: string) {
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.text("Folha de OT", 105, 20, { align: "center" });
+
+  doc.setFontSize(14);
+  doc.text(`Refer\u00EAncia: ${wo.reference}`, 20, 35);
+
+  doc.setLineWidth(0.5);
+  doc.line(20, 40, 190, 40);
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("Detalhes da Ordem:", 20, 50);
+
+  doc.setFont("helvetica", "normal");
+  doc.text(`T\u00EDtulo: ${wo.title}`, 20, 58);
+  const descText = wo.description || "N/A";
+  const splitDesc = doc.splitTextToSize(`Descri\u00E7\u00E3o: ${descText}`, 170);
+  doc.text(splitDesc, 20, 66);
+  const descEndY = 66 + splitDesc.length * 6;
+
+  doc.text(`Tipo de Servi\u00E7o: ${wo.service_type}`, 20, descEndY + 2);
+  doc.text(`Prioridade: ${wo.priority}`, 20, descEndY + 10);
+  doc.text(`Status: Conclu\u00EDda`, 20, descEndY + 18);
+
+  let sectionY = descEndY + 30;
+  doc.setFont("helvetica", "bold");
+  doc.text("Informa\u00E7\u00F5es do Cliente:", 20, sectionY);
+
+  doc.setFont("helvetica", "normal");
+  doc.text(`Nome: ${(wo.client as any)?.name || "N/A"}`, 20, sectionY + 8);
+  doc.text(`Email: ${clientEmail}`, 20, sectionY + 16);
+
+  doc.setFont("helvetica", "bold");
+  doc.text("Detalhes da Conclus\u00E3o:", 20, sectionY + 28);
+
+  doc.setFont("helvetica", "normal");
+  let empY = sectionY + 36;
+  for (const emp of empList) {
+    doc.text(`\u2022 ${emp.name}: ${formatDecimalHoursToTime(emp.hours)}`, 25, empY);
+    empY += 7;
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.text(`Total: ${formatDecimalHoursToTime(totalHours)}`, 20, empY + 2);
+  empY += 10;
+
+  doc.setFont("helvetica", "normal");
+  doc.text(`Data de conclus\u00E3o: ${new Date(completedAt).toLocaleString("pt-PT")}`, 20, empY);
+
+  let currentY = empY + 12;
+
+  if (wo.notes) {
+    doc.setFont("helvetica", "bold");
+    doc.text("Observa\u00E7\u00F5es:", 20, currentY);
+    currentY += 8;
+    doc.setFont("helvetica", "normal");
+    const splitNotes = doc.splitTextToSize(wo.notes, 170);
+    doc.text(splitNotes, 20, currentY);
+    currentY += splitNotes.length * 6 + 10;
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.text("Assinatura do Cliente:", 20, Math.max(currentY, 180));
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(9);
+  doc.text("Ver p\u00E1gina seguinte (documento original com assinatura)", 20, Math.max(currentY + 8, 188));
+
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "italic");
+  doc.text(
+    `Documento corrigido gerado automaticamente em ${new Date().toLocaleString("pt-PT")}`,
+    105, 280, { align: "center" }
+  );
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -25,7 +103,7 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const { workOrderIds } = await req.json();
+    const { workOrderIds, mergeOriginal } = await req.json();
     if (!workOrderIds || !Array.isArray(workOrderIds)) {
       throw new Error("workOrderIds array is required");
     }
@@ -74,94 +152,67 @@ serve(async (req) => {
 
         const completedAt = lastEntry?.end_time || wo.updated_at;
 
-        // Generate PDF with jsPDF
+        // Generate corrected page with jsPDF
         const doc = new jsPDF();
+        generateCorrectedPage(doc, wo, clientEmail, empList, totalHours, completedAt);
+        const correctedPdfBytes = new Uint8Array(doc.output("arraybuffer"));
 
-        doc.setFontSize(20);
-        doc.setFont("helvetica", "bold");
-        doc.text("Folha de OT", 105, 20, { align: "center" });
+        let finalPdfBytes: Uint8Array;
 
-        doc.setFontSize(14);
-        doc.text(`Refer\u00EAncia: ${wo.reference}`, 20, 35);
+        if (mergeOriginal) {
+          // Find the original PDF (the first one without "_corrigido")
+          const { data: attachments } = await supabase
+            .from("attachments")
+            .select("url, filename")
+            .eq("work_order_id", workOrderId)
+            .order("uploaded_at", { ascending: true });
 
-        doc.setLineWidth(0.5);
-        doc.line(20, 40, 190, 40);
+          const originalAttachment = attachments?.find(a => 
+            a.filename.includes("_concluido_") && !a.filename.includes("_corrigido")
+          );
 
-        doc.setFontSize(11);
-        doc.setFont("helvetica", "bold");
-        doc.text("Detalhes da Ordem:", 20, 50);
+          if (originalAttachment) {
+            // Download original PDF from storage
+            const { data: originalFile, error: dlError } = await supabase.storage
+              .from("work-order-attachments")
+              .download(originalAttachment.url);
 
-        doc.setFont("helvetica", "normal");
-        doc.text(`T\u00EDtulo: ${wo.title}`, 20, 58);
-        const descText = wo.description || "N/A";
-        const splitDesc = doc.splitTextToSize(`Descri\u00E7\u00E3o: ${descText}`, 170);
-        doc.text(splitDesc, 20, 66);
-        const descEndY = 66 + splitDesc.length * 6;
+            if (originalFile && !dlError) {
+              const originalPdfBytes = new Uint8Array(await originalFile.arrayBuffer());
 
-        doc.text(`Tipo de Servi\u00E7o: ${wo.service_type}`, 20, descEndY + 2);
-        doc.text(`Prioridade: ${wo.priority}`, 20, descEndY + 10);
-        doc.text(`Status: Conclu\u00EDda`, 20, descEndY + 18);
+              // Merge: corrected page first, then original page(s)
+              const mergedPdf = await PDFDocument.create();
+              const correctedDoc = await PDFDocument.load(correctedPdfBytes);
+              const originalDoc = await PDFDocument.load(originalPdfBytes);
 
-        let sectionY = descEndY + 30;
-        doc.setFont("helvetica", "bold");
-        doc.text("Informa\u00E7\u00F5es do Cliente:", 20, sectionY);
+              const [correctedPage] = await mergedPdf.copyPages(correctedDoc, [0]);
+              mergedPdf.addPage(correctedPage);
 
-        doc.setFont("helvetica", "normal");
-        doc.text(`Nome: ${(wo.client as any)?.name || "N/A"}`, 20, sectionY + 8);
-        doc.text(`Email: ${clientEmail}`, 20, sectionY + 16);
+              const originalPages = await mergedPdf.copyPages(originalDoc, originalDoc.getPageIndices());
+              for (const page of originalPages) {
+                mergedPdf.addPage(page);
+              }
 
-        doc.setFont("helvetica", "bold");
-        doc.text("Detalhes da Conclus\u00E3o:", 20, sectionY + 28);
-
-        doc.setFont("helvetica", "normal");
-        let empY = sectionY + 36;
-        for (const emp of empList) {
-          doc.text(`\u2022 ${emp.name}: ${formatDecimalHoursToTime(emp.hours)}`, 25, empY);
-          empY += 7;
+              finalPdfBytes = new Uint8Array(await mergedPdf.save());
+            } else {
+              console.error("Failed to download original PDF:", dlError);
+              finalPdfBytes = correctedPdfBytes;
+            }
+          } else {
+            console.log("No original PDF found, using corrected only");
+            finalPdfBytes = correctedPdfBytes;
+          }
+        } else {
+          finalPdfBytes = correctedPdfBytes;
         }
 
-        doc.setFont("helvetica", "bold");
-        doc.text(`Total: ${formatDecimalHoursToTime(totalHours)}`, 20, empY + 2);
-        empY += 10;
-
-        doc.setFont("helvetica", "normal");
-        doc.text(`Data de conclus\u00E3o: ${new Date(completedAt).toLocaleString("pt-PT")}`, 20, empY);
-
-        let currentY = empY + 12;
-
-        if (wo.notes) {
-          doc.setFont("helvetica", "bold");
-          doc.text("Observa\u00E7\u00F5es:", 20, currentY);
-          currentY += 8;
-          doc.setFont("helvetica", "normal");
-          const splitNotes = doc.splitTextToSize(wo.notes, 170);
-          doc.text(splitNotes, 20, currentY);
-          currentY += splitNotes.length * 6 + 10;
-        }
-
-        doc.setFont("helvetica", "bold");
-        doc.text("Assinatura do Cliente:", 20, Math.max(currentY, 180));
-        doc.setFont("helvetica", "italic");
-        doc.setFontSize(9);
-        doc.text("[Documento corrigido - assinatura dispon\u00EDvel no documento original]", 20, Math.max(currentY + 8, 188));
-
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "italic");
-        doc.text(
-          `Documento gerado automaticamente em ${new Date().toLocaleString("pt-PT")}`,
-          105, 280, { align: "center" }
-        );
-
-        // Get PDF as ArrayBuffer
-        const pdfOutput = doc.output("arraybuffer");
-        const pdfBlob = new Uint8Array(pdfOutput);
-
-        const fileName = `${wo.reference}_concluido_corrigido_${Date.now()}.pdf`;
+        const suffix = mergeOriginal ? "_completo" : "_corrigido";
+        const fileName = `${wo.reference}_concluido${suffix}_${Date.now()}.pdf`;
         const filePath = `${workOrderId}/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from("work-order-attachments")
-          .upload(filePath, pdfBlob, { contentType: "application/pdf", upsert: false });
+          .upload(filePath, finalPdfBytes, { contentType: "application/pdf", upsert: false });
 
         if (uploadError) {
           results.push({ workOrderId, reference: wo.reference, error: uploadError.message });
