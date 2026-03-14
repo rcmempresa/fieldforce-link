@@ -206,7 +206,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
 
   // === APPROVAL ===
   checkPageBreak(35);
-  drawSectionHeader("✔️", "Aprovação & Seguimento");
+  drawSectionHeader("Aprovacao & Seguimento");
   drawField("Próxima Manutenção", data.next_maintenance || "", margin, halfW);
   y += 14;
   drawField("Aprovado por", data.approved_by_name || "", margin, halfW);
