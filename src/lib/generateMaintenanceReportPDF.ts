@@ -210,7 +210,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   drawField("Proxima Manutencao", data.next_maintenance || "", margin, halfW);
   y += 14;
   drawField("Aprovado por", data.approved_by_name || "", margin, halfW);
-  drawField("Data de Aprovação", data.approval_date ? new Date(data.approval_date).toLocaleDateString("pt-PT") : "", margin + halfW, halfW);
+  drawField("Data de Aprovacao", data.approval_date ? new Date(data.approval_date).toLocaleDateString("pt-PT") : "", margin + halfW, halfW);
   y += 14;
 
   // === SIGNATURES ===
