@@ -196,7 +196,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   if (data.recommendations) {
     checkPageBreak(15);
     doc.setFont("helvetica", "bold");
-    doc.text("Recomendações:", margin, y);
+    doc.text("Recomendacoes:", margin, y);
     y += 5;
     doc.setFont("helvetica", "normal");
     const recLines = doc.splitTextToSize(data.recommendations, contentWidth);
