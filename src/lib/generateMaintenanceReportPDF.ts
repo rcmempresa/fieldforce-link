@@ -181,7 +181,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
 
   // === OBSERVATIONS ===
   checkPageBreak(25);
-  drawSectionHeader("📝", "Observações & Recomendações");
+  drawSectionHeader("Observacoes & Recomendacoes");
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   if (data.general_observations) {
