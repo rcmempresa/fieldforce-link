@@ -85,7 +85,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   y += 10;
 
   // === IDENTIFICATION ===
-  drawSectionHeader("📋", "Identificação do Relatório");
+  drawSectionHeader("Identificacao do Relatorio");
   const halfW = contentWidth / 2;
   drawField("Nº Relatório", data.work_order_reference, margin, halfW);
   drawField("Data", data.report_date ? new Date(data.report_date).toLocaleDateString("pt-PT") : "", margin + halfW, halfW);
