@@ -21,6 +21,7 @@ const pauseReasons = [
   { value: "enviado_oficina", label: "Enviado para a oficina" },
   { value: "enviado_orcamento", label: "Enviado Orçamento" },
   { value: "assinatura_gerente", label: "Assinatura do Gerente" },
+  { value: "saida_temporaria", label: "Vou sair, mas irei voltar" },
 ];
 
 export function PauseWorkOrderDialog({
