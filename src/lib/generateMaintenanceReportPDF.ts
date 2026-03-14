@@ -115,8 +115,8 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   drawField("Equipamento", data.equipment_name || "", margin, halfW);
   drawField("No Serie", data.equipment_serial || "", margin + halfW, halfW);
   y += 14;
-  drawField("Designação", data.designation || "", margin, halfW);
-  drawField("Nº Série", data.designation_serial || "", margin + halfW, halfW);
+  drawField("Designacao", data.designation || "", margin, halfW);
+  drawField("No Serie", data.designation_serial || "", margin + halfW, halfW);
   y += 14;
 
   // === CHECKLIST ===
