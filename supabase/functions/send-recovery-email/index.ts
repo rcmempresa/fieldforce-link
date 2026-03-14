@@ -80,8 +80,6 @@ const handler = async (req: Request): Promise<Response> => {
           </a>
         </div>
         <p style="color: #71717a; font-size: 14px; line-height: 1.5;">Se não solicitou esta alteração, pode ignorar este email. O link expira em 24 horas.</p>
-        <p style="color: #71717a; font-size: 14px; line-height: 1.5;">Se o botão não funcionar, copie e cole este link no seu navegador:</p>
-        <p style="color: #3b82f6; font-size: 12px; word-break: break-all;">${generatedUrl}</p>
         <p style="color: #8898aa; font-size: 12px; margin-top: 32px;">Este é um email automático. Por favor, não responda.</p>
       </div>
     `;
