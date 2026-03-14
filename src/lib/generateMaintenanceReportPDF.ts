@@ -141,7 +141,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
 
   // === MEASUREMENTS ===
   checkPageBreak(30);
-  drawSectionHeader("📏", `Medições ${isElectricity ? "Elétricas" : "AVAC"}`);
+  drawSectionHeader(`Medicoes ${isElectricity ? "Eletricas" : "AVAC"}`);
   
   // Table header
   doc.setFillColor(230, 235, 245);
