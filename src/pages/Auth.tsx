@@ -42,6 +42,25 @@ export default function Auth() {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail) {
+      toast.error("Por favor, introduza o seu email");
+      return;
+    }
+    setForgotLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setForgotLoading(false);
+    if (error) {
+      toast.error("Erro ao enviar email de recuperação: " + error.message);
+    } else {
+      toast.success("Email de recuperação enviado! Verifique a sua caixa de correio.");
+      setShowForgotPassword(false);
+      setForgotEmail("");
+    }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
@@ -86,6 +105,14 @@ export default function Auth() {
                 </div>
                 <Button type="submit" className="w-full">
                   Entrar
+                </Button>
+                <Button
+                  type="button"
+                  variant="link"
+                  className="w-full text-sm"
+                  onClick={() => setShowForgotPassword(true)}
+                >
+                  Esqueceu a password?
                 </Button>
               </form>
             </TabsContent>
@@ -132,7 +159,6 @@ export default function Auth() {
             </TabsContent>
           </Tabs>
 
-          {/* Forgot Password Dialog */}
           {showForgotPassword && (
             <div className="mt-4 rounded-lg border p-4 space-y-4">
               <h3 className="text-sm font-medium">Recuperar Password</h3>
