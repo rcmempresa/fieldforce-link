@@ -65,7 +65,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
     doc.setFontSize(9);
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "normal");
-    const val = value || "—";
+    const val = value || "-";
     doc.text(val, x, y + 5);
     doc.setDrawColor(200, 200, 200);
     doc.line(x, y + 7, x + width - 5, y + 7);
