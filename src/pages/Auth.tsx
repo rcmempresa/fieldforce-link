@@ -131,6 +131,33 @@ export default function Auth() {
               </form>
             </TabsContent>
           </Tabs>
+
+          {/* Forgot Password Dialog */}
+          {showForgotPassword && (
+            <div className="mt-4 rounded-lg border p-4 space-y-4">
+              <h3 className="text-sm font-medium">Recuperar Password</h3>
+              <p className="text-xs text-muted-foreground">
+                Introduza o seu email e enviaremos um link para redefinir a sua password.
+              </p>
+              <form onSubmit={handleForgotPassword} className="space-y-3">
+                <Input
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  required
+                />
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" className="flex-1" onClick={() => setShowForgotPassword(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" className="flex-1" disabled={forgotLoading}>
+                    {forgotLoading ? "A enviar..." : "Enviar"}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
