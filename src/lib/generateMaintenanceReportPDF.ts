@@ -186,7 +186,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   doc.setFont("helvetica", "normal");
   if (data.general_observations) {
     doc.setFont("helvetica", "bold");
-    doc.text("Observações Gerais:", margin, y);
+    doc.text("Observacoes Gerais:", margin, y);
     y += 5;
     doc.setFont("helvetica", "normal");
     const obsLines = doc.splitTextToSize(data.general_observations, contentWidth);
