@@ -45,14 +45,14 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
     }
   };
 
-  const drawSectionHeader = (icon: string, title: string) => {
+  const drawSectionHeader = (title: string) => {
     checkPageBreak(15);
     doc.setFillColor(240, 245, 255);
     doc.roundedRect(margin, y - 4, contentWidth, 10, 2, 2, "F");
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(30, 64, 175);
-    doc.text(`${icon} ${title}`, margin + 3, y + 3);
+    doc.text(title, margin + 3, y + 3);
     doc.setTextColor(0, 0, 0);
     y += 12;
   };
