@@ -219,7 +219,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
-  doc.text("Assinatura do Técnico", margin, y);
+  doc.text("Assinatura do Tecnico", margin, y);
   doc.text("Assinatura do Supervisor", margin + halfW, y);
   y += 5;
 
