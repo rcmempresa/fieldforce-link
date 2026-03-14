@@ -96,7 +96,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
 
   // === TECHNICIAN ===
   drawSectionHeader("Dados do Tecnico");
-  drawField("Nome do Técnico", data.technician_name || "", margin, halfW);
+  drawField("Nome do Tecnico", data.technician_name || "", margin, halfW);
   drawField("ID / Nº Funcionário", data.technician_id || "", margin + halfW, halfW);
   y += 14;
   drawField("Supervisor", data.supervisor_name || "", margin, halfW);
