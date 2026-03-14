@@ -49,16 +49,19 @@ export default function Auth() {
       return;
     }
     setForgotLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    setForgotLoading(false);
-    if (error) {
-      toast.error("Erro ao enviar email de recuperação: " + error.message);
-    } else {
+    try {
+      const { data, error } = await supabase.functions.invoke("send-recovery-email", {
+        body: { email: forgotEmail },
+      });
+      if (error) throw error;
       toast.success("Email de recuperação enviado! Verifique a sua caixa de correio.");
       setShowForgotPassword(false);
       setForgotEmail("");
+    } catch (error: any) {
+      console.error("Error sending recovery email:", error);
+      toast.error("Erro ao enviar email de recuperação. Verifique se o email está correto.");
+    } finally {
+      setForgotLoading(false);
     }
   };
 
