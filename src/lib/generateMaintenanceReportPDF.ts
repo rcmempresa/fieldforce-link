@@ -107,7 +107,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
 
   // === LOCATION ===
   drawSectionHeader("Localizacao & Equipamento");
-  drawField("Edifício", data.building || "", margin, halfW);
+  drawField("Edificio", data.building || "", margin, halfW);
   drawField("Piso / Zona", data.floor_number || "", margin + halfW, halfW);
   y += 14;
   drawField("Localização Específica", data.specific_location || "", margin, contentWidth);
