@@ -215,7 +215,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
 
   // === SIGNATURES ===
   checkPageBreak(45);
-  drawSectionHeader("✍️", "Assinaturas");
+  drawSectionHeader("Assinaturas");
   
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
