@@ -45,14 +45,14 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
     }
   };
 
-  const drawSectionHeader = (icon: string, title: string) => {
+  const drawSectionHeader = (title: string) => {
     checkPageBreak(15);
     doc.setFillColor(240, 245, 255);
     doc.roundedRect(margin, y - 4, contentWidth, 10, 2, 2, "F");
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(30, 64, 175);
-    doc.text(`${icon} ${title}`, margin + 3, y + 3);
+    doc.text(title, margin + 3, y + 3);
     doc.setTextColor(0, 0, 0);
     y += 12;
   };
@@ -65,7 +65,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
     doc.setFontSize(9);
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "normal");
-    const val = value || "—";
+    const val = value || "-";
     doc.text(val, x, y + 5);
     doc.setDrawColor(200, 200, 200);
     doc.line(x, y + 7, x + width - 5, y + 7);
@@ -74,7 +74,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   // === HEADER ===
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  const title = isElectricity ? "⚡ Folha de Manutenção - Eletricidade" : "❄️ Folha de Manutenção - Climatização";
+  const title = isElectricity ? "Folha de Manutencao - Eletricidade" : "Folha de Manutencao - Climatizacao";
   doc.text(title, pageWidth / 2, y, { align: "center" });
   y += 6;
   doc.setFontSize(9);
@@ -85,45 +85,45 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   y += 10;
 
   // === IDENTIFICATION ===
-  drawSectionHeader("📋", "Identificação do Relatório");
+  drawSectionHeader("Identificacao do Relatorio");
   const halfW = contentWidth / 2;
   drawField("Nº Relatório", data.work_order_reference, margin, halfW);
   drawField("Data", data.report_date ? new Date(data.report_date).toLocaleDateString("pt-PT") : "", margin + halfW, halfW);
   y += 14;
-  drawField("Tipo de Manutenção", isElectricity ? "Eletricidade" : "Climatização", margin, halfW);
+  drawField("Tipo de Manutencao", isElectricity ? "Eletricidade" : "Climatizacao", margin, halfW);
   drawField("Prioridade", "", margin + halfW, halfW);
   y += 14;
 
   // === TECHNICIAN ===
-  drawSectionHeader("👤", "Dados do Técnico");
-  drawField("Nome do Técnico", data.technician_name || "", margin, halfW);
-  drawField("ID / Nº Funcionário", data.technician_id || "", margin + halfW, halfW);
+  drawSectionHeader("Dados do Tecnico");
+  drawField("Nome do Tecnico", data.technician_name || "", margin, halfW);
+  drawField("ID / No Funcionario", data.technician_id || "", margin + halfW, halfW);
   y += 14;
   drawField("Supervisor", data.supervisor_name || "", margin, halfW);
   y += 14;
-  drawField("Hora de Início", data.start_time || "", margin, halfW);
+  drawField("Hora de Inicio", data.start_time || "", margin, halfW);
   drawField("Hora de Fim", data.end_time || "", margin + halfW, halfW);
   y += 14;
 
   // === LOCATION ===
-  drawSectionHeader("📍", "Localização & Equipamento");
-  drawField("Edifício", data.building || "", margin, halfW);
+  drawSectionHeader("Localizacao & Equipamento");
+  drawField("Edificio", data.building || "", margin, halfW);
   drawField("Piso / Zona", data.floor_number || "", margin + halfW, halfW);
   y += 14;
-  drawField("Localização Específica", data.specific_location || "", margin, contentWidth);
+  drawField("Localizacao Especifica", data.specific_location || "", margin, contentWidth);
   y += 14;
   drawField("Equipamento", data.equipment_name || "", margin, halfW);
-  drawField("Nº Série", data.equipment_serial || "", margin + halfW, halfW);
+  drawField("No Serie", data.equipment_serial || "", margin + halfW, halfW);
   y += 14;
-  drawField("Designação", data.designation || "", margin, halfW);
-  drawField("Nº Série", data.designation_serial || "", margin + halfW, halfW);
+  drawField("Designacao", data.designation || "", margin, halfW);
+  drawField("No Serie", data.designation_serial || "", margin + halfW, halfW);
   y += 14;
 
   // === CHECKLIST ===
-  drawSectionHeader("✅", `Checklist de Inspeção ${isElectricity ? "Elétrica" : "AVAC"}`);
+  drawSectionHeader(`Checklist de Inspecao ${isElectricity ? "Eletrica" : "AVAC"}`);
   for (const item of data.checklist_items) {
     checkPageBreak(14);
-    const check = item.checked ? "☑" : "☐";
+    const check = item.checked ? "[X]" : "[ ]";
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     doc.text(`${check} ${item.label}`, margin + 2, y);
@@ -141,14 +141,14 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
 
   // === MEASUREMENTS ===
   checkPageBreak(30);
-  drawSectionHeader("📏", `Medições ${isElectricity ? "Elétricas" : "AVAC"}`);
+  drawSectionHeader(`Medicoes ${isElectricity ? "Eletricas" : "AVAC"}`);
   
   // Table header
   doc.setFillColor(230, 235, 245);
   doc.rect(margin, y - 3, contentWidth, 8, "F");
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
-  doc.text("Parâmetro", margin + 3, y + 2);
+  doc.text("Parametro", margin + 3, y + 2);
   doc.text("Valor", margin + contentWidth * 0.55, y + 2);
   doc.text("Unidade", margin + contentWidth * 0.8, y + 2);
   y += 10;
@@ -158,7 +158,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.text(m.parameter, margin + 3, y);
-    doc.text(m.value || "—", margin + contentWidth * 0.55, y);
+    doc.text(m.value || "-", margin + contentWidth * 0.55, y);
     doc.text(m.unit, margin + contentWidth * 0.8, y);
     doc.setDrawColor(230, 230, 230);
     doc.line(margin, y + 2, margin + contentWidth, y + 2);
@@ -169,11 +169,11 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   // === MATERIALS ===
   if (data.materials.length > 0) {
     checkPageBreak(20);
-    drawSectionHeader("🔧", "Materiais Utilizados");
+    drawSectionHeader("Materiais Utilizados");
     for (const mat of data.materials) {
       checkPageBreak(8);
       doc.setFontSize(9);
-      doc.text(`• ${mat.description} — Qtd: ${mat.quantity} ${mat.unit}`, margin + 3, y);
+      doc.text(`- ${mat.description} - Qtd: ${mat.quantity} ${mat.unit}`, margin + 3, y);
       y += 7;
     }
     y += 5;
@@ -181,12 +181,12 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
 
   // === OBSERVATIONS ===
   checkPageBreak(25);
-  drawSectionHeader("📝", "Observações & Recomendações");
+  drawSectionHeader("Observacoes & Recomendacoes");
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   if (data.general_observations) {
     doc.setFont("helvetica", "bold");
-    doc.text("Observações Gerais:", margin, y);
+    doc.text("Observacoes Gerais:", margin, y);
     y += 5;
     doc.setFont("helvetica", "normal");
     const obsLines = doc.splitTextToSize(data.general_observations, contentWidth);
@@ -196,7 +196,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   if (data.recommendations) {
     checkPageBreak(15);
     doc.setFont("helvetica", "bold");
-    doc.text("Recomendações:", margin, y);
+    doc.text("Recomendacoes:", margin, y);
     y += 5;
     doc.setFont("helvetica", "normal");
     const recLines = doc.splitTextToSize(data.recommendations, contentWidth);
@@ -206,32 +206,38 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
 
   // === APPROVAL ===
   checkPageBreak(35);
-  drawSectionHeader("✔️", "Aprovação & Seguimento");
-  drawField("Próxima Manutenção", data.next_maintenance || "", margin, halfW);
+  drawSectionHeader("Aprovacao & Seguimento");
+  drawField("Proxima Manutencao", data.next_maintenance || "", margin, halfW);
   y += 14;
   drawField("Aprovado por", data.approved_by_name || "", margin, halfW);
-  drawField("Data de Aprovação", data.approval_date ? new Date(data.approval_date).toLocaleDateString("pt-PT") : "", margin + halfW, halfW);
+  drawField("Data de Aprovacao", data.approval_date ? new Date(data.approval_date).toLocaleDateString("pt-PT") : "", margin + halfW, halfW);
   y += 14;
 
   // === SIGNATURES ===
   checkPageBreak(45);
-  drawSectionHeader("✍️", "Assinaturas");
+  drawSectionHeader("Assinaturas");
   
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
-  doc.text("Assinatura do Técnico", margin, y);
+  doc.text("Assinatura do Tecnico", margin, y);
   doc.text("Assinatura do Supervisor", margin + halfW, y);
   y += 5;
 
   if (data.technician_signature) {
     try {
-      doc.addImage(data.technician_signature, "PNG", margin, y, 70, 25);
-    } catch (e) { /* ignore */ }
+      const format = data.technician_signature.includes("image/jpeg") ? "JPEG" : "PNG";
+      doc.addImage(data.technician_signature, format, margin, y, 70, 25);
+    } catch (e) {
+      console.error("Error adding technician signature:", e);
+    }
   }
   if (data.supervisor_signature) {
     try {
-      doc.addImage(data.supervisor_signature, "PNG", margin + halfW, y, 70, 25);
-    } catch (e) { /* ignore */ }
+      const format = data.supervisor_signature.includes("image/jpeg") ? "JPEG" : "PNG";
+      doc.addImage(data.supervisor_signature, format, margin + halfW, y, 70, 25);
+    } catch (e) {
+      console.error("Error adding supervisor signature:", e);
+    }
   }
   y += 30;
 
