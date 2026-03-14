@@ -225,13 +225,19 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
 
   if (data.technician_signature) {
     try {
-      doc.addImage(data.technician_signature, "PNG", margin, y, 70, 25);
-    } catch (e) { /* ignore */ }
+      const format = data.technician_signature.includes("image/jpeg") ? "JPEG" : "PNG";
+      doc.addImage(data.technician_signature, format, margin, y, 70, 25);
+    } catch (e) {
+      console.error("Error adding technician signature:", e);
+    }
   }
   if (data.supervisor_signature) {
     try {
-      doc.addImage(data.supervisor_signature, "PNG", margin + halfW, y, 70, 25);
-    } catch (e) { /* ignore */ }
+      const format = data.supervisor_signature.includes("image/jpeg") ? "JPEG" : "PNG";
+      doc.addImage(data.supervisor_signature, format, margin + halfW, y, 70, 25);
+    } catch (e) {
+      console.error("Error adding supervisor signature:", e);
+    }
   }
   y += 30;
 
