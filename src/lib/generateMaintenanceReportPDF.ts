@@ -173,7 +173,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
     for (const mat of data.materials) {
       checkPageBreak(8);
       doc.setFontSize(9);
-      doc.text(`• ${mat.description} — Qtd: ${mat.quantity} ${mat.unit}`, margin + 3, y);
+      doc.text(`- ${mat.description} - Qtd: ${mat.quantity} ${mat.unit}`, margin + 3, y);
       y += 7;
     }
     y += 5;
