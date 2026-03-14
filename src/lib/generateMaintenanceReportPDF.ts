@@ -169,7 +169,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   // === MATERIALS ===
   if (data.materials.length > 0) {
     checkPageBreak(20);
-    drawSectionHeader("🔧", "Materiais Utilizados");
+    drawSectionHeader("Materiais Utilizados");
     for (const mat of data.materials) {
       checkPageBreak(8);
       doc.setFontSize(9);
