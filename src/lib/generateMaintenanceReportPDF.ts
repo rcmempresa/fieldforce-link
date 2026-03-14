@@ -120,10 +120,10 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   y += 14;
 
   // === CHECKLIST ===
-  drawSectionHeader("✅", `Checklist de Inspeção ${isElectricity ? "Elétrica" : "AVAC"}`);
+  drawSectionHeader(`Checklist de Inspecao ${isElectricity ? "Eletrica" : "AVAC"}`);
   for (const item of data.checklist_items) {
     checkPageBreak(14);
-    const check = item.checked ? "☑" : "☐";
+    const check = item.checked ? "[X]" : "[ ]";
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     doc.text(`${check} ${item.label}`, margin + 2, y);
