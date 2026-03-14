@@ -101,7 +101,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   y += 14;
   drawField("Supervisor", data.supervisor_name || "", margin, halfW);
   y += 14;
-  drawField("Hora de Início", data.start_time || "", margin, halfW);
+  drawField("Hora de Inicio", data.start_time || "", margin, halfW);
   drawField("Hora de Fim", data.end_time || "", margin + halfW, halfW);
   y += 14;
 
