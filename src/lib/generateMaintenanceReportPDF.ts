@@ -148,7 +148,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   doc.rect(margin, y - 3, contentWidth, 8, "F");
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
-  doc.text("Parâmetro", margin + 3, y + 2);
+  doc.text("Parametro", margin + 3, y + 2);
   doc.text("Valor", margin + contentWidth * 0.55, y + 2);
   doc.text("Unidade", margin + contentWidth * 0.8, y + 2);
   y += 10;
