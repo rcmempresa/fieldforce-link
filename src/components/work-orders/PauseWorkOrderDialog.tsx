@@ -21,6 +21,7 @@ const pauseReasons = [
   { value: "enviado_oficina", label: "Enviado para a oficina" },
   { value: "enviado_orcamento", label: "Enviado Orçamento" },
   { value: "assinatura_gerente", label: "Assinatura do Gerente" },
+  { value: "saida_temporaria", label: "Vou sair, mas irei voltar" },
 ];
 
 export function PauseWorkOrderDialog({
@@ -79,7 +80,7 @@ export function PauseWorkOrderDialog({
         .update({
           end_time: now.toISOString(),
           duration_hours: durationHours,
-          pause_reason: selectedReason as "falta_material" | "enviado_oficina" | "enviado_orcamento" | "assinatura_gerente",
+          pause_reason: selectedReason as "falta_material" | "enviado_oficina" | "enviado_orcamento" | "assinatura_gerente" | "saida_temporaria",
           note: selectedReason === "falta_material" ? `Material em falta: ${missingMaterial}` : null,
         })
         .eq("id", timeEntryId);

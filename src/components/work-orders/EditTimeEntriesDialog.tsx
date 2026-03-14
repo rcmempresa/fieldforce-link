@@ -167,6 +167,7 @@ export function EditTimeEntriesDialog({
       enviado_oficina: "Enviado para a oficina",
       enviado_orcamento: "Enviado Orçamento",
       assinatura_gerente: "Assinatura do Gerente",
+      saida_temporaria: "Vou sair, mas irei voltar",
     };
     
     return labels[reason] || reason;

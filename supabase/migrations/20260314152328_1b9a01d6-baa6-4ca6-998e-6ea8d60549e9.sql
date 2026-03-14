@@ -1,0 +1,1 @@
+ALTER TYPE public.pause_reason ADD VALUE 'saida_temporaria';

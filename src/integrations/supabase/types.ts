@@ -716,6 +716,7 @@ export type Database = {
         | "enviado_oficina"
         | "enviado_orcamento"
         | "assinatura_gerente"
+        | "saida_temporaria"
       user_role: "manager" | "employee" | "client"
       work_order_priority: "low" | "medium" | "high" | "urgent"
       work_order_service_type:
@@ -864,6 +865,7 @@ export const Constants = {
         "enviado_oficina",
         "enviado_orcamento",
         "assinatura_gerente",
+        "saida_temporaria",
       ],
       user_role: ["manager", "employee", "client"],
       work_order_priority: ["low", "medium", "high", "urgent"],
