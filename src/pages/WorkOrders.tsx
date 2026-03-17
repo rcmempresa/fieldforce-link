@@ -215,7 +215,7 @@ export default function WorkOrders() {
           <Button variant="outline" size="icon" onClick={() => navigate("/")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-3xl font-bold">Ordens de Trabalho</h1>
+          <h1 className="text-3xl font-bold text-primary">Ordens de Trabalho</h1>
         </div>
         
         <Card>
