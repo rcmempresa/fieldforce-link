@@ -1,1 +1,4 @@
 project_id = "iusvbjfypjclulylqxmx"
+
+[functions.send-recovery-email]
+verify_jwt = false
