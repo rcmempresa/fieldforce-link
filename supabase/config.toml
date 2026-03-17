@@ -2,3 +2,24 @@ project_id = "iusvbjfypjclulylqxmx"
 
 [functions.send-recovery-email]
 verify_jwt = false
+
+[functions.create-user]
+verify_jwt = false
+
+[functions.delete-user]
+verify_jwt = false
+
+[functions.get-user-email]
+verify_jwt = false
+
+[functions.list-pending-users]
+verify_jwt = false
+
+[functions.list-users]
+verify_jwt = false
+
+[functions.regenerate-work-order-pdf]
+verify_jwt = false
+
+[functions.send-notification-email]
+verify_jwt = false
