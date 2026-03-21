@@ -13,6 +13,7 @@ interface EditEquipmentDialogProps {
   equipment: {
     id: string;
     name: string;
+    brand: string | null;
     model: string | null;
     serial_number: string | null;
     location: string | null;
@@ -30,6 +31,7 @@ export function EditEquipmentDialog({
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
+    brand: "",
     model: "",
     serial_number: "",
     location: "",
@@ -41,6 +43,7 @@ export function EditEquipmentDialog({
     if (open && equipment) {
       setFormData({
         name: equipment.name || "",
+        brand: (equipment as any).brand || "",
         model: equipment.model || "",
         serial_number: equipment.serial_number || "",
         location: equipment.location || "",
@@ -57,11 +60,12 @@ export function EditEquipmentDialog({
       .from("equipments")
       .update({
         name: formData.name,
+        brand: formData.brand || null,
         model: formData.model || null,
         serial_number: formData.serial_number || null,
         location: formData.location || null,
         notes: formData.notes || null,
-      })
+      } as any)
       .eq("id", equipment.id);
 
     setLoading(false);
@@ -101,6 +105,15 @@ export function EditEquipmentDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
+              <Label htmlFor="brand">Marca</Label>
+              <Input
+                id="brand"
+                value={formData.brand}
+                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="model">Modelo</Label>
               <Input
                 id="model"
@@ -108,7 +121,9 @@ export function EditEquipmentDialog({
                 onChange={(e) => setFormData({ ...formData, model: e.target.value })}
               />
             </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="serial_number">Número de Série</Label>
               <Input
@@ -117,6 +132,15 @@ export function EditEquipmentDialog({
                 onChange={(e) =>
                   setFormData({ ...formData, serial_number: e.target.value })
                 }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="location">Localização</Label>
+              <Input
+                id="location"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
               />
             </div>
           </div>

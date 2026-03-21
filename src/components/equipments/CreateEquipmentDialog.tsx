@@ -23,6 +23,7 @@ export function CreateEquipmentDialog({
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
+    brand: "",
     model: "",
     serial_number: "",
     location: "",
@@ -36,6 +37,7 @@ export function CreateEquipmentDialog({
     if (!open) {
       setFormData({
         name: "",
+        brand: "",
         model: "",
         serial_number: "",
         location: "",
@@ -50,12 +52,13 @@ export function CreateEquipmentDialog({
 
     const { error } = await supabase.from("equipments").insert({
       name: formData.name,
+      brand: formData.brand || null,
       model: formData.model || null,
       serial_number: formData.serial_number || null,
       location: formData.location || null,
       notes: formData.notes || null,
       client_id: clientId,
-    });
+    } as any);
 
     setLoading(false);
 
@@ -94,6 +97,15 @@ export function CreateEquipmentDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
+              <Label htmlFor="brand">Marca</Label>
+              <Input
+                id="brand"
+                value={formData.brand}
+                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="model">Modelo</Label>
               <Input
                 id="model"
@@ -101,7 +113,9 @@ export function CreateEquipmentDialog({
                 onChange={(e) => setFormData({ ...formData, model: e.target.value })}
               />
             </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="serial_number">Número de Série</Label>
               <Input
@@ -110,6 +124,15 @@ export function CreateEquipmentDialog({
                 onChange={(e) =>
                   setFormData({ ...formData, serial_number: e.target.value })
                 }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="location">Localização</Label>
+              <Input
+                id="location"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
               />
             </div>
           </div>

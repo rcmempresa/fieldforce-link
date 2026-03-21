@@ -41,6 +41,7 @@ interface WorkOrderWithDetails extends WorkOrder {
 interface Equipment {
   id: string;
   name: string;
+  brand: string | null;
   model: string | null;
   serial_number: string | null;
   location: string | null;
@@ -670,6 +671,12 @@ export default function ClientDashboard() {
                         <CardTitle className="text-base">{equipment.name}</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-2">
+                        {(equipment as any).brand && (
+                          <div className="text-sm">
+                            <span className="text-muted-foreground">Marca:</span>
+                            <p className="font-medium">{(equipment as any).brand}</p>
+                          </div>
+                        )}
                         {equipment.model && (
                           <div className="text-sm">
                             <span className="text-muted-foreground">Modelo:</span>
