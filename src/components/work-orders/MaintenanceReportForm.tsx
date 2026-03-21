@@ -297,7 +297,9 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
   }
 
   const isReadOnly = !canEdit || status === "completed";
-  const TypeIcon = type === "electricity" ? Zap : Wind;
+  const TypeIcon = type === "electricity" ? Zap : type === "cctv" ? Camera : Wind;
+  const typeLabel = type === "electricity" ? "Eletricidade" : type === "cctv" ? "CCTV" : "Climatizacao";
+  const typeColor = type === "electricity" ? "text-yellow-500" : type === "cctv" ? "text-purple-500" : "text-blue-500";
 
   return (
     <div className="space-y-4">
