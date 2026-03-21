@@ -60,11 +60,12 @@ export function EditEquipmentDialog({
       .from("equipments")
       .update({
         name: formData.name,
+        brand: formData.brand || null,
         model: formData.model || null,
         serial_number: formData.serial_number || null,
         location: formData.location || null,
         notes: formData.notes || null,
-      })
+      } as any)
       .eq("id", equipment.id);
 
     setLoading(false);
