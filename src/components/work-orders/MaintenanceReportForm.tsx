@@ -41,7 +41,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
   const supSigRef = useRef<SignatureCanvas>(null);
 
   // Form state
-  const [type, setType] = useState<"electricity" | "hvac">(reportType || "electricity");
+  const [type, setType] = useState<"electricity" | "hvac" | "cctv">(reportType || "electricity");
   const [reportDate, setReportDate] = useState(new Date().toISOString().split("T")[0]);
   const [technicianName, setTechnicianName] = useState("");
   const [technicianId, setTechnicianId] = useState("");
