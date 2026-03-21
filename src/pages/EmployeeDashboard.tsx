@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { ClipboardList, Clock, CheckCircle, CalendarDays, Pause, Play, PlayCircle, Circle, ChevronLeft, ChevronRight, Filter, FileText, Zap, Wind } from "lucide-react";
+import { ClipboardList, Clock, CheckCircle, CalendarDays, Pause, Play, PlayCircle, Circle, ChevronLeft, ChevronRight, Filter, FileText, Zap, Wind, Cog, Camera } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { CompleteWorkOrderDialog } from "@/components/work-orders/CompleteWorkOrderDialog";
 import { PauseWorkOrderDialog } from "@/components/work-orders/PauseWorkOrderDialog";
@@ -21,6 +21,7 @@ import { formatHours } from "@/lib/formatHours";
 import { ptBR } from "date-fns/locale";
 import { Notifications } from "@/components/Notifications";
 import { MaintenanceReportForm } from "@/components/work-orders/MaintenanceReportForm";
+import { GeneratorReportForm } from "@/components/work-orders/GeneratorReportForm";
 
 interface WorkOrder {
   id: string;
@@ -72,7 +73,7 @@ export default function EmployeeDashboard() {
   const [clientFilter, setClientFilter] = useState<string>("all");
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportWorkOrder, setReportWorkOrder] = useState<{ id: string; reference: string } | null>(null);
-  const [reportType, setReportType] = useState<"electricity" | "hvac" | null>(null);
+  const [reportType, setReportType] = useState<"electricity" | "hvac" | "generator" | "cctv" | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -439,7 +440,7 @@ export default function EmployeeDashboard() {
     setEditTimeEntriesDialogOpen(true);
   };
 
-  const handleOpenReport = (workOrderId: string, reference: string, type: "electricity" | "hvac") => {
+  const handleOpenReport = (workOrderId: string, reference: string, type: "electricity" | "hvac" | "generator" | "cctv") => {
     setReportWorkOrder({ id: workOrderId, reference });
     setReportType(type);
     setReportDialogOpen(true);
@@ -461,6 +462,14 @@ export default function EmployeeDashboard() {
         <DropdownMenuItem onClick={() => handleOpenReport(orderId, reference, "hvac")}>
           <Wind className="h-4 w-4 mr-2 text-blue-500" />
           Climatização
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleOpenReport(orderId, reference, "generator")}>
+          <Cog className="h-4 w-4 mr-2 text-emerald-600" />
+          Grupo Gerador
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleOpenReport(orderId, reference, "cctv")}>
+          <Camera className="h-4 w-4 mr-2 text-purple-500" />
+          CCTV
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -978,7 +987,19 @@ export default function EmployeeDashboard() {
 
       <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          {reportWorkOrder && reportType && (
+          {reportWorkOrder && reportType === "generator" && (
+            <GeneratorReportForm
+              workOrderId={reportWorkOrder.id}
+              reportId={null}
+              canEdit={true}
+              onClose={() => {
+                setReportDialogOpen(false);
+                setReportWorkOrder(null);
+                setReportType(null);
+              }}
+            />
+          )}
+          {reportWorkOrder && reportType && reportType !== "generator" && (
             <MaintenanceReportForm
               workOrderId={reportWorkOrder.id}
               reportId={null}
