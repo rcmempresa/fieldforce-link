@@ -70,7 +70,7 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
     }
   };
 
-  const handleCreateReport = (type: "electricity" | "hvac" | "generator") => {
+  const handleCreateReport = (type: string) => {
     setNewReportType(type);
     setEditReportId(null);
     setShowForm(true);
