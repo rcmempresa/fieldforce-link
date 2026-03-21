@@ -311,8 +311,8 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <TypeIcon className={`h-5 w-5 ${type === "electricity" ? "text-yellow-500" : "text-blue-500"}`} />
-            Relatório de {type === "electricity" ? "Eletricidade" : "Climatização"}
+            <TypeIcon className={`h-5 w-5 ${typeColor}`} />
+            Relatório de {typeLabel}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-8">

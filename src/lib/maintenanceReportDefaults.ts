@@ -66,6 +66,36 @@ export const hvacMeasurements: Measurement[] = [
   { parameter: "Consumo energético", value: "", unit: "kW" },
 ];
 
+// === CCTV ===
+
+export const cctvChecklist: ChecklistItem[] = [
+  { label: "Verificacao do estado geral das camaras", checked: false, observation: "" },
+  { label: "Inspecao de lentes e limpeza", checked: false, observation: "" },
+  { label: "Verificacao do posicionamento e angulo das camaras", checked: false, observation: "" },
+  { label: "Teste de qualidade de imagem (diurna e noturna)", checked: false, observation: "" },
+  { label: "Verificacao do DVR/NVR (funcionamento e espaco em disco)", checked: false, observation: "" },
+  { label: "Teste de gravacao e reproducao de imagens", checked: false, observation: "" },
+  { label: "Verificacao de cabos e conexoes (coaxial/rede)", checked: false, observation: "" },
+  { label: "Teste de alimentacao e fontes de energia", checked: false, observation: "" },
+  { label: "Verificacao de conetividade de rede e acesso remoto", checked: false, observation: "" },
+  { label: "Teste de detecao de movimento e alarmes", checked: false, observation: "" },
+  { label: "Verificacao do software de gestao de video (VMS)", checked: false, observation: "" },
+  { label: "Inspecao de caixas de protecao e suportes", checked: false, observation: "" },
+];
+
+export const cctvMeasurements: Measurement[] = [
+  { parameter: "Numero total de camaras", value: "", unit: "" },
+  { parameter: "Camaras operacionais", value: "", unit: "" },
+  { parameter: "Camaras inoperacionais", value: "", unit: "" },
+  { parameter: "Capacidade de disco do DVR/NVR", value: "", unit: "TB" },
+  { parameter: "Espaco utilizado", value: "", unit: "%" },
+  { parameter: "Dias de gravacao disponiveis", value: "", unit: "dias" },
+  { parameter: "Resolucao de gravacao", value: "", unit: "MP" },
+  { parameter: "Taxa de frames", value: "", unit: "fps" },
+  { parameter: "Tensao de alimentacao", value: "", unit: "V" },
+  { parameter: "Largura de banda utilizada", value: "", unit: "Mbps" },
+];
+
 // === GENERATOR (Grupo Gerador) ===
 
 export interface GeneratorData {
