@@ -41,6 +41,7 @@ interface WorkOrderWithDetails extends WorkOrder {
 interface Equipment {
   id: string;
   name: string;
+  brand: string | null;
   model: string | null;
   serial_number: string | null;
   location: string | null;

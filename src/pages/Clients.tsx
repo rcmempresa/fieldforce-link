@@ -32,6 +32,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 interface Equipment {
   id: string;
   name: string;
+  brand: string | null;
   model: string | null;
   serial_number: string | null;
   location: string | null;
