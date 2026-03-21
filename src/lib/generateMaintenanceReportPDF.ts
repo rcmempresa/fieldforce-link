@@ -33,6 +33,8 @@ interface ReportData {
 export function generateMaintenanceReportPDF(data: ReportData): Blob {
   const doc = new jsPDF();
   const isElectricity = data.report_type === "electricity";
+  const isCctv = data.report_type === "cctv";
+  const typeLabel = isElectricity ? "Eletricidade" : isCctv ? "CCTV" : "Climatizacao";
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 15;
   const contentWidth = pageWidth - margin * 2;
