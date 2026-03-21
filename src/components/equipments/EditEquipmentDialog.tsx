@@ -43,6 +43,7 @@ export function EditEquipmentDialog({
     if (open && equipment) {
       setFormData({
         name: equipment.name || "",
+        brand: (equipment as any).brand || "",
         model: equipment.model || "",
         serial_number: equipment.serial_number || "",
         location: equipment.location || "",
