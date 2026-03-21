@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Plus, Zap, Wind, Eye, Trash2, Download } from "lucide-react";
+import { FileText, Plus, Zap, Wind, Eye, Trash2, Download, Cog } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MaintenanceReportForm } from "./MaintenanceReportForm";
+import { GeneratorReportForm } from "./GeneratorReportForm";
 
 interface MaintenanceReport {
   id: string;
@@ -33,7 +34,7 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editReportId, setEditReportId] = useState<string | null>(null);
-  const [newReportType, setNewReportType] = useState<"electricity" | "hvac" | null>(null);
+  const [newReportType, setNewReportType] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -69,15 +70,15 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
     }
   };
 
-  const handleCreateReport = (type: "electricity" | "hvac") => {
+  const handleCreateReport = (type: string) => {
     setNewReportType(type);
     setEditReportId(null);
     setShowForm(true);
   };
 
-  const handleViewReport = (reportId: string) => {
+  const handleViewReport = (reportId: string, reportType: string) => {
     setEditReportId(reportId);
-    setNewReportType(null);
+    setNewReportType(reportType as any);
     setShowForm(true);
   };
 
@@ -91,19 +92,32 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
     }
   };
 
+  const closeForm = () => {
+    setShowForm(false);
+    setEditReportId(null);
+    setNewReportType(null);
+    fetchReports();
+  };
+
   if (showForm) {
+    if (newReportType === "generator") {
+      return (
+        <GeneratorReportForm
+          workOrderId={workOrderId}
+          reportId={editReportId}
+          canEdit={canEdit}
+          onClose={closeForm}
+        />
+      );
+    }
+
     return (
       <MaintenanceReportForm
         workOrderId={workOrderId}
         reportId={editReportId}
-        reportType={newReportType}
+        reportType={newReportType as "electricity" | "hvac" | null}
         canEdit={canEdit}
-        onClose={() => {
-          setShowForm(false);
-          setEditReportId(null);
-          setNewReportType(null);
-          fetchReports();
-        }}
+        onClose={closeForm}
       />
     );
   }
@@ -133,6 +147,10 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
                   <Wind className="h-4 w-4 mr-2 text-blue-500" />
                   Climatização
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleCreateReport("generator")}>
+                  <Cog className="h-4 w-4 mr-2 text-emerald-600" />
+                  Grupo Gerador
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -157,12 +175,14 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
                 <div className="flex items-center gap-3">
                   {report.report_type === "electricity" ? (
                     <Zap className="h-5 w-5 text-yellow-500" />
+                  ) : report.report_type === "generator" ? (
+                    <Cog className="h-5 w-5 text-emerald-600" />
                   ) : (
                     <Wind className="h-5 w-5 text-blue-500" />
                   )}
                   <div>
                     <p className="font-medium text-sm">
-                      {report.report_type === "electricity" ? "Eletricidade" : "Climatização"}
+                      {report.report_type === "electricity" ? "Eletricidade" : report.report_type === "generator" ? "Grupo Gerador" : "Climatização"}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {report.report_date
@@ -181,7 +201,7 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
                       <Download className="h-4 w-4" />
                     </Button>
                   )}
-                  <Button size="icon" variant="ghost" onClick={() => handleViewReport(report.id)}>
+                  <Button size="icon" variant="ghost" onClick={() => handleViewReport(report.id, report.report_type)}>
                     <Eye className="h-4 w-4" />
                   </Button>
                   {canEdit && report.status === "draft" && (
