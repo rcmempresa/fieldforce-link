@@ -17,6 +17,8 @@ import {
   electricityMeasurements,
   hvacChecklist,
   hvacMeasurements,
+  cctvChecklist,
+  cctvMeasurements,
 } from "@/lib/maintenanceReportDefaults";
 import {
   generateMaintenanceReportPDF,
