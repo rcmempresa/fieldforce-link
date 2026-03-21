@@ -92,7 +92,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   drawField("Nº Relatório", data.work_order_reference, margin, halfW);
   drawField("Data", data.report_date ? new Date(data.report_date).toLocaleDateString("pt-PT") : "", margin + halfW, halfW);
   y += 14;
-  drawField("Tipo de Manutencao", isElectricity ? "Eletricidade" : "Climatizacao", margin, halfW);
+  drawField("Tipo de Manutencao", typeLabel, margin, halfW);
   drawField("Prioridade", "", margin + halfW, halfW);
   y += 14;
 
