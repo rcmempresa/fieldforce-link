@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Plus, Zap, Wind, Eye, Trash2, Download } from "lucide-react";
+import { FileText, Plus, Zap, Wind, Eye, Trash2, Download, Cog } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MaintenanceReportForm } from "./MaintenanceReportForm";
+import { GeneratorReportForm } from "./GeneratorReportForm";
 
 interface MaintenanceReport {
   id: string;
