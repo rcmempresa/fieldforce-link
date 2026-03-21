@@ -37,6 +37,7 @@ export function CreateEquipmentDialog({
     if (!open) {
       setFormData({
         name: "",
+        brand: "",
         model: "",
         serial_number: "",
         location: "",
