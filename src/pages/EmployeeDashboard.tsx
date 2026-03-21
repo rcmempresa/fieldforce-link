@@ -987,7 +987,19 @@ export default function EmployeeDashboard() {
 
       <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          {reportWorkOrder && reportType && (
+          {reportWorkOrder && reportType === "generator" && (
+            <GeneratorReportForm
+              workOrderId={reportWorkOrder.id}
+              reportId={null}
+              canEdit={true}
+              onClose={() => {
+                setReportDialogOpen(false);
+                setReportWorkOrder(null);
+                setReportType(null);
+              }}
+            />
+          )}
+          {reportWorkOrder && reportType && reportType !== "generator" && (
             <MaintenanceReportForm
               workOrderId={reportWorkOrder.id}
               reportId={null}
