@@ -685,6 +685,12 @@ export default function Clients() {
                                     <div className="flex-1 space-y-2">
                                       <div className="font-semibold">{equipment.name}</div>
                                       <div className="flex flex-col gap-1.5 text-sm text-muted-foreground">
+                                        {(equipment as any).brand && (
+                                          <div className="flex items-start gap-2">
+                                            <span className="font-medium min-w-[80px]">Marca:</span>
+                                            <span className="flex-1">{(equipment as any).brand}</span>
+                                          </div>
+                                        )}
                                         {equipment.model && (
                                           <div className="flex items-start gap-2">
                                             <span className="font-medium min-w-[80px]">Modelo:</span>
