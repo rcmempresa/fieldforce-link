@@ -398,7 +398,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
           {/* Checklist */}
           <section className="space-y-4">
             <h3 className="text-sm font-semibold text-primary border-b pb-2">
-              ✅ Checklist de Inspeção {type === "electricity" ? "Elétrica" : "AVAC"}
+              ✅ Checklist de Inspeção {type === "electricity" ? "Elétrica" : type === "cctv" ? "CCTV" : "AVAC"}
             </h3>
             <div className="space-y-3">
               {checklist.map((item, idx) => (
