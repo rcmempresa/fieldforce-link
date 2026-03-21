@@ -196,11 +196,15 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
                   <Badge variant={report.status === "completed" ? "default" : "secondary"}>
                     {report.status === "completed" ? "Concluído" : "Rascunho"}
                   </Badge>
-                  {report.pdf_url && (
-                    <Button size="icon" variant="ghost" onClick={() => handleDownloadPdf(report.pdf_url!)}>
-                      <Download className="h-4 w-4" />
-                    </Button>
-                  )}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    disabled={!report.pdf_url}
+                    title={report.pdf_url ? "Descarregar PDF" : "PDF não disponível"}
+                    onClick={() => report.pdf_url && handleDownloadPdf(report.pdf_url)}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
                   <Button size="icon" variant="ghost" onClick={() => handleViewReport(report.id, report.report_type)}>
                     <Eye className="h-4 w-4" />
                   </Button>
