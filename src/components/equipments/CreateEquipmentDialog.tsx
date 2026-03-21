@@ -97,6 +97,15 @@ export function CreateEquipmentDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
+              <Label htmlFor="brand">Marca</Label>
+              <Input
+                id="brand"
+                value={formData.brand}
+                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="model">Modelo</Label>
               <Input
                 id="model"
@@ -104,7 +113,9 @@ export function CreateEquipmentDialog({
                 onChange={(e) => setFormData({ ...formData, model: e.target.value })}
               />
             </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="serial_number">Número de Série</Label>
               <Input
@@ -113,6 +124,15 @@ export function CreateEquipmentDialog({
                 onChange={(e) =>
                   setFormData({ ...formData, serial_number: e.target.value })
                 }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="location">Localização</Label>
+              <Input
+                id="location"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
               />
             </div>
           </div>
