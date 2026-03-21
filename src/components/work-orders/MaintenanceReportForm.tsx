@@ -426,7 +426,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
           {/* Measurements */}
           <section className="space-y-4">
             <h3 className="text-sm font-semibold text-primary border-b pb-2">
-              📏 Medições {type === "electricity" ? "Elétricas" : "AVAC"}
+              📏 Medições {type === "electricity" ? "Elétricas" : type === "cctv" ? "CCTV" : "AVAC"}
             </h3>
             <div className="space-y-2">
               {measurements.map((m, idx) => (

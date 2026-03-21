@@ -115,7 +115,7 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
       <MaintenanceReportForm
         workOrderId={workOrderId}
         reportId={editReportId}
-        reportType={newReportType as "electricity" | "hvac" | null}
+        reportType={newReportType as "electricity" | "hvac" | "cctv" | null}
         canEdit={canEdit}
         onClose={closeForm}
       />

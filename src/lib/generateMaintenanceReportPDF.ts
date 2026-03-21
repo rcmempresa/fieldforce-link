@@ -267,7 +267,7 @@ export async function uploadMaintenanceReportPDF(
 ): Promise<string> {
   const typeMap: Record<string, string> = { electricity: "eletricidade", hvac: "climatizacao", cctv: "cctv", generator: "gerador" };
   const typeLabel2 = typeMap[reportType] || reportType;
-  const fileName = `${reference}_relatorio_${typeLabel}_${Date.now()}.pdf`;
+  const fileName = `${reference}_relatorio_${typeLabel2}_${Date.now()}.pdf`;
   const filePath = `${workOrderId}/${fileName}`;
 
   const { error } = await supabase.storage
