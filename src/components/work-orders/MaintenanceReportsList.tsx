@@ -175,12 +175,14 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
                 <div className="flex items-center gap-3">
                   {report.report_type === "electricity" ? (
                     <Zap className="h-5 w-5 text-yellow-500" />
+                  ) : report.report_type === "generator" ? (
+                    <Cog className="h-5 w-5 text-emerald-600" />
                   ) : (
                     <Wind className="h-5 w-5 text-blue-500" />
                   )}
                   <div>
                     <p className="font-medium text-sm">
-                      {report.report_type === "electricity" ? "Eletricidade" : "Climatização"}
+                      {report.report_type === "electricity" ? "Eletricidade" : report.report_type === "generator" ? "Grupo Gerador" : "Climatização"}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {report.report_date
