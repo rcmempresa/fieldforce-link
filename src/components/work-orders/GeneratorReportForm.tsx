@@ -20,10 +20,8 @@ import {
   generatorElectricalChecklist,
   generatorElectricalMeasurements,
 } from "@/lib/maintenanceReportDefaults";
-import {
-  generateGeneratorReportPDF,
-  uploadMaintenanceReportPDF,
-} from "@/lib/generateMaintenanceReportPDF";
+import { generateGeneratorReportPDF } from "@/lib/generateGeneratorReportPDF";
+import { uploadMaintenanceReportPDF } from "@/lib/generateMaintenanceReportPDF";
 
 interface Props {
   workOrderId: string;
