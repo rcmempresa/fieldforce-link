@@ -31,6 +31,7 @@ export function EditEquipmentDialog({
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
+    brand: "",
     model: "",
     serial_number: "",
     location: "",
