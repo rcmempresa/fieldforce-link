@@ -52,12 +52,13 @@ export function CreateEquipmentDialog({
 
     const { error } = await supabase.from("equipments").insert({
       name: formData.name,
+      brand: formData.brand || null,
       model: formData.model || null,
       serial_number: formData.serial_number || null,
       location: formData.location || null,
       notes: formData.notes || null,
       client_id: clientId,
-    });
+    } as any);
 
     setLoading(false);
 
