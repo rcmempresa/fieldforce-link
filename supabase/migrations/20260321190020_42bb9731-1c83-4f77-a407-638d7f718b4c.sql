@@ -1,0 +1,2 @@
+ALTER TABLE public.maintenance_reports DROP CONSTRAINT IF EXISTS maintenance_reports_report_type_check;
+ALTER TABLE public.maintenance_reports ADD CONSTRAINT maintenance_reports_report_type_check CHECK (report_type IN ('electricity', 'hvac', 'generator', 'cctv'));

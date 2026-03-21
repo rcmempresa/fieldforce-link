@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, FileDown, Plus, Trash2, Zap, Wind } from "lucide-react";
+import { ArrowLeft, Save, FileDown, Plus, Trash2, Zap, Wind, Camera } from "lucide-react";
 import SignatureCanvas from "react-signature-canvas";
 import {
   ChecklistItem,
@@ -17,6 +17,8 @@ import {
   electricityMeasurements,
   hvacChecklist,
   hvacMeasurements,
+  cctvChecklist,
+  cctvMeasurements,
 } from "@/lib/maintenanceReportDefaults";
 import {
   generateMaintenanceReportPDF,
@@ -26,7 +28,7 @@ import {
 interface Props {
   workOrderId: string;
   reportId: string | null;
-  reportType: "electricity" | "hvac" | null;
+  reportType: "electricity" | "hvac" | "cctv" | null;
   canEdit: boolean;
   onClose: () => void;
 }
@@ -39,7 +41,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
   const supSigRef = useRef<SignatureCanvas>(null);
 
   // Form state
-  const [type, setType] = useState<"electricity" | "hvac">(reportType || "electricity");
+  const [type, setType] = useState<"electricity" | "hvac" | "cctv">(reportType || "electricity");
   const [reportDate, setReportDate] = useState(new Date().toISOString().split("T")[0]);
   const [technicianName, setTechnicianName] = useState("");
   const [technicianId, setTechnicianId] = useState("");
@@ -100,8 +102,10 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
   const initDefaults = () => {
     const t = reportType || "electricity";
     setType(t);
-    setChecklist(t === "electricity" ? [...electricityChecklist] : [...hvacChecklist]);
-    setMeasurements(t === "electricity" ? [...electricityMeasurements] : [...hvacMeasurements]);
+    const checklistMap = { electricity: electricityChecklist, hvac: hvacChecklist, cctv: cctvChecklist };
+    const measurementMap = { electricity: electricityMeasurements, hvac: hvacMeasurements, cctv: cctvMeasurements };
+    setChecklist([...(checklistMap[t] || electricityChecklist)]);
+    setMeasurements([...(measurementMap[t] || electricityMeasurements)]);
   };
 
   const loadReport = async () => {
@@ -293,7 +297,9 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
   }
 
   const isReadOnly = !canEdit || status === "completed";
-  const TypeIcon = type === "electricity" ? Zap : Wind;
+  const TypeIcon = type === "electricity" ? Zap : type === "cctv" ? Camera : Wind;
+  const typeLabel = type === "electricity" ? "Eletricidade" : type === "cctv" ? "CCTV" : "Climatizacao";
+  const typeColor = type === "electricity" ? "text-yellow-500" : type === "cctv" ? "text-purple-500" : "text-blue-500";
 
   return (
     <div className="space-y-4">
@@ -305,8 +311,8 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <TypeIcon className={`h-5 w-5 ${type === "electricity" ? "text-yellow-500" : "text-blue-500"}`} />
-            Relatório de {type === "electricity" ? "Eletricidade" : "Climatização"}
+            <TypeIcon className={`h-5 w-5 ${typeColor}`} />
+            Relatório de {typeLabel}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-8">
@@ -392,7 +398,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
           {/* Checklist */}
           <section className="space-y-4">
             <h3 className="text-sm font-semibold text-primary border-b pb-2">
-              ✅ Checklist de Inspeção {type === "electricity" ? "Elétrica" : "AVAC"}
+              ✅ Checklist de Inspeção {type === "electricity" ? "Elétrica" : type === "cctv" ? "CCTV" : "AVAC"}
             </h3>
             <div className="space-y-3">
               {checklist.map((item, idx) => (
@@ -420,7 +426,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
           {/* Measurements */}
           <section className="space-y-4">
             <h3 className="text-sm font-semibold text-primary border-b pb-2">
-              📏 Medições {type === "electricity" ? "Elétricas" : "AVAC"}
+              📏 Medições {type === "electricity" ? "Elétricas" : type === "cctv" ? "CCTV" : "AVAC"}
             </h3>
             <div className="space-y-2">
               {measurements.map((m, idx) => (

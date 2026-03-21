@@ -33,6 +33,8 @@ interface ReportData {
 export function generateMaintenanceReportPDF(data: ReportData): Blob {
   const doc = new jsPDF();
   const isElectricity = data.report_type === "electricity";
+  const isCctv = data.report_type === "cctv";
+  const typeLabel = isElectricity ? "Eletricidade" : isCctv ? "CCTV" : "Climatizacao";
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 15;
   const contentWidth = pageWidth - margin * 2;
@@ -74,7 +76,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   // === HEADER ===
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  const title = isElectricity ? "Folha de Manutencao - Eletricidade" : "Folha de Manutencao - Climatizacao";
+  const title = `Folha de Manutencao - ${typeLabel}`;
   doc.text(title, pageWidth / 2, y, { align: "center" });
   y += 6;
   doc.setFontSize(9);
@@ -90,7 +92,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   drawField("Nº Relatório", data.work_order_reference, margin, halfW);
   drawField("Data", data.report_date ? new Date(data.report_date).toLocaleDateString("pt-PT") : "", margin + halfW, halfW);
   y += 14;
-  drawField("Tipo de Manutencao", isElectricity ? "Eletricidade" : "Climatizacao", margin, halfW);
+  drawField("Tipo de Manutencao", typeLabel, margin, halfW);
   drawField("Prioridade", "", margin + halfW, halfW);
   y += 14;
 
@@ -120,7 +122,8 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   y += 14;
 
   // === CHECKLIST ===
-  drawSectionHeader(`Checklist de Inspecao ${isElectricity ? "Eletrica" : "AVAC"}`);
+  const checklistLabel = isElectricity ? "Eletrica" : isCctv ? "CCTV" : "AVAC";
+  drawSectionHeader(`Checklist de Inspecao ${checklistLabel}`);
   for (const item of data.checklist_items) {
     checkPageBreak(14);
     const check = item.checked ? "[X]" : "[ ]";
@@ -141,7 +144,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
 
   // === MEASUREMENTS ===
   checkPageBreak(30);
-  drawSectionHeader(`Medicoes ${isElectricity ? "Eletricas" : "AVAC"}`);
+  drawSectionHeader(`Medicoes ${checklistLabel}`);
   
   // Table header
   doc.setFillColor(230, 235, 245);
@@ -262,8 +265,9 @@ export async function uploadMaintenanceReportPDF(
   reference: string,
   userId: string
 ): Promise<string> {
-  const typeLabel = reportType === "electricity" ? "eletricidade" : "climatizacao";
-  const fileName = `${reference}_relatorio_${typeLabel}_${Date.now()}.pdf`;
+  const typeMap: Record<string, string> = { electricity: "eletricidade", hvac: "climatizacao", cctv: "cctv", generator: "gerador" };
+  const typeLabel2 = typeMap[reportType] || reportType;
+  const fileName = `${reference}_relatorio_${typeLabel2}_${Date.now()}.pdf`;
   const filePath = `${workOrderId}/${fileName}`;
 
   const { error } = await supabase.storage

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Plus, Zap, Wind, Eye, Trash2, Download, Cog } from "lucide-react";
+import { FileText, Plus, Zap, Wind, Eye, Trash2, Download, Cog, Camera } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -115,7 +115,7 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
       <MaintenanceReportForm
         workOrderId={workOrderId}
         reportId={editReportId}
-        reportType={newReportType as "electricity" | "hvac" | null}
+        reportType={newReportType as "electricity" | "hvac" | "cctv" | null}
         canEdit={canEdit}
         onClose={closeForm}
       />
@@ -151,6 +151,10 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
                   <Cog className="h-4 w-4 mr-2 text-emerald-600" />
                   Grupo Gerador
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleCreateReport("cctv")}>
+                  <Camera className="h-4 w-4 mr-2 text-purple-500" />
+                  CCTV
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -177,12 +181,14 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
                     <Zap className="h-5 w-5 text-yellow-500" />
                   ) : report.report_type === "generator" ? (
                     <Cog className="h-5 w-5 text-emerald-600" />
+                  ) : report.report_type === "cctv" ? (
+                    <Camera className="h-5 w-5 text-purple-500" />
                   ) : (
                     <Wind className="h-5 w-5 text-blue-500" />
                   )}
                   <div>
                     <p className="font-medium text-sm">
-                      {report.report_type === "electricity" ? "Eletricidade" : report.report_type === "generator" ? "Grupo Gerador" : "Climatização"}
+                      {report.report_type === "electricity" ? "Eletricidade" : report.report_type === "generator" ? "Grupo Gerador" : report.report_type === "cctv" ? "CCTV" : "Climatização"}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {report.report_date
