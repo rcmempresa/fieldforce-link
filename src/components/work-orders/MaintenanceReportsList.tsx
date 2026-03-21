@@ -76,9 +76,9 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
     setShowForm(true);
   };
 
-  const handleViewReport = (reportId: string) => {
+  const handleViewReport = (reportId: string, reportType: string) => {
     setEditReportId(reportId);
-    setNewReportType(null);
+    setNewReportType(reportType as any);
     setShowForm(true);
   };
 
@@ -92,19 +92,49 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
     }
   };
 
+  const closeForm = () => {
+    setShowForm(false);
+    setEditReportId(null);
+    setNewReportType(null);
+    fetchReports();
+  };
+
   if (showForm) {
+    // Generator gets its own form component
+    if (newReportType === "generator" || (!newReportType && editReportId)) {
+      // When viewing an existing report, check if it's generator type
+      const isGenerator = newReportType === "generator";
+      if (isGenerator) {
+        return (
+          <GeneratorReportForm
+            workOrderId={workOrderId}
+            reportId={editReportId}
+            canEdit={canEdit}
+            onClose={closeForm}
+          />
+        );
+      }
+    }
+    
+    // For existing reports that might be generator type, we check via newReportType
+    if (newReportType === "generator") {
+      return (
+        <GeneratorReportForm
+          workOrderId={workOrderId}
+          reportId={editReportId}
+          canEdit={canEdit}
+          onClose={closeForm}
+        />
+      );
+    }
+
     return (
       <MaintenanceReportForm
         workOrderId={workOrderId}
         reportId={editReportId}
-        reportType={newReportType}
+        reportType={newReportType as "electricity" | "hvac" | null}
         canEdit={canEdit}
-        onClose={() => {
-          setShowForm(false);
-          setEditReportId(null);
-          setNewReportType(null);
-          fetchReports();
-        }}
+        onClose={closeForm}
       />
     );
   }
