@@ -34,7 +34,7 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editReportId, setEditReportId] = useState<string | null>(null);
-  const [newReportType, setNewReportType] = useState<"electricity" | "hvac" | null>(null);
+  const [newReportType, setNewReportType] = useState<"electricity" | "hvac" | "generator" | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
