@@ -28,7 +28,7 @@ import {
 interface Props {
   workOrderId: string;
   reportId: string | null;
-  reportType: "electricity" | "hvac" | null;
+  reportType: "electricity" | "hvac" | "cctv" | null;
   canEdit: boolean;
   onClose: () => void;
 }
