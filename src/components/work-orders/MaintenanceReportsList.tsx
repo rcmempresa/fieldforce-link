@@ -151,6 +151,10 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
                   <Cog className="h-4 w-4 mr-2 text-emerald-600" />
                   Grupo Gerador
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleCreateReport("cctv")}>
+                  <Camera className="h-4 w-4 mr-2 text-purple-500" />
+                  CCTV
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
