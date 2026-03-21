@@ -440,7 +440,7 @@ export default function EmployeeDashboard() {
     setEditTimeEntriesDialogOpen(true);
   };
 
-  const handleOpenReport = (workOrderId: string, reference: string, type: "electricity" | "hvac") => {
+  const handleOpenReport = (workOrderId: string, reference: string, type: "electricity" | "hvac" | "generator" | "cctv") => {
     setReportWorkOrder({ id: workOrderId, reference });
     setReportType(type);
     setReportDialogOpen(true);
@@ -462,6 +462,14 @@ export default function EmployeeDashboard() {
         <DropdownMenuItem onClick={() => handleOpenReport(orderId, reference, "hvac")}>
           <Wind className="h-4 w-4 mr-2 text-blue-500" />
           Climatização
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleOpenReport(orderId, reference, "generator")}>
+          <Cog className="h-4 w-4 mr-2 text-emerald-600" />
+          Grupo Gerador
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleOpenReport(orderId, reference, "cctv")}>
+          <Camera className="h-4 w-4 mr-2 text-purple-500" />
+          CCTV
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
