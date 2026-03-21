@@ -181,12 +181,14 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
                     <Zap className="h-5 w-5 text-yellow-500" />
                   ) : report.report_type === "generator" ? (
                     <Cog className="h-5 w-5 text-emerald-600" />
+                  ) : report.report_type === "cctv" ? (
+                    <Camera className="h-5 w-5 text-purple-500" />
                   ) : (
                     <Wind className="h-5 w-5 text-blue-500" />
                   )}
                   <div>
                     <p className="font-medium text-sm">
-                      {report.report_type === "electricity" ? "Eletricidade" : report.report_type === "generator" ? "Grupo Gerador" : "Climatização"}
+                      {report.report_type === "electricity" ? "Eletricidade" : report.report_type === "generator" ? "Grupo Gerador" : report.report_type === "cctv" ? "CCTV" : "Climatização"}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {report.report_date
