@@ -147,6 +147,10 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
                   <Wind className="h-4 w-4 mr-2 text-blue-500" />
                   Climatização
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleCreateReport("generator")}>
+                  <Cog className="h-4 w-4 mr-2 text-emerald-600" />
+                  Grupo Gerador
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
