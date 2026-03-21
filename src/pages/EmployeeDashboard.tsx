@@ -21,6 +21,7 @@ import { formatHours } from "@/lib/formatHours";
 import { ptBR } from "date-fns/locale";
 import { Notifications } from "@/components/Notifications";
 import { MaintenanceReportForm } from "@/components/work-orders/MaintenanceReportForm";
+import { GeneratorReportForm } from "@/components/work-orders/GeneratorReportForm";
 
 interface WorkOrder {
   id: string;
