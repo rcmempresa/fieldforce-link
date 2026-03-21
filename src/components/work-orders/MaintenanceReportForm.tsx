@@ -102,8 +102,10 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
   const initDefaults = () => {
     const t = reportType || "electricity";
     setType(t);
-    setChecklist(t === "electricity" ? [...electricityChecklist] : [...hvacChecklist]);
-    setMeasurements(t === "electricity" ? [...electricityMeasurements] : [...hvacMeasurements]);
+    const checklistMap = { electricity: electricityChecklist, hvac: hvacChecklist, cctv: cctvChecklist };
+    const measurementMap = { electricity: electricityMeasurements, hvac: hvacMeasurements, cctv: cctvMeasurements };
+    setChecklist([...(checklistMap[t] || electricityChecklist)]);
+    setMeasurements([...(measurementMap[t] || electricityMeasurements)]);
   };
 
   const loadReport = async () => {
