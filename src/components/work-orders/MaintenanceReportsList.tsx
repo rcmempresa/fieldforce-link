@@ -214,7 +214,7 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
                   <Button size="icon" variant="ghost" onClick={() => handleViewReport(report.id, report.report_type)}>
                     <Eye className="h-4 w-4" />
                   </Button>
-                  {canEdit && report.status === "draft" && (
+                  {canEdit && (
                     <Button size="icon" variant="ghost" onClick={() => handleDelete(report.id)}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
