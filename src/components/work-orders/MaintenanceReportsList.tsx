@@ -201,7 +201,7 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
                       <Download className="h-4 w-4" />
                     </Button>
                   )}
-                  <Button size="icon" variant="ghost" onClick={() => handleViewReport(report.id)}>
+                  <Button size="icon" variant="ghost" onClick={() => handleViewReport(report.id, report.report_type)}>
                     <Eye className="h-4 w-4" />
                   </Button>
                   {canEdit && report.status === "draft" && (
