@@ -100,23 +100,6 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
   };
 
   if (showForm) {
-    // Generator gets its own form component
-    if (newReportType === "generator" || (!newReportType && editReportId)) {
-      // When viewing an existing report, check if it's generator type
-      const isGenerator = newReportType === "generator";
-      if (isGenerator) {
-        return (
-          <GeneratorReportForm
-            workOrderId={workOrderId}
-            reportId={editReportId}
-            canEdit={canEdit}
-            onClose={closeForm}
-          />
-        );
-      }
-    }
-    
-    // For existing reports that might be generator type, we check via newReportType
     if (newReportType === "generator") {
       return (
         <GeneratorReportForm
