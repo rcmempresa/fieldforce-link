@@ -65,3 +65,80 @@ export const hvacMeasurements: Measurement[] = [
   { parameter: "Caudal de ar", value: "", unit: "m³/h" },
   { parameter: "Consumo energético", value: "", unit: "kW" },
 ];
+
+// === GENERATOR (Grupo Gerador) ===
+
+export interface GeneratorData {
+  brand: string;
+  model: string;
+  serial_number: string;
+  kva_power: string;
+  fuel_type: string;
+  hours_counter: string;
+}
+
+export const defaultGeneratorData: GeneratorData = {
+  brand: "",
+  model: "",
+  serial_number: "",
+  kva_power: "",
+  fuel_type: "",
+  hours_counter: "",
+};
+
+export const generatorMotorChecklist: ChecklistItem[] = [
+  { label: "Verificacao do nivel e estado do oleo do motor", checked: false, observation: "" },
+  { label: "Verificacao do nivel do liquido de refrigeracao", checked: false, observation: "" },
+  { label: "Inspecao de correias", checked: false, observation: "" },
+  { label: "Verificacao dos tubos e filtros/verificadores de refrigerante", checked: false, observation: "" },
+  { label: "Inspecao/limpeza mangueiras e conexoes", checked: false, observation: "" },
+  { label: "Verificacao de filtros de ar (limpeza/substituicao)", checked: false, observation: "" },
+  { label: "Verificacao do filtro de combustivel", checked: false, observation: "" },
+  { label: "Verificacao do sistema de escape", checked: false, observation: "" },
+  { label: "Inspecao/verificacao de arranque (ligacao, fusiveis)", checked: false, observation: "" },
+  { label: "Verificacao das valvulas e vedantes do refrigerante", checked: false, observation: "" },
+  { label: "Inspecao/verificacao anti-vibradores (se aplicavel)", checked: false, observation: "" },
+  { label: "Verificacao do nivel de combustivel no deposito", checked: false, observation: "" },
+];
+
+export const generatorMotorMeasurements: Measurement[] = [
+  { parameter: "Pressao do oleo", value: "", unit: "bar" },
+  { parameter: "Tensao da bateria", value: "", unit: "V" },
+  { parameter: "Temperatura do motor", value: "", unit: "°C" },
+  { parameter: "Temperatura do liquido de refrigeracao", value: "", unit: "°C" },
+  { parameter: "RPM em vazio", value: "", unit: "RPM" },
+  { parameter: "RPM em carga", value: "", unit: "RPM" },
+  { parameter: "Temperatura dos gases de escape", value: "", unit: "°C" },
+  { parameter: "Analise de fumos/emissoes", value: "", unit: "" },
+  { parameter: "Consumo de combustivel (estimado)", value: "", unit: "l/h" },
+  { parameter: "Horas de funcionamento", value: "", unit: "h" },
+];
+
+export const generatorElectricalChecklist: ChecklistItem[] = [
+  { label: "Verificacao do painel de controlo das baterias de arranque", checked: false, observation: "" },
+  { label: "Verificacao das ligacoes eletricas do painel", checked: false, observation: "" },
+  { label: "Verificacao dos switches e modo de operacao", checked: false, observation: "" },
+  { label: "Teste de carregador de bateria", checked: false, observation: "" },
+  { label: "Verificacao de proteccoes e configuracao da tensao", checked: false, observation: "" },
+  { label: "Inspecao quadro/interruptor automatico corrente (QTA)", checked: false, observation: "" },
+  { label: "Verificacao das proteccoes eletricas (disjuntores, fusiveis)", checked: false, observation: "" },
+  { label: "Inspecao cablagem / quadro(s) pratica", checked: false, observation: "" },
+  { label: "Verificacao de envolturas de ligacao/terra", checked: false, observation: "" },
+  { label: "Teste de programas de emergencia", checked: false, observation: "" },
+  { label: "Verificacao do controlador automatico (se aplicavel)", checked: false, observation: "" },
+];
+
+export const generatorElectricalMeasurements: Measurement[] = [
+  { parameter: "Tensao L1-N", value: "", unit: "V" },
+  { parameter: "Tensao L1-L2", value: "", unit: "V" },
+  { parameter: "Tensao L2-L3", value: "", unit: "V" },
+  { parameter: "Corrente L1", value: "", unit: "A" },
+  { parameter: "Corrente L2", value: "", unit: "A" },
+  { parameter: "Corrente L3", value: "", unit: "A" },
+  { parameter: "Frequencia", value: "", unit: "Hz" },
+  { parameter: "Potencia aparente", value: "", unit: "kVA" },
+  { parameter: "Fator de potencia", value: "", unit: "" },
+  { parameter: "Resistencia de isolamento", value: "", unit: "MΩ" },
+  { parameter: "Resistencia de terra", value: "", unit: "Ω" },
+  { parameter: "Temperatura do alternador", value: "", unit: "°C" },
+];
