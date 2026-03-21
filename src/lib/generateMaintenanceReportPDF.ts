@@ -76,7 +76,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   // === HEADER ===
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  const title = isElectricity ? "Folha de Manutencao - Eletricidade" : "Folha de Manutencao - Climatizacao";
+  const title = `Folha de Manutencao - ${typeLabel}`;
   doc.text(title, pageWidth / 2, y, { align: "center" });
   y += 6;
   doc.setFontSize(9);
