@@ -50,6 +50,7 @@ export function CompleteWorkOrderDialog({
   useEffect(() => {
     if (open) {
       checkActiveSessions();
+      checkMaterials();
     }
   }, [open, workOrderId]);
 
