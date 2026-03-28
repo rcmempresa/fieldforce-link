@@ -87,6 +87,53 @@ export function CompleteWorkOrderDialog({
     }
   };
 
+  const checkMaterials = async () => {
+    const { count } = await supabase
+      .from("work_order_materials")
+      .select("*", { count: "exact", head: true })
+      .eq("work_order_id", workOrderId);
+
+    setHasMaterials(count !== null && count > 0);
+  };
+
+  const handleEndSessionWithCheck = () => {
+    if (hasMaterials === false) {
+      setPendingAction("end_session");
+      setShowNoMaterialsConfirm(true);
+    } else {
+      handleEndMySession();
+    }
+  };
+
+  const handleCompleteWithCheck = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (signatureEmpty || !signatureRef.current) {
+      toast({
+        title: "Erro",
+        description: "Por favor, assine antes de concluir a ordem",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (hasMaterials === false) {
+      setPendingAction("complete_order");
+      setShowNoMaterialsConfirm(true);
+    } else {
+      handleCompleteOrder(e);
+    }
+  };
+
+  const handleConfirmNoMaterials = () => {
+    setShowNoMaterialsConfirm(false);
+    if (pendingAction === "end_session") {
+      handleEndMySession();
+    } else if (pendingAction === "complete_order") {
+      // Create a synthetic form event
+      handleCompleteOrder({ preventDefault: () => {} } as React.FormEvent);
+    }
+    setPendingAction(null);
+  };
+
   const clearSignature = () => {
     signatureRef.current?.clear();
     setSignatureEmpty(true);
