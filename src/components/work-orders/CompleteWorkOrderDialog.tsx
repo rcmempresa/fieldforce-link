@@ -591,6 +591,28 @@ export function CompleteWorkOrderDialog({
             </form>
           </TabsContent>
         </Tabs>
+
+        <AlertDialog open={showNoMaterialsConfirm} onOpenChange={setShowNoMaterialsConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5 text-warning" />
+                Sem Material Registado
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Não existe nenhum material associado a esta ordem de trabalho. Tem a certeza que não utilizou nenhum material?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setPendingAction(null)}>
+                Voltar e Adicionar Material
+              </AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmNoMaterials}>
+                Confirmar Sem Material
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );
