@@ -776,12 +776,18 @@ export default function WorkOrderDetails() {
           </Card>
         )}
 
+        <WorkOrderMaterials
+          workOrderId={id!}
+          canEdit={roles.includes("manager") || roles.includes("employee")}
+          currentUserId={user?.id}
+        />
+
         <MaintenanceReportsList
           workOrderId={id!}
           canEdit={roles.includes("manager") || roles.includes("employee")}
         />
 
-        <WorkOrderAttachments 
+        <WorkOrderAttachments
           workOrderId={id!} 
           isManager={isManager}
           currentUserId={user?.id}
