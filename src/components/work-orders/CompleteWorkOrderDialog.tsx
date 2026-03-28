@@ -523,7 +523,7 @@ export function CompleteWorkOrderDialog({
           </TabsContent>
 
           <TabsContent value="complete_order" className="mt-4">
-            <form onSubmit={handleCompleteOrder} className="space-y-4">
+            <form onSubmit={handleCompleteWithCheck} className="space-y-4">
               {otherActiveEmployees.length > 0 && (
                 <div className="rounded-lg border border-warning/50 bg-warning/10 p-3 flex items-start gap-2">
                   <AlertTriangle className="h-4 w-4 text-warning mt-0.5" />
