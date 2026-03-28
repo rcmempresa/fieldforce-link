@@ -40,6 +40,9 @@ export function CompleteWorkOrderDialog({
   const [activeTab, setActiveTab] = useState<"end_session" | "complete_order">("end_session");
   const [hasActiveSession, setHasActiveSession] = useState(false);
   const [otherActiveEmployees, setOtherActiveEmployees] = useState<{ name: string }[]>([]);
+  const [hasMaterials, setHasMaterials] = useState<boolean | null>(null);
+  const [showNoMaterialsConfirm, setShowNoMaterialsConfirm] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"end_session" | "complete_order" | null>(null);
   const { toast } = useToast();
   const signatureRef = useRef<SignatureCanvas>(null);
   const [signatureEmpty, setSignatureEmpty] = useState(true);
