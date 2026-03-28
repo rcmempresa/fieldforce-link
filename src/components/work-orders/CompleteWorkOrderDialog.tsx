@@ -514,7 +514,7 @@ export function CompleteWorkOrderDialog({
                 Cancelar
               </Button>
               <Button 
-                onClick={handleEndMySession} 
+                onClick={handleEndSessionWithCheck} 
                 disabled={loading || !hasActiveSession}
               >
                 {loading ? "A terminar..." : "Terminar Minha Sessão"}
