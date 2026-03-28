@@ -8,7 +8,17 @@ import { useToast } from "@/hooks/use-toast";
 import SignatureCanvas from "react-signature-canvas";
 import { generateWorkOrderPDF, uploadWorkOrderPDF } from "@/lib/generateWorkOrderPDF";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertTriangle, UserCheck, CheckCircle } from "lucide-react";
+import { AlertTriangle, UserCheck, CheckCircle, Package } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface CompleteWorkOrderDialogProps {
   open: boolean;
@@ -30,6 +40,9 @@ export function CompleteWorkOrderDialog({
   const [activeTab, setActiveTab] = useState<"end_session" | "complete_order">("end_session");
   const [hasActiveSession, setHasActiveSession] = useState(false);
   const [otherActiveEmployees, setOtherActiveEmployees] = useState<{ name: string }[]>([]);
+  const [hasMaterials, setHasMaterials] = useState<boolean | null>(null);
+  const [showNoMaterialsConfirm, setShowNoMaterialsConfirm] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"end_session" | "complete_order" | null>(null);
   const { toast } = useToast();
   const signatureRef = useRef<SignatureCanvas>(null);
   const [signatureEmpty, setSignatureEmpty] = useState(true);
@@ -37,6 +50,7 @@ export function CompleteWorkOrderDialog({
   useEffect(() => {
     if (open) {
       checkActiveSessions();
+      checkMaterials();
     }
   }, [open, workOrderId]);
 
@@ -71,6 +85,53 @@ export function CompleteWorkOrderDialog({
         otherSessions.map((s: any) => ({ name: s.profiles?.name || "N/A" }))
       );
     }
+  };
+
+  const checkMaterials = async () => {
+    const { count } = await supabase
+      .from("work_order_materials")
+      .select("*", { count: "exact", head: true })
+      .eq("work_order_id", workOrderId);
+
+    setHasMaterials(count !== null && count > 0);
+  };
+
+  const handleEndSessionWithCheck = () => {
+    if (hasMaterials === false) {
+      setPendingAction("end_session");
+      setShowNoMaterialsConfirm(true);
+    } else {
+      handleEndMySession();
+    }
+  };
+
+  const handleCompleteWithCheck = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (signatureEmpty || !signatureRef.current) {
+      toast({
+        title: "Erro",
+        description: "Por favor, assine antes de concluir a ordem",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (hasMaterials === false) {
+      setPendingAction("complete_order");
+      setShowNoMaterialsConfirm(true);
+    } else {
+      handleCompleteOrder(e);
+    }
+  };
+
+  const handleConfirmNoMaterials = () => {
+    setShowNoMaterialsConfirm(false);
+    if (pendingAction === "end_session") {
+      handleEndMySession();
+    } else if (pendingAction === "complete_order") {
+      // Create a synthetic form event
+      handleCompleteOrder({ preventDefault: () => {} } as React.FormEvent);
+    }
+    setPendingAction(null);
   };
 
   const clearSignature = () => {
@@ -453,7 +514,7 @@ export function CompleteWorkOrderDialog({
                 Cancelar
               </Button>
               <Button 
-                onClick={handleEndMySession} 
+                onClick={handleEndSessionWithCheck} 
                 disabled={loading || !hasActiveSession}
               >
                 {loading ? "A terminar..." : "Terminar Minha Sessão"}
@@ -462,7 +523,7 @@ export function CompleteWorkOrderDialog({
           </TabsContent>
 
           <TabsContent value="complete_order" className="mt-4">
-            <form onSubmit={handleCompleteOrder} className="space-y-4">
+            <form onSubmit={handleCompleteWithCheck} className="space-y-4">
               {otherActiveEmployees.length > 0 && (
                 <div className="rounded-lg border border-warning/50 bg-warning/10 p-3 flex items-start gap-2">
                   <AlertTriangle className="h-4 w-4 text-warning mt-0.5" />
@@ -530,6 +591,28 @@ export function CompleteWorkOrderDialog({
             </form>
           </TabsContent>
         </Tabs>
+
+        <AlertDialog open={showNoMaterialsConfirm} onOpenChange={setShowNoMaterialsConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5 text-warning" />
+                Sem Material Registado
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Não existe nenhum material associado a esta ordem de trabalho. Tem a certeza que não utilizou nenhum material?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setPendingAction(null)}>
+                Voltar e Adicionar Material
+              </AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmNoMaterials}>
+                Confirmar Sem Material
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );

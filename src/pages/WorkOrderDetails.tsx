@@ -18,6 +18,7 @@ import {
 import { WorkOrderAttachments } from "@/components/work-orders/WorkOrderAttachments";
 import { MaintenanceReportsList } from "@/components/work-orders/MaintenanceReportsList";
 import { EquipmentAttachments } from "@/components/equipments/EquipmentAttachments";
+import { WorkOrderMaterials } from "@/components/work-orders/WorkOrderMaterials";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 interface WorkOrderDetails {
@@ -775,12 +776,18 @@ export default function WorkOrderDetails() {
           </Card>
         )}
 
+        <WorkOrderMaterials
+          workOrderId={id!}
+          canEdit={roles.includes("manager") || roles.includes("employee")}
+          currentUserId={user?.id}
+        />
+
         <MaintenanceReportsList
           workOrderId={id!}
           canEdit={roles.includes("manager") || roles.includes("employee")}
         />
 
-        <WorkOrderAttachments 
+        <WorkOrderAttachments
           workOrderId={id!} 
           isManager={isManager}
           currentUserId={user?.id}
