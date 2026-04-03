@@ -44,12 +44,15 @@ export function CreateEmployeeDialog({ onSuccess }: CreateEmployeeDialogProps) {
         },
       });
 
-      if (error) {
-        // When edge function returns non-2xx, the actual error message is in data
-        const errorMsg = data?.error || error.message;
+      // Handle edge function errors - data contains the JSON body even on error
+      const errorMsg = data?.error || (error ? error.message : null);
+      if (errorMsg) {
+        // Translate common error messages
+        if (errorMsg.includes("already been registered") || errorMsg.includes("email_exists")) {
+          throw new Error("Já existe um utilizador registado com este email");
+        }
         throw new Error(errorMsg);
       }
-      if (data?.error) throw new Error(data.error);
 
       toast({
         title: "Sucesso",
