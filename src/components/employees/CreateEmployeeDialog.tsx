@@ -44,7 +44,11 @@ export function CreateEmployeeDialog({ onSuccess }: CreateEmployeeDialogProps) {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // When edge function returns non-2xx, the actual error message is in data
+        const errorMsg = data?.error || error.message;
+        throw new Error(errorMsg);
+      }
       if (data?.error) throw new Error(data.error);
 
       toast({
