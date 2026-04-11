@@ -96,6 +96,14 @@ const App = () => (
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/material-catalog"
+            element={
+              <ProtectedRoute allowedRoles={["manager"]}>
+                <MaterialCatalog />
+              </ProtectedRoute>
+            }
+          />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
