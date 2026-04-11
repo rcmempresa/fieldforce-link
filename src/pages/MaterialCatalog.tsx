@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Package, Plus, Trash2, Edit2, Check, X } from "lucide-react";
+import { Package, Plus, Trash2, Edit2, Check, X, ArrowLeft } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -32,11 +33,13 @@ interface CatalogItem {
   id: string;
   name: string;
   default_unit: string;
+  reference: string | null;
   active: boolean;
   created_at: string;
 }
 
 export default function MaterialCatalog() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
   const [items, setItems] = useState<CatalogItem[]>([]);
@@ -44,10 +47,12 @@ export default function MaterialCatalog() {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [defaultUnit, setDefaultUnit] = useState("un");
+  const [reference, setReference] = useState("");
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editUnit, setEditUnit] = useState("");
+  const [editReference, setEditReference] = useState("");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -77,6 +82,7 @@ export default function MaterialCatalog() {
     const { error } = await supabase.from("material_catalog").insert({
       name: name.trim(),
       default_unit: defaultUnit,
+      reference: reference.trim() || null,
       created_by: user!.id,
     });
 
@@ -86,6 +92,7 @@ export default function MaterialCatalog() {
       toast({ title: "Sucesso", description: "Material adicionado ao catálogo" });
       setName("");
       setDefaultUnit("un");
+      setReference("");
       setShowForm(false);
       fetchItems();
     }
@@ -119,13 +126,14 @@ export default function MaterialCatalog() {
     setEditingId(item.id);
     setEditName(item.name);
     setEditUnit(item.default_unit);
+    setEditReference(item.reference || "");
   };
 
   const saveEdit = async () => {
     if (!editName.trim()) return;
     const { error } = await supabase
       .from("material_catalog")
-      .update({ name: editName.trim(), default_unit: editUnit })
+      .update({ name: editName.trim(), default_unit: editUnit, reference: editReference.trim() || null })
       .eq("id", editingId!);
 
     if (error) {
@@ -145,6 +153,10 @@ export default function MaterialCatalog() {
   return (
     <DashboardLayout title="Catálogo de Materiais">
       <div className="space-y-6">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1">
+          <ArrowLeft className="h-4 w-4" />
+          Voltar
+        </Button>
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -182,6 +194,15 @@ export default function MaterialCatalog() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                  <Label>Referência (número)</Label>
+                  <Input
+                    type="number"
+                    placeholder="Ex: 12345"
+                    value={reference}
+                    onChange={(e) => setReference(e.target.value)}
+                  />
+                </div>
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" size="sm" onClick={() => setShowForm(false)}>Cancelar</Button>
                   <Button size="sm" onClick={handleAdd} disabled={adding}>
@@ -213,11 +234,19 @@ export default function MaterialCatalog() {
                     className="flex items-center justify-between rounded-lg border p-3"
                   >
                     {editingId === item.id ? (
-                      <div className="flex-1 flex items-center gap-2">
+                      <div className="flex-1 flex flex-wrap items-center gap-2">
                         <Input
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
-                          className="h-8"
+                          className="h-8 flex-1 min-w-[120px]"
+                          placeholder="Nome"
+                        />
+                        <Input
+                          type="number"
+                          value={editReference}
+                          onChange={(e) => setEditReference(e.target.value)}
+                          className="h-8 w-24"
+                          placeholder="Ref."
                         />
                         <Select value={editUnit} onValueChange={setEditUnit}>
                           <SelectTrigger className="w-32 h-8">
@@ -246,6 +275,7 @@ export default function MaterialCatalog() {
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground">
+                            {item.reference && <span>Ref: {item.reference} · </span>}
                             Unidade padrão: {getUnitLabel(item.default_unit)}
                           </p>
                         </div>
