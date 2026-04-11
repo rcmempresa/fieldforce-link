@@ -1,0 +1,1 @@
+ALTER TABLE public.material_catalog ADD COLUMN reference TEXT NULL;

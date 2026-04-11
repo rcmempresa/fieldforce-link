@@ -387,6 +387,7 @@ export type Database = {
           default_unit: string
           id: string
           name: string
+          reference: string | null
         }
         Insert: {
           active?: boolean
@@ -395,6 +396,7 @@ export type Database = {
           default_unit?: string
           id?: string
           name: string
+          reference?: string | null
         }
         Update: {
           active?: boolean
@@ -403,6 +405,7 @@ export type Database = {
           default_unit?: string
           id?: string
           name?: string
+          reference?: string | null
         }
         Relationships: []
       }
