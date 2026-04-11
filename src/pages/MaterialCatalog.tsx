@@ -33,11 +33,13 @@ interface CatalogItem {
   id: string;
   name: string;
   default_unit: string;
+  reference: string | null;
   active: boolean;
   created_at: string;
 }
 
 export default function MaterialCatalog() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
   const [items, setItems] = useState<CatalogItem[]>([]);
@@ -45,10 +47,12 @@ export default function MaterialCatalog() {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [defaultUnit, setDefaultUnit] = useState("un");
+  const [reference, setReference] = useState("");
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editUnit, setEditUnit] = useState("");
+  const [editReference, setEditReference] = useState("");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -78,6 +82,7 @@ export default function MaterialCatalog() {
     const { error } = await supabase.from("material_catalog").insert({
       name: name.trim(),
       default_unit: defaultUnit,
+      reference: reference.trim() || null,
       created_by: user!.id,
     });
 
@@ -87,6 +92,7 @@ export default function MaterialCatalog() {
       toast({ title: "Sucesso", description: "Material adicionado ao catálogo" });
       setName("");
       setDefaultUnit("un");
+      setReference("");
       setShowForm(false);
       fetchItems();
     }
@@ -120,13 +126,14 @@ export default function MaterialCatalog() {
     setEditingId(item.id);
     setEditName(item.name);
     setEditUnit(item.default_unit);
+    setEditReference(item.reference || "");
   };
 
   const saveEdit = async () => {
     if (!editName.trim()) return;
     const { error } = await supabase
       .from("material_catalog")
-      .update({ name: editName.trim(), default_unit: editUnit })
+      .update({ name: editName.trim(), default_unit: editUnit, reference: editReference.trim() || null })
       .eq("id", editingId!);
 
     if (error) {
