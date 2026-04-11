@@ -780,6 +780,7 @@ export default function WorkOrderDetails() {
           workOrderId={id!}
           canEdit={roles.includes("manager") || roles.includes("employee")}
           currentUserId={user?.id}
+          isManager={isManager}
         />
 
         <MaintenanceReportsList
