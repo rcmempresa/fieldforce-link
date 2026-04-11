@@ -379,6 +379,33 @@ export type Database = {
           },
         ]
       }
+      material_catalog: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string
+          default_unit: string
+          id: string
+          name: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by: string
+          default_unit?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string
+          default_unit?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           channel: Database["public"]["Enums"]["notification_channel"]

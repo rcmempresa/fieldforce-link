@@ -24,10 +24,17 @@ interface Material {
   profiles?: { name: string };
 }
 
+interface CatalogItem {
+  id: string;
+  name: string;
+  default_unit: string;
+}
+
 interface WorkOrderMaterialsProps {
   workOrderId: string;
   canEdit: boolean;
   currentUserId?: string;
+  isManager?: boolean;
 }
 
 const units = [
@@ -41,11 +48,13 @@ const units = [
   { value: "pc", label: "Peça(s)" },
 ];
 
-export function WorkOrderMaterials({ workOrderId, canEdit, currentUserId }: WorkOrderMaterialsProps) {
+export function WorkOrderMaterials({ workOrderId, canEdit, currentUserId, isManager }: WorkOrderMaterialsProps) {
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [selectedCatalogId, setSelectedCatalogId] = useState("");
   const [description, setDescription] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [unit, setUnit] = useState("un");
@@ -53,6 +62,7 @@ export function WorkOrderMaterials({ workOrderId, canEdit, currentUserId }: Work
 
   useEffect(() => {
     fetchMaterials();
+    fetchCatalog();
   }, [workOrderId]);
 
   const fetchMaterials = async () => {
@@ -73,9 +83,32 @@ export function WorkOrderMaterials({ workOrderId, canEdit, currentUserId }: Work
     setLoading(false);
   };
 
+  const fetchCatalog = async () => {
+    const { data, error } = await supabase
+      .from("material_catalog")
+      .select("id, name, default_unit")
+      .eq("active", true)
+      .order("name");
+
+    if (error) {
+      console.error("Error fetching catalog:", error);
+    } else {
+      setCatalog(data || []);
+    }
+  };
+
+  const handleCatalogSelect = (catalogId: string) => {
+    setSelectedCatalogId(catalogId);
+    const item = catalog.find((c) => c.id === catalogId);
+    if (item) {
+      setDescription(item.name);
+      setUnit(item.default_unit);
+    }
+  };
+
   const handleAdd = async () => {
     if (!description.trim()) {
-      toast({ title: "Erro", description: "Descreva o material", variant: "destructive" });
+      toast({ title: "Erro", description: "Selecione ou descreva o material", variant: "destructive" });
       return;
     }
 
@@ -102,6 +135,7 @@ export function WorkOrderMaterials({ workOrderId, canEdit, currentUserId }: Work
       setDescription("");
       setQuantity("1");
       setUnit("un");
+      setSelectedCatalogId("");
       setShowForm(false);
       fetchMaterials();
     }
@@ -142,14 +176,47 @@ export function WorkOrderMaterials({ workOrderId, canEdit, currentUserId }: Work
       <CardContent className="space-y-4">
         {showForm && canEdit && (
           <div className="rounded-lg border p-4 space-y-3 bg-muted/30">
-            <div className="space-y-2">
-              <Label>Descrição do Material *</Label>
-              <Input
-                placeholder="Ex: Filtro de ar, Parafusos M8..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
+            {catalog.length > 0 && (
+              <div className="space-y-2">
+                <Label>Selecionar do Catálogo</Label>
+                <Select value={selectedCatalogId} onValueChange={handleCatalogSelect}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Escolher material..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    {catalog.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Manager can also type free text, employees only select from catalog */}
+            {isManager && (
+              <div className="space-y-2">
+                <Label>Ou descrever manualmente</Label>
+                <Input
+                  placeholder="Ex: Filtro de ar, Parafusos M8..."
+                  value={description}
+                  onChange={(e) => {
+                    setDescription(e.target.value);
+                    setSelectedCatalogId("");
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Show selected material name for employees */}
+            {!isManager && description && (
+              <div className="space-y-2">
+                <Label>Material selecionado</Label>
+                <Input value={description} readOnly className="bg-muted" />
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Quantidade</Label>

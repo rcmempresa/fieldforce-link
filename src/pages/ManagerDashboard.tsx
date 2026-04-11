@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ClipboardList, Users, CheckCircle, UserCheck, Calendar as CalendarIcon, Mail, Clock } from "lucide-react";
+import { ClipboardList, Users, CheckCircle, UserCheck, Calendar as CalendarIcon, Mail, Clock, Package } from "lucide-react";
 import { formatHours } from "@/lib/formatHours";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -649,6 +649,17 @@ export default function ManagerDashboard() {
                   <Mail className="h-5 w-5 text-orange-500" />
                 </div>
                 <CardTitle className="text-base">Histórico de Emails</CardTitle>
+              </div>
+            </CardHeader>
+          </Card>
+
+          <Card className="hover:shadow-md transition-all duration-300 cursor-pointer" onClick={() => navigate("/material-catalog")}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Package className="h-5 w-5 text-primary" />
+                </div>
+                <CardTitle className="text-base">Catálogo de Materiais</CardTitle>
               </div>
             </CardHeader>
           </Card>
