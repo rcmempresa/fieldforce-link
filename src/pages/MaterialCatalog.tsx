@@ -153,6 +153,10 @@ export default function MaterialCatalog() {
   return (
     <DashboardLayout title="Catálogo de Materiais">
       <div className="space-y-6">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1">
+          <ArrowLeft className="h-4 w-4" />
+          Voltar
+        </Button>
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -190,6 +194,15 @@ export default function MaterialCatalog() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                  <Label>Referência (número)</Label>
+                  <Input
+                    type="number"
+                    placeholder="Ex: 12345"
+                    value={reference}
+                    onChange={(e) => setReference(e.target.value)}
+                  />
+                </div>
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" size="sm" onClick={() => setShowForm(false)}>Cancelar</Button>
                   <Button size="sm" onClick={handleAdd} disabled={adding}>
@@ -221,11 +234,19 @@ export default function MaterialCatalog() {
                     className="flex items-center justify-between rounded-lg border p-3"
                   >
                     {editingId === item.id ? (
-                      <div className="flex-1 flex items-center gap-2">
+                      <div className="flex-1 flex flex-wrap items-center gap-2">
                         <Input
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
-                          className="h-8"
+                          className="h-8 flex-1 min-w-[120px]"
+                          placeholder="Nome"
+                        />
+                        <Input
+                          type="number"
+                          value={editReference}
+                          onChange={(e) => setEditReference(e.target.value)}
+                          className="h-8 w-24"
+                          placeholder="Ref."
                         />
                         <Select value={editUnit} onValueChange={setEditUnit}>
                           <SelectTrigger className="w-32 h-8">
@@ -254,6 +275,7 @@ export default function MaterialCatalog() {
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground">
+                            {item.reference && <span>Ref: {item.reference} · </span>}
                             Unidade padrão: {getUnitLabel(item.default_unit)}
                           </p>
                         </div>
