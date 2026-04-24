@@ -24,7 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { getBusyEmployeeIds } from "@/lib/employeeAvailability";
+import { getBusyEmployeeIds, getShift, getShiftLabel, MAX_PER_SHIFT } from "@/lib/employeeAvailability";
 
 interface CreateWorkOrderDialogProps {
   open: boolean;
