@@ -48,7 +48,7 @@ export async function getBusyEmployees(
     )
     .gte("work_orders.scheduled_date", start.toISOString())
     .lte("work_orders.scheduled_date", end.toISOString())
-    .in("work_orders.status", BLOCKING_STATUSES as unknown as string[]);
+    .in("work_orders.status", [...BLOCKING_STATUSES]);
 
   if (employeeIds && employeeIds.length > 0) {
     query = query.in("user_id", employeeIds);
