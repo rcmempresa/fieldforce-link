@@ -44,6 +44,7 @@ export function CreateClientWorkOrderDialog({
     service_type: "repair",
     priority: "medium",
     address: "",
+    scheduled_date: "",
   });
   const { toast } = useToast();
 
@@ -175,6 +176,7 @@ export function CreateClientWorkOrderDialog({
       service_type: "repair",
       priority: "medium",
       address: "",
+      scheduled_date: "",
     });
     onOpenChange(false);
     onSuccess();
