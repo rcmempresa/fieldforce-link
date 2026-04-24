@@ -726,11 +726,21 @@ export default function WorkOrderDetails() {
                     <SelectValue placeholder="Selecionar funcionário" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover z-50">
-                    {employees.map((employee) => (
-                      <SelectItem key={employee.id} value={employee.id}>
-                        {employee.name}
-                      </SelectItem>
-                    ))}
+                    {employees.map((employee) => {
+                      const busy = busyEmployeeIds.has(employee.id);
+                      return (
+                        <SelectItem key={employee.id} value={employee.id}>
+                          <span className="flex items-center gap-2">
+                            {employee.name}
+                            {busy ? (
+                              <Badge variant="destructive" className="text-[10px] py-0 h-4">Ocupado</Badge>
+                            ) : workOrder?.scheduled_date ? (
+                              <Badge variant="secondary" className="text-[10px] py-0 h-4">Disponível</Badge>
+                            ) : null}
+                          </span>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
                 <Button onClick={handleAssignEmployee}>
@@ -738,6 +748,11 @@ export default function WorkOrderDetails() {
                   Atribuir
                 </Button>
               </div>
+              {workOrder?.scheduled_date && employees.length > 0 && busyEmployeeIds.size === employees.length && (
+                <p className="text-xs text-destructive">
+                  Todos os funcionários já têm uma OT agendada nesta janela horária (±1h). Pode confirmar overbooking ou alterar a data agendada.
+                </p>
+              )}
 
               {assignments.length === 0 ? (
                 <p className="text-center text-muted-foreground py-4">
