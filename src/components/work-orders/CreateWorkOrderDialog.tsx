@@ -362,6 +362,7 @@ export function CreateWorkOrderDialog({
       description: "",
       client_id: "",
       equipment_ids: [],
+      employee_ids: [],
       service_type: "repair",
       priority: "medium",
       scheduled_date: "",
