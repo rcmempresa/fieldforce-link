@@ -329,6 +329,17 @@ export default function WorkOrderDetails() {
       return;
     }
 
+    // Check overbooking (±1h around scheduled_date)
+    if (workOrder?.scheduled_date && busyEmployeeIds.has(selectedEmployee)) {
+      const emp = employees.find((e) => e.id === selectedEmployee);
+      setOverbookingConfirm({ employeeId: selectedEmployee, employeeName: emp?.name || "Funcionário" });
+      return;
+    }
+
+    await performAssignment(selectedEmployee);
+  };
+
+  const performAssignment = async (employeeId: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -336,7 +347,7 @@ export default function WorkOrderDetails() {
       .from("work_order_assignments")
       .insert({
         work_order_id: id,
-        user_id: selectedEmployee,
+        user_id: employeeId,
         assigned_by: user.id,
       });
 
@@ -351,7 +362,7 @@ export default function WorkOrderDetails() {
       await supabase
         .from("notifications")
         .insert({
-          user_id: selectedEmployee,
+          user_id: employeeId,
           work_order_id: id,
           type: "work_order_assigned",
           channel: "email",
@@ -367,7 +378,7 @@ export default function WorkOrderDetails() {
       const { data: employeeData } = await supabase
         .from("profiles")
         .select("name, id")
-        .eq("id", selectedEmployee)
+        .eq("id", employeeId)
         .single();
 
       // Send email notification
@@ -375,7 +386,7 @@ export default function WorkOrderDetails() {
         supabase.functions.invoke("send-notification-email", {
           body: {
             type: "work_order_assigned",
-            userId: selectedEmployee,
+            userId: employeeId,
             data: {
               recipientName: employeeData.name,
               workOrderReference: workOrder?.reference || "",
