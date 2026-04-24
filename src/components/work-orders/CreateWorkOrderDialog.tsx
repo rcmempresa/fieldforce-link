@@ -508,6 +508,43 @@ export function CreateWorkOrderDialog({
             />
           </div>
 
+          {employees.length > 0 && (
+            <div className="space-y-2">
+              <Label>Atribuir Funcionários (opcional)</Label>
+              <div className="border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
+                {employees.map((employee) => {
+                  const busy = busyEmployeeIds.has(employee.id);
+                  return (
+                    <label
+                      key={employee.id}
+                      className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.employee_ids.includes(employee.id)}
+                        onChange={() => toggleEmployee(employee.id)}
+                        className="h-4 w-4"
+                      />
+                      <span className="font-medium text-sm flex-1">{employee.name}</span>
+                      {formData.scheduled_date && (
+                        busy ? (
+                          <Badge variant="destructive" className="text-[10px] py-0 h-5">Ocupado</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-[10px] py-0 h-5">Disponível</Badge>
+                        )
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+              {formData.scheduled_date && busyEmployeeIds.size === employees.length && (
+                <p className="text-xs text-destructive">
+                  Todos os funcionários têm OT agendada nesta janela (±1h). Pode confirmar overbooking ou alterar a data.
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
@@ -518,6 +555,30 @@ export function CreateWorkOrderDialog({
           </div>
         </form>
       </DialogContent>
+
+      <AlertDialog open={overbookingConfirm} onOpenChange={setOverbookingConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar overbooking</AlertDialogTitle>
+            <AlertDialogDescription>
+              Selecionou funcionários que já têm outra OT agendada dentro de ±1h
+              do horário escolhido. Deseja criar a OT mesmo assim (overbooking)
+              ou cancelar para escolher outro horário/funcionário?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                setOverbookingConfirm(false);
+                await submitWorkOrder();
+              }}
+            >
+              Confirmar overbooking
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
