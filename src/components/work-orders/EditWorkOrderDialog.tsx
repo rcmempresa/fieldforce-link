@@ -65,7 +65,13 @@ export function EditWorkOrderDialog({
         status: data.status || "",
         priority: data.priority || "",
         scheduled_date: data.scheduled_date
-          ? new Date(data.scheduled_date).toISOString().slice(0, 16)
+          ? (() => {
+              const d = new Date(data.scheduled_date);
+              const pad = (n: number) => String(n).padStart(2, "0");
+              return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
+                d.getDate()
+              )}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            })()
           : "",
         notes: data.notes || "",
         address: data.address || "",

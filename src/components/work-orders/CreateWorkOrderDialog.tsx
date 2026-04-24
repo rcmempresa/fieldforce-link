@@ -24,7 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { getBusyEmployeeIds } from "@/lib/employeeAvailability";
+import { getBusyEmployeeIds, getShift, getShiftLabel, MAX_PER_SHIFT } from "@/lib/employeeAvailability";
 
 interface CreateWorkOrderDialogProps {
   open: boolean;
@@ -539,7 +539,7 @@ export function CreateWorkOrderDialog({
               </div>
               {formData.scheduled_date && busyEmployeeIds.size === employees.length && (
                 <p className="text-xs text-destructive">
-                  Todos os funcionários têm OT agendada nesta janela (±1h). Pode confirmar overbooking ou alterar a data.
+                  Todos os funcionários já têm {MAX_PER_SHIFT} OTs no turno da {getShiftLabel(getShift(new Date(formData.scheduled_date)))}. Pode confirmar overbooking ou alterar o turno/dia.
                 </p>
               )}
             </div>
@@ -561,9 +561,9 @@ export function CreateWorkOrderDialog({
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar overbooking</AlertDialogTitle>
             <AlertDialogDescription>
-              Selecionou funcionários que já têm outra OT agendada dentro de ±1h
-              do horário escolhido. Deseja criar a OT mesmo assim (overbooking)
-              ou cancelar para escolher outro horário/funcionário?
+              Selecionou funcionários que já têm {MAX_PER_SHIFT} OTs no mesmo
+              turno (manhã ou tarde) do dia escolhido. Deseja criar mesmo assim
+              (overbooking) ou cancelar para escolher outro turno/funcionário?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
