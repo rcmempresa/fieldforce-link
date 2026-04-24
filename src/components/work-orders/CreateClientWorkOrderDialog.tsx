@@ -260,6 +260,19 @@ export function CreateClientWorkOrderDialog({
             />
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="scheduled_date">Data e Hora Preferida (opcional)</Label>
+            <Input
+              id="scheduled_date"
+              type="datetime-local"
+              value={formData.scheduled_date}
+              onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Indique uma data preferencial. O gerente irá verificar a disponibilidade dos técnicos.
+            </p>
+          </div>
+
           {equipments.length > 0 && (
             <div className="space-y-2">
               <Label>Equipamentos Relacionados</Label>
