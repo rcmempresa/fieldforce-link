@@ -44,6 +44,7 @@ export function CreateClientWorkOrderDialog({
     service_type: "repair",
     priority: "medium",
     address: "",
+    scheduled_date: "",
   });
   const { toast } = useToast();
 
@@ -94,6 +95,7 @@ export function CreateClientWorkOrderDialog({
         service_type: formData.service_type as "repair" | "maintenance" | "installation" | "warranty",
         priority: formData.priority as "low" | "medium" | "high",
         address: formData.address || null,
+        scheduled_date: formData.scheduled_date || null,
         created_by: user.id,
         status: "awaiting_approval" as const,
       })
@@ -174,6 +176,7 @@ export function CreateClientWorkOrderDialog({
       service_type: "repair",
       priority: "medium",
       address: "",
+      scheduled_date: "",
     });
     onOpenChange(false);
     onSuccess();
@@ -255,6 +258,19 @@ export function CreateClientWorkOrderDialog({
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
               placeholder="Ex: Rua do Exemplo, 123, Lisboa"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="scheduled_date">Data e Hora Preferida (opcional)</Label>
+            <Input
+              id="scheduled_date"
+              type="datetime-local"
+              value={formData.scheduled_date}
+              onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Indique uma data preferencial. O gerente irá verificar a disponibilidade dos técnicos.
+            </p>
           </div>
 
           {equipments.length > 0 && (

@@ -20,6 +20,18 @@ import { MaintenanceReportsList } from "@/components/work-orders/MaintenanceRepo
 import { EquipmentAttachments } from "@/components/equipments/EquipmentAttachments";
 import { WorkOrderMaterials } from "@/components/work-orders/WorkOrderMaterials";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { getBusyEmployeeIds } from "@/lib/employeeAvailability";
 
 interface WorkOrderDetails {
   id: string;
@@ -84,6 +96,8 @@ export default function WorkOrderDetails() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<string>("");
+  const [busyEmployeeIds, setBusyEmployeeIds] = useState<Set<string>>(new Set());
+  const [overbookingConfirm, setOverbookingConfirm] = useState<{ employeeId: string; employeeName: string } | null>(null);
   
   // Equipment states
   const [equipments, setEquipments] = useState<Equipment[]>([]);
@@ -100,6 +114,23 @@ export default function WorkOrderDetails() {
       fetchEmployees();
     }
   }, [id, isManager]);
+
+  // Recompute busy employees whenever the WO date or employees list changes
+  useEffect(() => {
+    const loadBusy = async () => {
+      if (!isManager || !workOrder?.scheduled_date || employees.length === 0) {
+        setBusyEmployeeIds(new Set());
+        return;
+      }
+      const ids = await getBusyEmployeeIds(
+        new Date(workOrder.scheduled_date),
+        employees.map((e) => e.id),
+        workOrder.id
+      );
+      setBusyEmployeeIds(ids);
+    };
+    loadBusy();
+  }, [workOrder?.scheduled_date, workOrder?.id, employees, isManager, assignments.length]);
 
   const fetchEmployeeHours = async () => {
     // Get all time entries for this work order
@@ -298,6 +329,17 @@ export default function WorkOrderDetails() {
       return;
     }
 
+    // Check overbooking (±1h around scheduled_date)
+    if (workOrder?.scheduled_date && busyEmployeeIds.has(selectedEmployee)) {
+      const emp = employees.find((e) => e.id === selectedEmployee);
+      setOverbookingConfirm({ employeeId: selectedEmployee, employeeName: emp?.name || "Funcionário" });
+      return;
+    }
+
+    await performAssignment(selectedEmployee);
+  };
+
+  const performAssignment = async (employeeId: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -305,7 +347,7 @@ export default function WorkOrderDetails() {
       .from("work_order_assignments")
       .insert({
         work_order_id: id,
-        user_id: selectedEmployee,
+        user_id: employeeId,
         assigned_by: user.id,
       });
 
@@ -320,7 +362,7 @@ export default function WorkOrderDetails() {
       await supabase
         .from("notifications")
         .insert({
-          user_id: selectedEmployee,
+          user_id: employeeId,
           work_order_id: id,
           type: "work_order_assigned",
           channel: "email",
@@ -336,7 +378,7 @@ export default function WorkOrderDetails() {
       const { data: employeeData } = await supabase
         .from("profiles")
         .select("name, id")
-        .eq("id", selectedEmployee)
+        .eq("id", employeeId)
         .single();
 
       // Send email notification
@@ -344,7 +386,7 @@ export default function WorkOrderDetails() {
         supabase.functions.invoke("send-notification-email", {
           body: {
             type: "work_order_assigned",
-            userId: selectedEmployee,
+            userId: employeeId,
             data: {
               recipientName: employeeData.name,
               workOrderReference: workOrder?.reference || "",
@@ -684,11 +726,21 @@ export default function WorkOrderDetails() {
                     <SelectValue placeholder="Selecionar funcionário" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover z-50">
-                    {employees.map((employee) => (
-                      <SelectItem key={employee.id} value={employee.id}>
-                        {employee.name}
-                      </SelectItem>
-                    ))}
+                    {employees.map((employee) => {
+                      const busy = busyEmployeeIds.has(employee.id);
+                      return (
+                        <SelectItem key={employee.id} value={employee.id}>
+                          <span className="flex items-center gap-2">
+                            {employee.name}
+                            {busy ? (
+                              <Badge variant="destructive" className="text-[10px] py-0 h-4">Ocupado</Badge>
+                            ) : workOrder?.scheduled_date ? (
+                              <Badge variant="secondary" className="text-[10px] py-0 h-4">Disponível</Badge>
+                            ) : null}
+                          </span>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
                 <Button onClick={handleAssignEmployee}>
@@ -696,6 +748,11 @@ export default function WorkOrderDetails() {
                   Atribuir
                 </Button>
               </div>
+              {workOrder?.scheduled_date && employees.length > 0 && busyEmployeeIds.size === employees.length && (
+                <p className="text-xs text-destructive">
+                  Todos os funcionários já têm uma OT agendada nesta janela horária (±1h). Pode confirmar overbooking ou alterar a data agendada.
+                </p>
+              )}
 
               {assignments.length === 0 ? (
                 <p className="text-center text-muted-foreground py-4">
@@ -794,6 +851,35 @@ export default function WorkOrderDetails() {
           currentUserId={user?.id}
         />
       </div>
+
+      <AlertDialog
+        open={overbookingConfirm !== null}
+        onOpenChange={(o) => !o && setOverbookingConfirm(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar overbooking</AlertDialogTitle>
+            <AlertDialogDescription>
+              {overbookingConfirm?.employeeName} já tem outra ordem de trabalho agendada
+              dentro de ±1 hora desta data. Deseja atribuir mesmo assim (overbooking) ou
+              cancelar para escolher outro funcionário ou alterar o horário?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (overbookingConfirm) {
+                  await performAssignment(overbookingConfirm.employeeId);
+                  setOverbookingConfirm(null);
+                }
+              }}
+            >
+              Confirmar overbooking
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

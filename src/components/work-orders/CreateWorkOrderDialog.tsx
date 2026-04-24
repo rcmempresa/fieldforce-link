@@ -13,6 +13,18 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { getBusyEmployeeIds } from "@/lib/employeeAvailability";
 
 interface CreateWorkOrderDialogProps {
   open: boolean;
@@ -33,6 +45,11 @@ interface Equipment {
   location: string | null;
 }
 
+interface EmployeeOption {
+  id: string;
+  name: string;
+}
+
 export function CreateWorkOrderDialog({
   open,
   onOpenChange,
@@ -40,12 +57,16 @@ export function CreateWorkOrderDialog({
 }: CreateWorkOrderDialogProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [equipments, setEquipments] = useState<Equipment[]>([]);
+  const [employees, setEmployees] = useState<EmployeeOption[]>([]);
+  const [busyEmployeeIds, setBusyEmployeeIds] = useState<Set<string>>(new Set());
+  const [overbookingConfirm, setOverbookingConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     client_id: "",
     equipment_ids: [] as string[],
+    employee_ids: [] as string[],
     service_type: "repair",
     priority: "medium",
     scheduled_date: "",
@@ -56,6 +77,7 @@ export function CreateWorkOrderDialog({
   useEffect(() => {
     if (open) {
       fetchClients();
+      fetchEmployees();
     }
   }, [open]);
 
@@ -67,6 +89,47 @@ export function CreateWorkOrderDialog({
       setFormData(prev => ({ ...prev, equipment_ids: [] }));
     }
   }, [formData.client_id]);
+
+  // Recompute busy employees when scheduled_date changes
+  useEffect(() => {
+    const loadBusy = async () => {
+      if (!formData.scheduled_date || employees.length === 0) {
+        setBusyEmployeeIds(new Set());
+        return;
+      }
+      const ids = await getBusyEmployeeIds(
+        new Date(formData.scheduled_date),
+        employees.map((e) => e.id)
+      );
+      setBusyEmployeeIds(ids);
+    };
+    loadBusy();
+  }, [formData.scheduled_date, employees]);
+
+  const fetchEmployees = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke("list-users", {
+        body: { role: "employee" },
+      });
+      if (error) return;
+      if (data?.users) {
+        setEmployees(
+          data.users.map((u: any) => ({ id: u.id, name: u.name }))
+        );
+      }
+    } catch (e) {
+      console.error("Error fetching employees:", e);
+    }
+  };
+
+  const toggleEmployee = (employeeId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      employee_ids: prev.employee_ids.includes(employeeId)
+        ? prev.employee_ids.filter((id) => id !== employeeId)
+        : [...prev.employee_ids, employeeId],
+    }));
+  };
 
   const fetchClients = async () => {
     try {
@@ -135,6 +198,20 @@ export function CreateWorkOrderDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Overbooking check before creating
+    if (
+      formData.scheduled_date &&
+      formData.employee_ids.some((id) => busyEmployeeIds.has(id))
+    ) {
+      setOverbookingConfirm(true);
+      return;
+    }
+
+    await submitWorkOrder();
+  };
+
+  const submitWorkOrder = async () => {
     setLoading(true);
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -180,6 +257,21 @@ export function CreateWorkOrderDialog({
 
       if (equipmentError) {
         console.error("Error linking equipments:", equipmentError);
+      }
+    }
+
+    // Link employees (assignments) to work order
+    if (formData.employee_ids.length > 0) {
+      const assignmentLinks = formData.employee_ids.map((employeeId) => ({
+        work_order_id: workOrder.id,
+        user_id: employeeId,
+        assigned_by: user.id,
+      }));
+      const { error: assignmentError } = await supabase
+        .from("work_order_assignments")
+        .insert(assignmentLinks);
+      if (assignmentError) {
+        console.error("Error assigning employees:", assignmentError);
       }
     }
 
@@ -270,6 +362,7 @@ export function CreateWorkOrderDialog({
       description: "",
       client_id: "",
       equipment_ids: [],
+      employee_ids: [],
       service_type: "repair",
       priority: "medium",
       scheduled_date: "",
@@ -415,6 +508,43 @@ export function CreateWorkOrderDialog({
             />
           </div>
 
+          {employees.length > 0 && (
+            <div className="space-y-2">
+              <Label>Atribuir Funcionários (opcional)</Label>
+              <div className="border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
+                {employees.map((employee) => {
+                  const busy = busyEmployeeIds.has(employee.id);
+                  return (
+                    <label
+                      key={employee.id}
+                      className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.employee_ids.includes(employee.id)}
+                        onChange={() => toggleEmployee(employee.id)}
+                        className="h-4 w-4"
+                      />
+                      <span className="font-medium text-sm flex-1">{employee.name}</span>
+                      {formData.scheduled_date && (
+                        busy ? (
+                          <Badge variant="destructive" className="text-[10px] py-0 h-5">Ocupado</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-[10px] py-0 h-5">Disponível</Badge>
+                        )
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+              {formData.scheduled_date && busyEmployeeIds.size === employees.length && (
+                <p className="text-xs text-destructive">
+                  Todos os funcionários têm OT agendada nesta janela (±1h). Pode confirmar overbooking ou alterar a data.
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
@@ -425,6 +555,30 @@ export function CreateWorkOrderDialog({
           </div>
         </form>
       </DialogContent>
+
+      <AlertDialog open={overbookingConfirm} onOpenChange={setOverbookingConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar overbooking</AlertDialogTitle>
+            <AlertDialogDescription>
+              Selecionou funcionários que já têm outra OT agendada dentro de ±1h
+              do horário escolhido. Deseja criar a OT mesmo assim (overbooking)
+              ou cancelar para escolher outro horário/funcionário?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                setOverbookingConfirm(false);
+                await submitWorkOrder();
+              }}
+            >
+              Confirmar overbooking
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
