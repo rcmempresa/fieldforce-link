@@ -13,6 +13,18 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { getBusyEmployeeIds } from "@/lib/employeeAvailability";
 
 interface CreateWorkOrderDialogProps {
   open: boolean;
@@ -33,6 +45,11 @@ interface Equipment {
   location: string | null;
 }
 
+interface EmployeeOption {
+  id: string;
+  name: string;
+}
+
 export function CreateWorkOrderDialog({
   open,
   onOpenChange,
@@ -40,12 +57,16 @@ export function CreateWorkOrderDialog({
 }: CreateWorkOrderDialogProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [equipments, setEquipments] = useState<Equipment[]>([]);
+  const [employees, setEmployees] = useState<EmployeeOption[]>([]);
+  const [busyEmployeeIds, setBusyEmployeeIds] = useState<Set<string>>(new Set());
+  const [overbookingConfirm, setOverbookingConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     client_id: "",
     equipment_ids: [] as string[],
+    employee_ids: [] as string[],
     service_type: "repair",
     priority: "medium",
     scheduled_date: "",
@@ -56,6 +77,7 @@ export function CreateWorkOrderDialog({
   useEffect(() => {
     if (open) {
       fetchClients();
+      fetchEmployees();
     }
   }, [open]);
 
@@ -67,6 +89,47 @@ export function CreateWorkOrderDialog({
       setFormData(prev => ({ ...prev, equipment_ids: [] }));
     }
   }, [formData.client_id]);
+
+  // Recompute busy employees when scheduled_date changes
+  useEffect(() => {
+    const loadBusy = async () => {
+      if (!formData.scheduled_date || employees.length === 0) {
+        setBusyEmployeeIds(new Set());
+        return;
+      }
+      const ids = await getBusyEmployeeIds(
+        new Date(formData.scheduled_date),
+        employees.map((e) => e.id)
+      );
+      setBusyEmployeeIds(ids);
+    };
+    loadBusy();
+  }, [formData.scheduled_date, employees]);
+
+  const fetchEmployees = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke("list-users", {
+        body: { role: "employee" },
+      });
+      if (error) return;
+      if (data?.users) {
+        setEmployees(
+          data.users.map((u: any) => ({ id: u.id, name: u.name }))
+        );
+      }
+    } catch (e) {
+      console.error("Error fetching employees:", e);
+    }
+  };
+
+  const toggleEmployee = (employeeId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      employee_ids: prev.employee_ids.includes(employeeId)
+        ? prev.employee_ids.filter((id) => id !== employeeId)
+        : [...prev.employee_ids, employeeId],
+    }));
+  };
 
   const fetchClients = async () => {
     try {
@@ -135,6 +198,20 @@ export function CreateWorkOrderDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Overbooking check before creating
+    if (
+      formData.scheduled_date &&
+      formData.employee_ids.some((id) => busyEmployeeIds.has(id))
+    ) {
+      setOverbookingConfirm(true);
+      return;
+    }
+
+    await submitWorkOrder();
+  };
+
+  const submitWorkOrder = async () => {
     setLoading(true);
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -180,6 +257,21 @@ export function CreateWorkOrderDialog({
 
       if (equipmentError) {
         console.error("Error linking equipments:", equipmentError);
+      }
+    }
+
+    // Link employees (assignments) to work order
+    if (formData.employee_ids.length > 0) {
+      const assignmentLinks = formData.employee_ids.map((employeeId) => ({
+        work_order_id: workOrder.id,
+        user_id: employeeId,
+        assigned_by: user.id,
+      }));
+      const { error: assignmentError } = await supabase
+        .from("work_order_assignments")
+        .insert(assignmentLinks);
+      if (assignmentError) {
+        console.error("Error assigning employees:", assignmentError);
       }
     }
 
