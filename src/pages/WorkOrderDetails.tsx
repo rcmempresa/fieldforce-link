@@ -851,6 +851,35 @@ export default function WorkOrderDetails() {
           currentUserId={user?.id}
         />
       </div>
+
+      <AlertDialog
+        open={overbookingConfirm !== null}
+        onOpenChange={(o) => !o && setOverbookingConfirm(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar overbooking</AlertDialogTitle>
+            <AlertDialogDescription>
+              {overbookingConfirm?.employeeName} já tem outra ordem de trabalho agendada
+              dentro de ±1 hora desta data. Deseja atribuir mesmo assim (overbooking) ou
+              cancelar para escolher outro funcionário ou alterar o horário?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (overbookingConfirm) {
+                  await performAssignment(overbookingConfirm.employeeId);
+                  setOverbookingConfirm(null);
+                }
+              }}
+            >
+              Confirmar overbooking
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }
