@@ -94,6 +94,7 @@ export function CreateClientWorkOrderDialog({
         service_type: formData.service_type as "repair" | "maintenance" | "installation" | "warranty",
         priority: formData.priority as "low" | "medium" | "high",
         address: formData.address || null,
+        scheduled_date: formData.scheduled_date || null,
         created_by: user.id,
         status: "awaiting_approval" as const,
       })
