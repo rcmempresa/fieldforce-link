@@ -20,6 +20,18 @@ import { MaintenanceReportsList } from "@/components/work-orders/MaintenanceRepo
 import { EquipmentAttachments } from "@/components/equipments/EquipmentAttachments";
 import { WorkOrderMaterials } from "@/components/work-orders/WorkOrderMaterials";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { getBusyEmployeeIds } from "@/lib/employeeAvailability";
 
 interface WorkOrderDetails {
   id: string;
@@ -84,6 +96,8 @@ export default function WorkOrderDetails() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<string>("");
+  const [busyEmployeeIds, setBusyEmployeeIds] = useState<Set<string>>(new Set());
+  const [overbookingConfirm, setOverbookingConfirm] = useState<{ employeeId: string; employeeName: string } | null>(null);
   
   // Equipment states
   const [equipments, setEquipments] = useState<Equipment[]>([]);
@@ -100,6 +114,23 @@ export default function WorkOrderDetails() {
       fetchEmployees();
     }
   }, [id, isManager]);
+
+  // Recompute busy employees whenever the WO date or employees list changes
+  useEffect(() => {
+    const loadBusy = async () => {
+      if (!isManager || !workOrder?.scheduled_date || employees.length === 0) {
+        setBusyEmployeeIds(new Set());
+        return;
+      }
+      const ids = await getBusyEmployeeIds(
+        new Date(workOrder.scheduled_date),
+        employees.map((e) => e.id),
+        workOrder.id
+      );
+      setBusyEmployeeIds(ids);
+    };
+    loadBusy();
+  }, [workOrder?.scheduled_date, workOrder?.id, employees, isManager, assignments.length]);
 
   const fetchEmployeeHours = async () => {
     // Get all time entries for this work order
