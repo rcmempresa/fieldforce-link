@@ -561,9 +561,9 @@ export function CreateWorkOrderDialog({
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar overbooking</AlertDialogTitle>
             <AlertDialogDescription>
-              Selecionou funcionários que já têm outra OT agendada dentro de ±1h
-              do horário escolhido. Deseja criar a OT mesmo assim (overbooking)
-              ou cancelar para escolher outro horário/funcionário?
+              Selecionou funcionários que já têm {MAX_PER_SHIFT} OTs no mesmo
+              turno (manhã ou tarde) do dia escolhido. Deseja criar mesmo assim
+              (overbooking) ou cancelar para escolher outro turno/funcionário?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
