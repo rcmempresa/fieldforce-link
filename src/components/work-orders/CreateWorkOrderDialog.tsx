@@ -539,7 +539,7 @@ export function CreateWorkOrderDialog({
               </div>
               {formData.scheduled_date && busyEmployeeIds.size === employees.length && (
                 <p className="text-xs text-destructive">
-                  Todos os funcionários têm OT agendada nesta janela (±1h). Pode confirmar overbooking ou alterar a data.
+                  Todos os funcionários já têm {MAX_PER_SHIFT} OTs no turno da {getShiftLabel(getShift(new Date(formData.scheduled_date)))}. Pode confirmar overbooking ou alterar o turno/dia.
                 </p>
               )}
             </div>
