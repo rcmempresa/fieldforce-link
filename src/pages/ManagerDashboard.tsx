@@ -813,7 +813,7 @@ export default function ManagerDashboard() {
             <CardContent>
               <div className="space-y-4">
                 {pendingRequests.map((request) => (
-                  <div key={request.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 rounded-lg border border-orange-500/20 bg-orange-500/5 p-4">
+                  <div key={request.id} className="flex flex-col gap-4 rounded-lg border border-orange-500/20 bg-orange-500/5 p-4">
                     <div className="space-y-1 flex-1">
                       <div className="flex items-center gap-2">
                         <p className="font-medium">{request.reference}</p>
@@ -849,21 +849,59 @@ export default function ManagerDashboard() {
                         )}
                       </div>
                     </div>
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                      <div className="flex flex-col gap-1">
-                        <Label htmlFor={`date-${request.id}`} className="text-xs text-muted-foreground">
-                          Data Agendada
-                        </Label>
-                        <Input
-                          id={`date-${request.id}`}
-                          type="datetime-local"
-                          value={scheduledDates[request.id] || ""}
-                          onChange={(e) => setScheduledDates({ ...scheduledDates, [request.id]: e.target.value })}
-                          className="w-full sm:w-auto"
-                        />
-                      </div>
-                      <Button 
-                        size="sm" 
+
+                    <div className="rounded-md border bg-background/60 p-3">
+                      <SlotDateTimePicker
+                        value={scheduledDates[request.id] || ""}
+                        onChange={(v) =>
+                          setScheduledDates({ ...scheduledDates, [request.id]: v })
+                        }
+                        excludeWorkOrderId={request.id}
+                      />
+
+                      {scheduledDates[request.id] && employees.length > 0 && (() => {
+                        const busy = busyByRequest[request.id] ?? new Set<string>();
+                        const free = employees.filter((e) => !busy.has(e.id));
+                        const slot = getSlot(new Date(scheduledDates[request.id]));
+                        const slotLabel = slot !== null ? getSlotLabel(slot) : "";
+                        return (
+                          <div className="mt-3 space-y-2">
+                            <Label className="text-xs text-muted-foreground">
+                              Disponibilidade dos funcionários
+                              {slotLabel && ` (slot ${slotLabel})`}
+                            </Label>
+                            <div className="flex flex-wrap gap-1.5">
+                              {employees.map((emp) => {
+                                const isBusy = busy.has(emp.id);
+                                return (
+                                  <Badge
+                                    key={emp.id}
+                                    variant={isBusy ? "secondary" : "default"}
+                                    className={
+                                      isBusy
+                                        ? "opacity-60 line-through"
+                                        : "bg-accent text-accent-foreground"
+                                    }
+                                  >
+                                    {emp.name}
+                                    {isBusy && " · ocupado"}
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                            {free.length === 0 && (
+                              <p className="text-xs text-destructive">
+                                Todos os funcionários já têm uma OT neste slot.
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+                      <Button
+                        size="sm"
                         onClick={() => approveRequest(request.id)}
                         className="bg-accent hover:bg-accent/90"
                       >
