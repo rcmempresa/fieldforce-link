@@ -96,7 +96,43 @@ export default function ManagerDashboard() {
     fetchStats();
     fetchRecentOrders();
     fetchCalendarOrders();
+    fetchEmployees();
   }, []);
+
+  const fetchEmployees = async () => {
+    try {
+      const { data } = await supabase.functions.invoke("list-users", {
+        body: { role: "employee" },
+      });
+      if (data?.users) {
+        setEmployees(data.users.map((u: any) => ({ id: u.id, name: u.name })));
+      }
+    } catch (e) {
+      console.error("Error fetching employees:", e);
+    }
+  };
+
+  // Recalcular funcionários ocupados sempre que a data sugerida muda
+  useEffect(() => {
+    const recompute = async () => {
+      const next: Record<string, Set<string>> = {};
+      for (const req of pendingRequests) {
+        const v = scheduledDates[req.id];
+        if (v && employees.length > 0) {
+          const ids = await getBusyEmployeeIds(
+            new Date(v),
+            employees.map((e) => e.id),
+            req.id
+          );
+          next[req.id] = ids;
+        } else {
+          next[req.id] = new Set();
+        }
+      }
+      setBusyByRequest(next);
+    };
+    recompute();
+  }, [scheduledDates, pendingRequests, employees]);
 
   const fetchPendingUsers = async () => {
     try {
