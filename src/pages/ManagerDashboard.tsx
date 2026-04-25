@@ -446,10 +446,19 @@ export default function ManagerDashboard() {
     }
   };
 
-  const approveRequest = async (requestId: string) => {
+  const approveRequest = async (requestId: string, force = false) => {
     const scheduledDate = scheduledDates[requestId];
     const request = pendingRequests.find(r => r.id === requestId);
-    
+
+    // Verificar se todos os funcionários estão ocupados naquele slot
+    if (!force && scheduledDate && employees.length > 0) {
+      const busy = busyByRequest[requestId] ?? new Set();
+      if (busy.size >= employees.length) {
+        setOverbookConfirm(requestId);
+        return;
+      }
+    }
+
     const updateData: any = { status: "pending" };
     if (scheduledDate) {
       updateData.scheduled_date = new Date(scheduledDate).toISOString();
