@@ -1,4 +1,7 @@
 import { useState, useEffect } from "react";
+import { format } from "date-fns";
+import { pt } from "date-fns/locale";
+import { CalendarIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +14,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +30,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { getBusyEmployeeIds, getShift, getShiftLabel, MAX_PER_SHIFT } from "@/lib/employeeAvailability";
+import {
+  getBusyEmployeeIds,
+  getSlot,
+  getSlotLabel,
+  MAX_PER_SLOT,
+  WORK_ORDER_SLOTS,
+  SlotHour,
+  getScheduledWorkOrders,
+  getLisbonDateKey,
+  ScheduledWorkOrder,
+} from "@/lib/employeeAvailability";
 
 interface CreateWorkOrderDialogProps {
   open: boolean;
@@ -61,6 +77,12 @@ export function CreateWorkOrderDialog({
   const [busyEmployeeIds, setBusyEmployeeIds] = useState<Set<string>>(new Set());
   const [overbookingConfirm, setOverbookingConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
+  // Data e slot escolhidos separadamente
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [selectedSlot, setSelectedSlot] = useState<SlotHour | "">("");
+  // OTs do mês visível no calendário (para indicadores e listagem do dia)
+  const [monthOrders, setMonthOrders] = useState<ScheduledWorkOrder[]>([]);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -89,6 +111,31 @@ export function CreateWorkOrderDialog({
       setFormData(prev => ({ ...prev, equipment_ids: [] }));
     }
   }, [formData.client_id]);
+
+  // Compor scheduled_date a partir de data + slot (hora local Lisboa)
+  useEffect(() => {
+    if (!selectedDate || selectedSlot === "") {
+      setFormData((prev) => ({ ...prev, scheduled_date: "" }));
+      return;
+    }
+    const y = selectedDate.getFullYear();
+    const m = String(selectedDate.getMonth() + 1).padStart(2, "0");
+    const d = String(selectedDate.getDate()).padStart(2, "0");
+    const h = String(selectedSlot).padStart(2, "0");
+    // datetime-local sem timezone — interpretado como hora local
+    setFormData((prev) => ({
+      ...prev,
+      scheduled_date: `${y}-${m}-${d}T${h}:00`,
+    }));
+  }, [selectedDate, selectedSlot]);
+
+  // Carregar OTs do mês visível
+  useEffect(() => {
+    if (!open) return;
+    const start = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+    const end = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0, 23, 59, 59);
+    getScheduledWorkOrders(start, end).then(setMonthOrders);
+  }, [calendarMonth, open]);
 
   // Recompute busy employees when scheduled_date changes
   useEffect(() => {
@@ -368,6 +415,8 @@ export function CreateWorkOrderDialog({
       scheduled_date: "",
       address: "",
     });
+    setSelectedDate(undefined);
+    setSelectedSlot("");
     onOpenChange(false);
     onSuccess();
   };
