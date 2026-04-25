@@ -10,6 +10,8 @@ interface WorkOrderFiltersProps {
   onStatusChange: (value: string) => void;
   priorityFilter: string;
   onPriorityChange: (value: string) => void;
+  sortBy?: string;
+  onSortChange?: (value: string) => void;
 }
 
 export function WorkOrderFilters({
@@ -19,9 +21,11 @@ export function WorkOrderFilters({
   onStatusChange,
   priorityFilter,
   onPriorityChange,
+  sortBy,
+  onSortChange,
 }: WorkOrderFiltersProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
       <div className="space-y-2">
         <Label htmlFor="search">Pesquisar</Label>
         <div className="relative">
@@ -69,6 +73,25 @@ export function WorkOrderFilters({
           </SelectContent>
         </Select>
       </div>
+
+      {onSortChange && (
+        <div className="space-y-2">
+          <Label htmlFor="sort">Ordenar por</Label>
+          <Select value={sortBy || "recent"} onValueChange={onSortChange}>
+            <SelectTrigger id="sort">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="recent">Mais recentes</SelectItem>
+              <SelectItem value="oldest">Mais antigas</SelectItem>
+              <SelectItem value="reference">Referência</SelectItem>
+              <SelectItem value="title">Título (A-Z)</SelectItem>
+              <SelectItem value="client">Cliente (A-Z)</SelectItem>
+              <SelectItem value="scheduled">Data agendada</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
     </div>
   );
 }

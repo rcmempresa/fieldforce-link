@@ -43,6 +43,7 @@ export default function WorkOrders() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("recent");
   const [currentPage, setCurrentPage] = useState(1);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -59,7 +60,7 @@ export default function WorkOrders() {
 
   useEffect(() => {
     filterOrders();
-  }, [searchTerm, statusFilter, priorityFilter, workOrders]);
+  }, [searchTerm, statusFilter, priorityFilter, sortBy, workOrders]);
 
   useEffect(() => {
     paginateOrders();
@@ -112,6 +113,27 @@ export default function WorkOrders() {
     if (priorityFilter !== "all") {
       filtered = filtered.filter((order) => order.priority === priorityFilter);
     }
+
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "oldest":
+          return (a.reference || "").localeCompare(b.reference || "", undefined, { numeric: true });
+        case "reference":
+          return (b.reference || "").localeCompare(a.reference || "", undefined, { numeric: true });
+        case "title":
+          return a.title.localeCompare(b.title);
+        case "client":
+          return (a.profiles?.name || "").localeCompare(b.profiles?.name || "");
+        case "scheduled": {
+          const da = a.scheduled_date ? new Date(a.scheduled_date).getTime() : Infinity;
+          const db = b.scheduled_date ? new Date(b.scheduled_date).getTime() : Infinity;
+          return da - db;
+        }
+        case "recent":
+        default:
+          return (b.reference || "").localeCompare(a.reference || "", undefined, { numeric: true });
+      }
+    });
 
     setFilteredOrders(filtered);
     setCurrentPage(1); // Reset to first page when filters change
@@ -236,6 +258,8 @@ export default function WorkOrders() {
               onStatusChange={setStatusFilter}
               priorityFilter={priorityFilter}
               onPriorityChange={setPriorityFilter}
+              sortBy={sortBy}
+              onSortChange={setSortBy}
             />
 
             {/* Work Orders List */}
