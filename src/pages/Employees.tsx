@@ -13,6 +13,8 @@ import { useNavigate } from "react-router-dom";
 import { CreateEmployeeDialog } from "@/components/employees/CreateEmployeeDialog";
 import { EditEmployeeDialog } from "@/components/employees/EditEmployeeDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DataPagination } from "@/components/ui/data-pagination";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,6 +70,9 @@ export default function Employees() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState<"recent" | "alpha">("alpha");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -86,6 +91,10 @@ export default function Employees() {
   useEffect(() => {
     filterEmployees();
   }, [searchTerm, employees]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sortBy]);
 
   const fetchEmployees = async () => {
     try {
@@ -180,16 +189,15 @@ export default function Employees() {
   };
 
   const filterEmployees = () => {
-    if (!searchTerm) {
-      setFilteredEmployees(employees);
-      return;
-    }
-
-    const filtered = employees.filter(
-      (emp) =>
-        emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        emp.email.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const q = searchTerm.toLowerCase().trim();
+    const filtered = q
+      ? employees.filter(
+          (emp) =>
+            emp.name.toLowerCase().includes(q) ||
+            emp.email.toLowerCase().includes(q) ||
+            (emp.phone || "").toLowerCase().includes(q)
+        )
+      : [...employees];
     setFilteredEmployees(filtered);
   };
 
@@ -395,14 +403,25 @@ export default function Employees() {
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Pesquisar por nome ou email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Pesquisar por nome, email ou telefone..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+                <SelectTrigger className="sm:w-56">
+                  <SelectValue placeholder="Ordenar por..." />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-50">
+                  <SelectItem value="alpha">Ordem alfabética</SelectItem>
+                  <SelectItem value="recent">Mais recentes</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Employees List */}
@@ -411,8 +430,22 @@ export default function Employees() {
                 Nenhum funcionário encontrado
               </p>
             ) : (
-              <div className="space-y-4">
-                {filteredEmployees.map((employee) => (
+              <>
+              {(() => {
+                const sorted = [...filteredEmployees].sort((a, b) =>
+                  sortBy === "recent"
+                    ? new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                    : a.name.localeCompare(b.name)
+                );
+                const totalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE);
+                const paginated = sorted.slice(
+                  (currentPage - 1) * ITEMS_PER_PAGE,
+                  currentPage * ITEMS_PER_PAGE
+                );
+                return (
+                  <>
+                    <div className="space-y-4">
+                      {paginated.map((employee) => (
                   <div
                     key={employee.id}
                     className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-lg border p-4"
@@ -485,6 +518,17 @@ export default function Employees() {
                   </div>
                 ))}
               </div>
+                    <DataPagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={setCurrentPage}
+                      itemsPerPage={ITEMS_PER_PAGE}
+                      totalItems={sorted.length}
+                    />
+                  </>
+                );
+              })()}
+              </>
             )}
           </CardContent>
         </Card>

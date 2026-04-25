@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { DataPagination } from "@/components/ui/data-pagination";
 
 const units = [
   { value: "un", label: "Unidade(s)" },
@@ -54,6 +55,9 @@ export default function MaterialCatalog() {
   const [editUnit, setEditUnit] = useState("");
   const [editReference, setEditReference] = useState("");
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<"recent" | "alpha" | "reference">("alpha");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
     fetchItems();
@@ -146,9 +150,38 @@ export default function MaterialCatalog() {
 
   const getUnitLabel = (v: string) => units.find((u) => u.value === v)?.label || v;
 
-  const filteredItems = items.filter((i) =>
-    i.name.toLowerCase().includes(search.toLowerCase())
+  const filteredItems = items
+    .filter((i) => {
+      const q = search.toLowerCase().trim();
+      if (!q) return true;
+      return (
+        i.name.toLowerCase().includes(q) ||
+        (i.reference || "").toLowerCase().includes(q) ||
+        getUnitLabel(i.default_unit).toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => {
+      if (sortBy === "recent") {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+      if (sortBy === "reference") {
+        const ra = a.reference || "";
+        const rb = b.reference || "";
+        return ra.localeCompare(rb, undefined, { numeric: true });
+      }
+      return a.name.localeCompare(b.name);
+    });
+
+  const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
+  const paginatedItems = filteredItems.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
   );
+
+  // Reset to page 1 when filters/sort change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, sortBy]);
 
   return (
     <DashboardLayout title="Catálogo de Materiais">
@@ -212,11 +245,24 @@ export default function MaterialCatalog() {
               </div>
             )}
 
-            <Input
-              placeholder="Pesquisar materiais..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                placeholder="Pesquisar por nome, referência ou unidade..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="flex-1"
+              />
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+                <SelectTrigger className="sm:w-56">
+                  <SelectValue placeholder="Ordenar por..." />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-50">
+                  <SelectItem value="alpha">Ordem alfabética</SelectItem>
+                  <SelectItem value="recent">Mais recentes</SelectItem>
+                  <SelectItem value="reference">Por referência</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             {loading ? (
               <div className="flex justify-center py-4">
@@ -227,8 +273,9 @@ export default function MaterialCatalog() {
                 Nenhum material no catálogo.
               </p>
             ) : (
+              <>
               <div className="space-y-2">
-                {filteredItems.map((item) => (
+                {paginatedItems.map((item) => (
                   <div
                     key={item.id}
                     className="flex items-center justify-between rounded-lg border p-3"
@@ -299,6 +346,14 @@ export default function MaterialCatalog() {
                   </div>
                 ))}
               </div>
+              <DataPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                itemsPerPage={ITEMS_PER_PAGE}
+                totalItems={filteredItems.length}
+              />
+              </>
             )}
           </CardContent>
         </Card>
