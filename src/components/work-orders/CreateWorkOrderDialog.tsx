@@ -1,4 +1,7 @@
 import { useState, useEffect } from "react";
+import { format } from "date-fns";
+import { pt } from "date-fns/locale";
+import { CalendarIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +14,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +30,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { getBusyEmployeeIds, getShift, getShiftLabel, MAX_PER_SHIFT } from "@/lib/employeeAvailability";
+import {
+  getBusyEmployeeIds,
+  getSlot,
+  getSlotLabel,
+  MAX_PER_SLOT,
+  WORK_ORDER_SLOTS,
+  SlotHour,
+  getScheduledWorkOrders,
+  getLisbonDateKey,
+  ScheduledWorkOrder,
+} from "@/lib/employeeAvailability";
 
 interface CreateWorkOrderDialogProps {
   open: boolean;
@@ -61,6 +77,12 @@ export function CreateWorkOrderDialog({
   const [busyEmployeeIds, setBusyEmployeeIds] = useState<Set<string>>(new Set());
   const [overbookingConfirm, setOverbookingConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
+  // Data e slot escolhidos separadamente
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [selectedSlot, setSelectedSlot] = useState<SlotHour | "">("");
+  // OTs do mês visível no calendário (para indicadores e listagem do dia)
+  const [monthOrders, setMonthOrders] = useState<ScheduledWorkOrder[]>([]);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -89,6 +111,31 @@ export function CreateWorkOrderDialog({
       setFormData(prev => ({ ...prev, equipment_ids: [] }));
     }
   }, [formData.client_id]);
+
+  // Compor scheduled_date a partir de data + slot (hora local Lisboa)
+  useEffect(() => {
+    if (!selectedDate || selectedSlot === "") {
+      setFormData((prev) => ({ ...prev, scheduled_date: "" }));
+      return;
+    }
+    const y = selectedDate.getFullYear();
+    const m = String(selectedDate.getMonth() + 1).padStart(2, "0");
+    const d = String(selectedDate.getDate()).padStart(2, "0");
+    const h = String(selectedSlot).padStart(2, "0");
+    // datetime-local sem timezone — interpretado como hora local
+    setFormData((prev) => ({
+      ...prev,
+      scheduled_date: `${y}-${m}-${d}T${h}:00`,
+    }));
+  }, [selectedDate, selectedSlot]);
+
+  // Carregar OTs do mês visível
+  useEffect(() => {
+    if (!open) return;
+    const start = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+    const end = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0, 23, 59, 59);
+    getScheduledWorkOrders(start, end).then(setMonthOrders);
+  }, [calendarMonth, open]);
 
   // Recompute busy employees when scheduled_date changes
   useEffect(() => {
@@ -368,6 +415,8 @@ export function CreateWorkOrderDialog({
       scheduled_date: "",
       address: "",
     });
+    setSelectedDate(undefined);
+    setSelectedSlot("");
     onOpenChange(false);
     onSuccess();
   };
@@ -489,13 +538,131 @@ export function CreateWorkOrderDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="scheduled_date">Data Agendada</Label>
-            <Input
-              id="scheduled_date"
-              type="datetime-local"
-              value={formData.scheduled_date}
-              onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
-            />
+            <Label>Data Agendada</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !selectedDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? (
+                    format(selectedDate, "PPP", { locale: pt })
+                  ) : (
+                    <span>Escolher data</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 bg-popover z-50" align="start">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  month={calendarMonth}
+                  onMonthChange={setCalendarMonth}
+                  locale={pt}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                  modifiers={{
+                    hasOrders: monthOrders
+                      .map((o) => new Date(o.scheduled_date))
+                      .filter((d) => !isNaN(d.getTime())),
+                  }}
+                  modifiersClassNames={{
+                    hasOrders:
+                      "relative after:content-[''] after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:h-1 after:w-1 after:rounded-full after:bg-primary",
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
+
+            {selectedDate && (
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">
+                  Horário (slots de 2 horas)
+                </Label>
+                <div className="grid grid-cols-4 gap-2">
+                  {WORK_ORDER_SLOTS.map((slot) => {
+                    const dayKey = getLisbonDateKey(selectedDate);
+                    const slotOrders = monthOrders.filter((o) => {
+                      const d = new Date(o.scheduled_date);
+                      return getLisbonDateKey(d) === dayKey && getSlot(d) === slot;
+                    });
+                    const count = slotOrders.length;
+                    const isSelected = selectedSlot === slot;
+                    return (
+                      <Button
+                        key={slot}
+                        type="button"
+                        variant={isSelected ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setSelectedSlot(slot)}
+                        className="flex flex-col h-auto py-2"
+                      >
+                        <span className="font-medium">{getSlotLabel(slot)}</span>
+                        <span className="text-[10px] opacity-75">
+                          {count === 0 ? "livre" : `${count} OT${count > 1 ? "s" : ""}`}
+                        </span>
+                      </Button>
+                    );
+                  })}
+                </div>
+
+                {(() => {
+                  const dayKey = getLisbonDateKey(selectedDate);
+                  const dayOrders = monthOrders
+                    .filter((o) => getLisbonDateKey(new Date(o.scheduled_date)) === dayKey)
+                    .sort(
+                      (a, b) =>
+                        new Date(a.scheduled_date).getTime() -
+                        new Date(b.scheduled_date).getTime()
+                    );
+                  if (dayOrders.length === 0) {
+                    return (
+                      <p className="text-xs text-muted-foreground italic">
+                        Sem OTs agendadas neste dia.
+                      </p>
+                    );
+                  }
+                  return (
+                    <div className="border rounded-lg p-2 max-h-40 overflow-y-auto space-y-1 bg-muted/30">
+                      <p className="text-xs font-medium text-muted-foreground px-1">
+                        OTs já agendadas:
+                      </p>
+                      {dayOrders.map((o) => {
+                        const d = new Date(o.scheduled_date);
+                        const slot = getSlot(d);
+                        return (
+                          <div
+                            key={o.id}
+                            className="text-xs flex items-start gap-2 p-1.5 rounded hover:bg-background"
+                          >
+                            <Badge variant="outline" className="text-[10px] py-0 h-5 shrink-0">
+                              {slot !== null ? getSlotLabel(slot) : "—"}
+                            </Badge>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium truncate">
+                                {o.reference} · {o.title}
+                              </div>
+                              <div className="text-muted-foreground truncate">
+                                {o.client_name || "—"}
+                                {o.assignees.length > 0 && (
+                                  <> · {o.assignees.map((a) => a.name).join(", ")}</>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -537,11 +704,16 @@ export function CreateWorkOrderDialog({
                   );
                 })}
               </div>
-              {formData.scheduled_date && busyEmployeeIds.size === employees.length && (
-                <p className="text-xs text-destructive">
-                  Todos os funcionários já têm {MAX_PER_SHIFT} OTs no turno da {getShiftLabel(getShift(new Date(formData.scheduled_date)))}. Pode confirmar overbooking ou alterar o turno/dia.
-                </p>
-              )}
+              {formData.scheduled_date && busyEmployeeIds.size === employees.length && (() => {
+                const slot = getSlot(new Date(formData.scheduled_date));
+                return (
+                  <p className="text-xs text-destructive">
+                    Todos os funcionários já têm uma OT no slot das{" "}
+                    {slot !== null ? getSlotLabel(slot) : "—"}. Pode confirmar
+                    overbooking ou escolher outro horário/dia.
+                  </p>
+                );
+              })()}
             </div>
           )}
 
@@ -561,9 +733,9 @@ export function CreateWorkOrderDialog({
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar overbooking</AlertDialogTitle>
             <AlertDialogDescription>
-              Selecionou funcionários que já têm {MAX_PER_SHIFT} OTs no mesmo
-              turno (manhã ou tarde) do dia escolhido. Deseja criar mesmo assim
-              (overbooking) ou cancelar para escolher outro turno/funcionário?
+              Selecionou funcionários que já têm {MAX_PER_SLOT} OT no mesmo
+              slot horário do dia escolhido. Deseja criar mesmo assim
+              (overbooking) ou cancelar para escolher outro horário/funcionário?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

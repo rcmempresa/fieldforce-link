@@ -31,7 +31,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { getBusyEmployeeIds, getShift, getShiftLabel, MAX_PER_SHIFT } from "@/lib/employeeAvailability";
+import { getBusyEmployeeIds, getSlot, getSlotLabel, MAX_PER_SLOT } from "@/lib/employeeAvailability";
 
 interface WorkOrderDetails {
   id: string;
@@ -748,11 +748,14 @@ export default function WorkOrderDetails() {
                   Atribuir
                 </Button>
               </div>
-              {workOrder?.scheduled_date && employees.length > 0 && busyEmployeeIds.size === employees.length && (
-                <p className="text-xs text-destructive">
-                  Todos os funcionários já têm {MAX_PER_SHIFT} OTs no turno da {getShiftLabel(getShift(new Date(workOrder.scheduled_date)))}. Pode confirmar overbooking ou alterar o turno.
-                </p>
-              )}
+              {workOrder?.scheduled_date && employees.length > 0 && busyEmployeeIds.size === employees.length && (() => {
+                const slot = getSlot(new Date(workOrder.scheduled_date));
+                return (
+                  <p className="text-xs text-destructive">
+                    Todos os funcionários já têm uma OT no slot das {slot !== null ? getSlotLabel(slot) : "—"}. Pode confirmar overbooking ou alterar o horário.
+                  </p>
+                );
+              })()}
 
               {assignments.length === 0 ? (
                 <p className="text-center text-muted-foreground py-4">
@@ -860,9 +863,9 @@ export default function WorkOrderDetails() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar overbooking</AlertDialogTitle>
             <AlertDialogDescription>
-              {overbookingConfirm?.employeeName} já tem {MAX_PER_SHIFT} OTs no mesmo
-              turno (manhã ou tarde) deste dia. Deseja atribuir mesmo assim
-              (overbooking) ou cancelar para escolher outro funcionário/turno?
+              {overbookingConfirm?.employeeName} já tem {MAX_PER_SLOT} OT no
+              mesmo slot horário deste dia. Deseja atribuir mesmo assim
+              (overbooking) ou cancelar para escolher outro funcionário/horário?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
