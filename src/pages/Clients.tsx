@@ -28,6 +28,8 @@ import { pt } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { formatHours } from "@/lib/formatHours";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DataPagination } from "@/components/ui/data-pagination";
 
 interface Equipment {
   id: string;
@@ -80,6 +82,9 @@ export default function Clients() {
   const [clients, setClients] = useState<Client[]>([]);
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState<"recent" | "alpha" | "company">("alpha");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -129,6 +134,10 @@ export default function Clients() {
   useEffect(() => {
     filterClients();
   }, [searchTerm, clients]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sortBy]);
 
   const fetchClients = async () => {
     try {
@@ -198,17 +207,17 @@ export default function Clients() {
   };
 
   const filterClients = () => {
-    if (!searchTerm) {
-      setFilteredClients(clients);
-      return;
-    }
-
-    const filtered = clients.filter(
-      (client) =>
-        client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (client.company_name && client.company_name.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const q = searchTerm.toLowerCase().trim();
+    const filtered = q
+      ? clients.filter(
+          (client) =>
+            client.name.toLowerCase().includes(q) ||
+            client.email.toLowerCase().includes(q) ||
+            (client.company_name || "").toLowerCase().includes(q) ||
+            (client.phone || "").toLowerCase().includes(q) ||
+            (client.address || "").toLowerCase().includes(q)
+        )
+      : [...clients];
     setFilteredClients(filtered);
   };
 
@@ -533,14 +542,26 @@ export default function Clients() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Pesquisar por nome, email ou empresa..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Pesquisar por nome, email, empresa, telefone..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+                <SelectTrigger className="sm:w-56">
+                  <SelectValue placeholder="Ordenar por..." />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-50">
+                  <SelectItem value="alpha">Ordem alfabética (nome)</SelectItem>
+                  <SelectItem value="company">Por empresa</SelectItem>
+                  <SelectItem value="recent">Mais recentes</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {filteredClients.length === 0 ? (
@@ -548,8 +569,26 @@ export default function Clients() {
                 Nenhum cliente encontrado
               </p>
             ) : (
-              <div className="space-y-4">
-                {filteredClients.map((client) => (
+              <>
+              {(() => {
+                const sorted = [...filteredClients].sort((a, b) => {
+                  if (sortBy === "recent") {
+                    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                  }
+                  if (sortBy === "company") {
+                    return (a.company_name || a.name).localeCompare(b.company_name || b.name);
+                  }
+                  return a.name.localeCompare(b.name);
+                });
+                const totalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE);
+                const paginated = sorted.slice(
+                  (currentPage - 1) * ITEMS_PER_PAGE,
+                  currentPage * ITEMS_PER_PAGE
+                );
+                return (
+                  <>
+                    <div className="space-y-4">
+                      {paginated.map((client) => (
                   <Collapsible
                     key={client.id}
                     open={expandedClients.has(client.id)}
@@ -776,6 +815,17 @@ export default function Clients() {
                   </Collapsible>
                 ))}
               </div>
+                    <DataPagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={setCurrentPage}
+                      itemsPerPage={ITEMS_PER_PAGE}
+                      totalItems={sorted.length}
+                    />
+                  </>
+                );
+              })()}
+              </>
             )}
           </CardContent>
         </Card>
