@@ -20,6 +20,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Notifications } from "@/components/Notifications";
+import { SlotDateTimePicker } from "@/components/work-orders/SlotDateTimePicker";
+import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  getBusyEmployeeIds,
+  getSlot,
+  getSlotLabel,
+  SlotHour,
+} from "@/lib/employeeAvailability";
 
 interface PendingUser {
   id: string;
@@ -63,6 +81,9 @@ export default function ManagerDashboard() {
   const [pendingRequests, setPendingRequests] = useState<WorkOrder[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<Record<string, string>>({});
   const [scheduledDates, setScheduledDates] = useState<Record<string, string>>({});
+  const [employees, setEmployees] = useState<{ id: string; name: string }[]>([]);
+  const [busyByRequest, setBusyByRequest] = useState<Record<string, Set<string>>>({});
+  const [overbookConfirm, setOverbookConfirm] = useState<string | null>(null);
   const [stats, setStats] = useState<Stats>({ pending: 0, inProgress: 0, completed: 0, activeEmployees: 0, activeClients: 0 });
   const [recentOrders, setRecentOrders] = useState<WorkOrder[]>([]);
   const [calendarOrders, setCalendarOrders] = useState<WorkOrder[]>([]);
@@ -75,7 +96,43 @@ export default function ManagerDashboard() {
     fetchStats();
     fetchRecentOrders();
     fetchCalendarOrders();
+    fetchEmployees();
   }, []);
+
+  const fetchEmployees = async () => {
+    try {
+      const { data } = await supabase.functions.invoke("list-users", {
+        body: { role: "employee" },
+      });
+      if (data?.users) {
+        setEmployees(data.users.map((u: any) => ({ id: u.id, name: u.name })));
+      }
+    } catch (e) {
+      console.error("Error fetching employees:", e);
+    }
+  };
+
+  // Recalcular funcionários ocupados sempre que a data sugerida muda
+  useEffect(() => {
+    const recompute = async () => {
+      const next: Record<string, Set<string>> = {};
+      for (const req of pendingRequests) {
+        const v = scheduledDates[req.id];
+        if (v && employees.length > 0) {
+          const ids = await getBusyEmployeeIds(
+            new Date(v),
+            employees.map((e) => e.id),
+            req.id
+          );
+          next[req.id] = ids;
+        } else {
+          next[req.id] = new Set();
+        }
+      }
+      setBusyByRequest(next);
+    };
+    recompute();
+  }, [scheduledDates, pendingRequests, employees]);
 
   const fetchPendingUsers = async () => {
     try {
@@ -110,6 +167,7 @@ export default function ManagerDashboard() {
         service_type,
         priority,
         created_at,
+        scheduled_date,
         profiles!work_orders_client_id_fkey (
           name,
           company_name
@@ -124,6 +182,21 @@ export default function ManagerDashboard() {
         client_name: order.profiles?.company_name || order.profiles?.name || "N/A",
       }));
       setPendingRequests(formattedData);
+      // Pré-preencher scheduledDates com a sugestão do cliente (formato datetime-local)
+      setScheduledDates((prev) => {
+        const next = { ...prev };
+        for (const o of formattedData) {
+          if (o.scheduled_date && !next[o.id]) {
+            const d = new Date(o.scheduled_date);
+            const y = d.getFullYear();
+            const mo = String(d.getMonth() + 1).padStart(2, "0");
+            const da = String(d.getDate()).padStart(2, "0");
+            const h = String(d.getHours()).padStart(2, "0");
+            next[o.id] = `${y}-${mo}-${da}T${h}:00`;
+          }
+        }
+        return next;
+      });
     }
   };
 
@@ -373,10 +446,19 @@ export default function ManagerDashboard() {
     }
   };
 
-  const approveRequest = async (requestId: string) => {
+  const approveRequest = async (requestId: string, force = false) => {
     const scheduledDate = scheduledDates[requestId];
     const request = pendingRequests.find(r => r.id === requestId);
-    
+
+    // Verificar se todos os funcionários estão ocupados naquele slot
+    if (!force && scheduledDate && employees.length > 0) {
+      const busy = busyByRequest[requestId] ?? new Set();
+      if (busy.size >= employees.length) {
+        setOverbookConfirm(requestId);
+        return;
+      }
+    }
+
     const updateData: any = { status: "pending" };
     if (scheduledDate) {
       updateData.scheduled_date = new Date(scheduledDate).toISOString();
@@ -731,7 +813,7 @@ export default function ManagerDashboard() {
             <CardContent>
               <div className="space-y-4">
                 {pendingRequests.map((request) => (
-                  <div key={request.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 rounded-lg border border-orange-500/20 bg-orange-500/5 p-4">
+                  <div key={request.id} className="flex flex-col gap-4 rounded-lg border border-orange-500/20 bg-orange-500/5 p-4">
                     <div className="space-y-1 flex-1">
                       <div className="flex items-center gap-2">
                         <p className="font-medium">{request.reference}</p>
@@ -767,21 +849,59 @@ export default function ManagerDashboard() {
                         )}
                       </div>
                     </div>
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                      <div className="flex flex-col gap-1">
-                        <Label htmlFor={`date-${request.id}`} className="text-xs text-muted-foreground">
-                          Data Agendada
-                        </Label>
-                        <Input
-                          id={`date-${request.id}`}
-                          type="datetime-local"
-                          value={scheduledDates[request.id] || ""}
-                          onChange={(e) => setScheduledDates({ ...scheduledDates, [request.id]: e.target.value })}
-                          className="w-full sm:w-auto"
-                        />
-                      </div>
-                      <Button 
-                        size="sm" 
+
+                    <div className="rounded-md border bg-background/60 p-3">
+                      <SlotDateTimePicker
+                        value={scheduledDates[request.id] || ""}
+                        onChange={(v) =>
+                          setScheduledDates({ ...scheduledDates, [request.id]: v })
+                        }
+                        excludeWorkOrderId={request.id}
+                      />
+
+                      {scheduledDates[request.id] && employees.length > 0 && (() => {
+                        const busy = busyByRequest[request.id] ?? new Set<string>();
+                        const free = employees.filter((e) => !busy.has(e.id));
+                        const slot = getSlot(new Date(scheduledDates[request.id]));
+                        const slotLabel = slot !== null ? getSlotLabel(slot) : "";
+                        return (
+                          <div className="mt-3 space-y-2">
+                            <Label className="text-xs text-muted-foreground">
+                              Disponibilidade dos funcionários
+                              {slotLabel && ` (slot ${slotLabel})`}
+                            </Label>
+                            <div className="flex flex-wrap gap-1.5">
+                              {employees.map((emp) => {
+                                const isBusy = busy.has(emp.id);
+                                return (
+                                  <Badge
+                                    key={emp.id}
+                                    variant={isBusy ? "secondary" : "default"}
+                                    className={
+                                      isBusy
+                                        ? "opacity-60 line-through"
+                                        : "bg-accent text-accent-foreground"
+                                    }
+                                  >
+                                    {emp.name}
+                                    {isBusy && " · ocupado"}
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                            {free.length === 0 && (
+                              <p className="text-xs text-destructive">
+                                Todos os funcionários já têm uma OT neste slot.
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+                      <Button
+                        size="sm"
                         onClick={() => approveRequest(request.id)}
                         className="bg-accent hover:bg-accent/90"
                       >
@@ -992,6 +1112,33 @@ export default function ManagerDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog
+        open={overbookConfirm !== null}
+        onOpenChange={(o) => !o && setOverbookConfirm(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Todos os funcionários estão ocupados</AlertDialogTitle>
+            <AlertDialogDescription>
+              Neste slot todos os funcionários já têm uma OT atribuída. Pretende
+              aprovar mesmo assim (overbooking) ou escolher outro horário?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Escolher outro horário</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const id = overbookConfirm;
+                setOverbookConfirm(null);
+                if (id) approveRequest(id, true);
+              }}
+            >
+              Aprovar mesmo assim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }
