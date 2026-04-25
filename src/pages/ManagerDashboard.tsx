@@ -81,6 +81,9 @@ export default function ManagerDashboard() {
   const [pendingRequests, setPendingRequests] = useState<WorkOrder[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<Record<string, string>>({});
   const [scheduledDates, setScheduledDates] = useState<Record<string, string>>({});
+  const [employees, setEmployees] = useState<{ id: string; name: string }[]>([]);
+  const [busyByRequest, setBusyByRequest] = useState<Record<string, Set<string>>>({});
+  const [overbookConfirm, setOverbookConfirm] = useState<string | null>(null);
   const [stats, setStats] = useState<Stats>({ pending: 0, inProgress: 0, completed: 0, activeEmployees: 0, activeClients: 0 });
   const [recentOrders, setRecentOrders] = useState<WorkOrder[]>([]);
   const [calendarOrders, setCalendarOrders] = useState<WorkOrder[]>([]);
