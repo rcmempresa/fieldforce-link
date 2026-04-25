@@ -1112,6 +1112,33 @@ export default function ManagerDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog
+        open={overbookConfirm !== null}
+        onOpenChange={(o) => !o && setOverbookConfirm(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Todos os funcionários estão ocupados</AlertDialogTitle>
+            <AlertDialogDescription>
+              Neste slot todos os funcionários já têm uma OT atribuída. Pretende
+              aprovar mesmo assim (overbooking) ou escolher outro horário?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Escolher outro horário</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const id = overbookConfirm;
+                setOverbookConfirm(null);
+                if (id) approveRequest(id, true);
+              }}
+            >
+              Aprovar mesmo assim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }
