@@ -128,6 +128,7 @@ export default function ManagerDashboard() {
         service_type,
         priority,
         created_at,
+        scheduled_date,
         profiles!work_orders_client_id_fkey (
           name,
           company_name
@@ -142,6 +143,21 @@ export default function ManagerDashboard() {
         client_name: order.profiles?.company_name || order.profiles?.name || "N/A",
       }));
       setPendingRequests(formattedData);
+      // Pré-preencher scheduledDates com a sugestão do cliente (formato datetime-local)
+      setScheduledDates((prev) => {
+        const next = { ...prev };
+        for (const o of formattedData) {
+          if (o.scheduled_date && !next[o.id]) {
+            const d = new Date(o.scheduled_date);
+            const y = d.getFullYear();
+            const mo = String(d.getMonth() + 1).padStart(2, "0");
+            const da = String(d.getDate()).padStart(2, "0");
+            const h = String(d.getHours()).padStart(2, "0");
+            next[o.id] = `${y}-${mo}-${da}T${h}:00`;
+          }
+        }
+        return next;
+      });
     }
   };
 
