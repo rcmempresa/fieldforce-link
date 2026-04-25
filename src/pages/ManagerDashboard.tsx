@@ -20,6 +20,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Notifications } from "@/components/Notifications";
+import { SlotDateTimePicker } from "@/components/work-orders/SlotDateTimePicker";
+import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  getBusyEmployeeIds,
+  getSlot,
+  getSlotLabel,
+  SlotHour,
+} from "@/lib/employeeAvailability";
 
 interface PendingUser {
   id: string;
