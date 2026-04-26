@@ -374,8 +374,6 @@ export function CreateWorkOrderDialog({
       scheduled_date: "",
       address: "",
     });
-    setSelectedDate(undefined);
-    setSelectedSlot("");
     onOpenChange(false);
     onSuccess();
   };
