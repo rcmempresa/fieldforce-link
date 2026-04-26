@@ -13,6 +13,24 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  getBusyEmployeeIds,
+  getSlot,
+  getSlotLabel,
+  MAX_PER_SLOT,
+} from "@/lib/employeeAvailability";
+import { SlotDateTimePicker } from "./SlotDateTimePicker";
 
 interface EditWorkOrderDialogProps {
   open: boolean;
@@ -34,6 +52,10 @@ export function EditWorkOrderDialog({
   onSuccess,
 }: EditWorkOrderDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [employees, setEmployees] = useState<{ id: string; name: string }[]>([]);
+  const [assignedIds, setAssignedIds] = useState<string[]>([]);
+  const [busyEmployeeIds, setBusyEmployeeIds] = useState<Set<string>>(new Set());
+  const [overbookingConfirm, setOverbookingConfirm] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -48,8 +70,57 @@ export function EditWorkOrderDialog({
   useEffect(() => {
     if (open && workOrder) {
       fetchWorkOrderDetails();
+      fetchEmployees();
+      fetchAssignedEmployees();
     }
   }, [open, workOrder]);
+
+  // Recalcular ocupação quando data ou funcionários mudam
+  useEffect(() => {
+    const loadBusy = async () => {
+      if (!formData.scheduled_date || employees.length === 0) {
+        setBusyEmployeeIds(new Set());
+        return;
+      }
+      const ids = await getBusyEmployeeIds(
+        new Date(formData.scheduled_date),
+        employees.map((e) => e.id),
+        workOrder.id
+      );
+      setBusyEmployeeIds(ids);
+    };
+    loadBusy();
+  }, [formData.scheduled_date, employees, workOrder.id]);
+
+  const fetchEmployees = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke("list-users", {
+        body: { role: "employee" },
+      });
+      if (error) return;
+      if (data?.users) {
+        setEmployees(data.users.map((u: any) => ({ id: u.id, name: u.name })));
+      }
+    } catch (e) {
+      console.error("Error fetching employees:", e);
+    }
+  };
+
+  const fetchAssignedEmployees = async () => {
+    const { data } = await supabase
+      .from("work_order_assignments")
+      .select("user_id")
+      .eq("work_order_id", workOrder.id);
+    if (data) setAssignedIds(data.map((d) => d.user_id));
+  };
+
+  const toggleEmployee = (employeeId: string) => {
+    setAssignedIds((prev) =>
+      prev.includes(employeeId)
+        ? prev.filter((id) => id !== employeeId)
+        : [...prev, employeeId]
+    );
+  };
 
   const fetchWorkOrderDetails = async () => {
     const { data } = await supabase
@@ -81,6 +152,20 @@ export function EditWorkOrderDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Verificar overbooking
+    if (
+      formData.scheduled_date &&
+      assignedIds.some((id) => busyEmployeeIds.has(id))
+    ) {
+      setOverbookingConfirm(true);
+      return;
+    }
+
+    await submitUpdate();
+  };
+
+  const submitUpdate = async () => {
     setLoading(true);
 
     const { error } = await supabase
@@ -104,6 +189,39 @@ export function EditWorkOrderDialog({
         variant: "destructive",
       });
       return;
+    }
+
+    // Sincronizar assignments
+    {
+      const { data: existing } = await supabase
+        .from("work_order_assignments")
+        .select("user_id")
+        .eq("work_order_id", workOrder.id);
+      const existingIds = new Set((existing || []).map((e) => e.user_id));
+      const newIds = new Set(assignedIds);
+
+      const toRemove = [...existingIds].filter((id) => !newIds.has(id));
+      const toAdd = [...newIds].filter((id) => !existingIds.has(id));
+
+      if (toRemove.length > 0) {
+        await supabase
+          .from("work_order_assignments")
+          .delete()
+          .eq("work_order_id", workOrder.id)
+          .in("user_id", toRemove);
+      }
+      if (toAdd.length > 0) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from("work_order_assignments").insert(
+            toAdd.map((uid) => ({
+              work_order_id: workOrder.id,
+              user_id: uid,
+              assigned_by: user.id,
+            }))
+          );
+        }
+      }
     }
 
     // Get work order details for notifications
