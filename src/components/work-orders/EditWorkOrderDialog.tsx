@@ -13,6 +13,24 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  getBusyEmployeeIds,
+  getSlot,
+  getSlotLabel,
+  MAX_PER_SLOT,
+} from "@/lib/employeeAvailability";
+import { SlotDateTimePicker } from "./SlotDateTimePicker";
 
 interface EditWorkOrderDialogProps {
   open: boolean;
@@ -34,6 +52,10 @@ export function EditWorkOrderDialog({
   onSuccess,
 }: EditWorkOrderDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [employees, setEmployees] = useState<{ id: string; name: string }[]>([]);
+  const [assignedIds, setAssignedIds] = useState<string[]>([]);
+  const [busyEmployeeIds, setBusyEmployeeIds] = useState<Set<string>>(new Set());
+  const [overbookingConfirm, setOverbookingConfirm] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -48,8 +70,57 @@ export function EditWorkOrderDialog({
   useEffect(() => {
     if (open && workOrder) {
       fetchWorkOrderDetails();
+      fetchEmployees();
+      fetchAssignedEmployees();
     }
   }, [open, workOrder]);
+
+  // Recalcular ocupação quando data ou funcionários mudam
+  useEffect(() => {
+    const loadBusy = async () => {
+      if (!formData.scheduled_date || employees.length === 0) {
+        setBusyEmployeeIds(new Set());
+        return;
+      }
+      const ids = await getBusyEmployeeIds(
+        new Date(formData.scheduled_date),
+        employees.map((e) => e.id),
+        workOrder.id
+      );
+      setBusyEmployeeIds(ids);
+    };
+    loadBusy();
+  }, [formData.scheduled_date, employees, workOrder.id]);
+
+  const fetchEmployees = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke("list-users", {
+        body: { role: "employee" },
+      });
+      if (error) return;
+      if (data?.users) {
+        setEmployees(data.users.map((u: any) => ({ id: u.id, name: u.name })));
+      }
+    } catch (e) {
+      console.error("Error fetching employees:", e);
+    }
+  };
+
+  const fetchAssignedEmployees = async () => {
+    const { data } = await supabase
+      .from("work_order_assignments")
+      .select("user_id")
+      .eq("work_order_id", workOrder.id);
+    if (data) setAssignedIds(data.map((d) => d.user_id));
+  };
+
+  const toggleEmployee = (employeeId: string) => {
+    setAssignedIds((prev) =>
+      prev.includes(employeeId)
+        ? prev.filter((id) => id !== employeeId)
+        : [...prev, employeeId]
+    );
+  };
 
   const fetchWorkOrderDetails = async () => {
     const { data } = await supabase
@@ -81,6 +152,20 @@ export function EditWorkOrderDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Verificar overbooking
+    if (
+      formData.scheduled_date &&
+      assignedIds.some((id) => busyEmployeeIds.has(id))
+    ) {
+      setOverbookingConfirm(true);
+      return;
+    }
+
+    await submitUpdate();
+  };
+
+  const submitUpdate = async () => {
     setLoading(true);
 
     const { error } = await supabase
@@ -104,6 +189,39 @@ export function EditWorkOrderDialog({
         variant: "destructive",
       });
       return;
+    }
+
+    // Sincronizar assignments
+    {
+      const { data: existing } = await supabase
+        .from("work_order_assignments")
+        .select("user_id")
+        .eq("work_order_id", workOrder.id);
+      const existingIds = new Set((existing || []).map((e) => e.user_id));
+      const newIds = new Set(assignedIds);
+
+      const toRemove = [...existingIds].filter((id) => !newIds.has(id));
+      const toAdd = [...newIds].filter((id) => !existingIds.has(id));
+
+      if (toRemove.length > 0) {
+        await supabase
+          .from("work_order_assignments")
+          .delete()
+          .eq("work_order_id", workOrder.id)
+          .in("user_id", toRemove);
+      }
+      if (toAdd.length > 0) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from("work_order_assignments").insert(
+            toAdd.map((uid) => ({
+              work_order_id: workOrder.id,
+              user_id: uid,
+              assigned_by: user.id,
+            }))
+          );
+        }
+      }
     }
 
     // Get work order details for notifications
@@ -303,15 +421,13 @@ export function EditWorkOrderDialog({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="scheduled_date">Data Agendada</Label>
-            <Input
-              id="scheduled_date"
-              type="datetime-local"
-              value={formData.scheduled_date}
-              onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
-            />
-          </div>
+          <SlotDateTimePicker
+            value={formData.scheduled_date}
+            onChange={(value) =>
+              setFormData((prev) => ({ ...prev, scheduled_date: value }))
+            }
+            excludeWorkOrderId={workOrder.id}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="address">Morada do Local</Label>
@@ -322,6 +438,50 @@ export function EditWorkOrderDialog({
               placeholder="Ex: Rua do Exemplo, 123, Lisboa"
             />
           </div>
+
+          {employees.length > 0 && (
+            <div className="space-y-2">
+              <Label>Funcionários Atribuídos</Label>
+              <div className="border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
+                {employees.map((employee) => {
+                  const busy = busyEmployeeIds.has(employee.id);
+                  return (
+                    <label
+                      key={employee.id}
+                      className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={assignedIds.includes(employee.id)}
+                        onChange={() => toggleEmployee(employee.id)}
+                        className="h-4 w-4"
+                      />
+                      <span className="font-medium text-sm flex-1">{employee.name}</span>
+                      {formData.scheduled_date && (
+                        busy ? (
+                          <Badge variant="destructive" className="text-[10px] py-0 h-5">Ocupado</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-[10px] py-0 h-5">Disponível</Badge>
+                        )
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+              {formData.scheduled_date &&
+                employees.length > 0 &&
+                busyEmployeeIds.size === employees.length && (() => {
+                  const slot = getSlot(new Date(formData.scheduled_date));
+                  return (
+                    <p className="text-xs text-destructive">
+                      Todos os funcionários já têm uma OT no slot das{" "}
+                      {slot !== null ? getSlotLabel(slot) : "—"}. Pode confirmar
+                      overbooking ou escolher outro horário/dia.
+                    </p>
+                  );
+                })()}
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="notes">Notas</Label>
@@ -343,6 +503,30 @@ export function EditWorkOrderDialog({
           </div>
         </form>
       </DialogContent>
+
+      <AlertDialog open={overbookingConfirm} onOpenChange={setOverbookingConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar overbooking</AlertDialogTitle>
+            <AlertDialogDescription>
+              Selecionou funcionários que já têm {MAX_PER_SLOT} OT no mesmo
+              slot horário do dia escolhido. Deseja guardar mesmo assim
+              (overbooking) ou cancelar para escolher outro horário/funcionário?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                setOverbookingConfirm(false);
+                await submitUpdate();
+              }}
+            >
+              Confirmar overbooking
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
