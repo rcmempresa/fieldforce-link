@@ -421,15 +421,13 @@ export function EditWorkOrderDialog({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="scheduled_date">Data Agendada</Label>
-            <Input
-              id="scheduled_date"
-              type="datetime-local"
-              value={formData.scheduled_date}
-              onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
-            />
-          </div>
+          <SlotDateTimePicker
+            value={formData.scheduled_date}
+            onChange={(value) =>
+              setFormData((prev) => ({ ...prev, scheduled_date: value }))
+            }
+            excludeWorkOrderId={workOrder.id}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="address">Morada do Local</Label>
@@ -440,6 +438,50 @@ export function EditWorkOrderDialog({
               placeholder="Ex: Rua do Exemplo, 123, Lisboa"
             />
           </div>
+
+          {employees.length > 0 && (
+            <div className="space-y-2">
+              <Label>Funcionários Atribuídos</Label>
+              <div className="border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
+                {employees.map((employee) => {
+                  const busy = busyEmployeeIds.has(employee.id);
+                  return (
+                    <label
+                      key={employee.id}
+                      className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={assignedIds.includes(employee.id)}
+                        onChange={() => toggleEmployee(employee.id)}
+                        className="h-4 w-4"
+                      />
+                      <span className="font-medium text-sm flex-1">{employee.name}</span>
+                      {formData.scheduled_date && (
+                        busy ? (
+                          <Badge variant="destructive" className="text-[10px] py-0 h-5">Ocupado</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-[10px] py-0 h-5">Disponível</Badge>
+                        )
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+              {formData.scheduled_date &&
+                employees.length > 0 &&
+                busyEmployeeIds.size === employees.length && (() => {
+                  const slot = getSlot(new Date(formData.scheduled_date));
+                  return (
+                    <p className="text-xs text-destructive">
+                      Todos os funcionários já têm uma OT no slot das{" "}
+                      {slot !== null ? getSlotLabel(slot) : "—"}. Pode confirmar
+                      overbooking ou escolher outro horário/dia.
+                    </p>
+                  );
+                })()}
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="notes">Notas</Label>
@@ -461,6 +503,30 @@ export function EditWorkOrderDialog({
           </div>
         </form>
       </DialogContent>
+
+      <AlertDialog open={overbookingConfirm} onOpenChange={setOverbookingConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar overbooking</AlertDialogTitle>
+            <AlertDialogDescription>
+              Selecionou funcionários que já têm {MAX_PER_SLOT} OT no mesmo
+              slot horário do dia escolhido. Deseja guardar mesmo assim
+              (overbooking) ou cancelar para escolher outro horário/funcionário?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                setOverbookingConfirm(false);
+                await submitUpdate();
+              }}
+            >
+              Confirmar overbooking
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
