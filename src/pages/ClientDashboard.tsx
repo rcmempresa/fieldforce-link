@@ -166,14 +166,14 @@ export default function ClientDashboard() {
     
     const currentYear = new Date().getFullYear();
     const { data } = await supabase
-      .from("client_hour_quotas" as any)
+      .from("client_hour_quotas")
       .select("contracted_hours")
       .eq("client_id", user.id)
       .eq("year", currentYear)
       .maybeSingle();
     
     if (data) {
-      setContractedHours(Number((data as any).contracted_hours));
+      setContractedHours(Number(data.contracted_hours));
     }
   };
 
@@ -674,10 +674,10 @@ export default function ClientDashboard() {
                         <CardTitle className="text-base">{equipment.name}</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-2">
-                        {(equipment as any).brand && (
+                        {equipment.brand && (
                           <div className="text-sm">
                             <span className="text-muted-foreground">Marca:</span>
-                            <p className="font-medium">{(equipment as any).brand}</p>
+                            <p className="font-medium">{equipment.brand}</p>
                           </div>
                         )}
                         {equipment.model && (
