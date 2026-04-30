@@ -403,7 +403,7 @@ export default function ClientDashboard() {
               <Clock className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalHoursThisWeek.toFixed(1)}h</div>
+              <div className="text-2xl font-bold">{formatHours(totalHoursThisWeek)}</div>
               <p className="text-xs text-muted-foreground">Esta semana</p>
             </CardContent>
           </Card>
@@ -414,7 +414,7 @@ export default function ClientDashboard() {
               <CalendarDays className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalHoursThisMonth.toFixed(1)}h</div>
+              <div className="text-2xl font-bold">{formatHours(totalHoursThisMonth)}</div>
               <p className="text-xs text-muted-foreground">{format(new Date(), "MMMM", { locale: pt })}</p>
             </CardContent>
           </Card>
@@ -425,7 +425,7 @@ export default function ClientDashboard() {
               <CalendarDays className="h-4 w-4 text-accent" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalHoursThisYear.toFixed(1)}h</div>
+              <div className="text-2xl font-bold">{formatHours(totalHoursThisYear)}</div>
               <p className="text-xs text-muted-foreground">{new Date().getFullYear()}</p>
             </CardContent>
           </Card>
@@ -443,12 +443,12 @@ export default function ClientDashboard() {
             <CardContent className="space-y-3">
               <div className="flex items-end justify-between">
                 <div>
-                  <div className="text-3xl font-bold text-primary">{totalHoursThisYear.toFixed(1)}h</div>
+                    <div className="text-3xl font-bold text-primary">{formatHours(totalHoursThisYear)}</div>
                   <p className="text-sm text-muted-foreground">utilizadas de {contractedHours}h contratadas</p>
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold text-muted-foreground">
-                    {Math.max(0, contractedHours - totalHoursThisYear).toFixed(1)}h
+                      {formatHours(Math.max(0, contractedHours - totalHoursThisYear))}
                   </div>
                   <p className="text-sm text-muted-foreground">restantes</p>
                 </div>
@@ -498,7 +498,7 @@ export default function ClientDashboard() {
                   <div className="flex items-center justify-center gap-2 mt-2">
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">
-                      Total de horas: <span className="font-bold text-foreground">{totalHoursForMonth.toFixed(1)}h</span>
+                      Total de horas: <span className="font-bold text-foreground">{formatHours(totalHoursForMonth)}</span>
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
