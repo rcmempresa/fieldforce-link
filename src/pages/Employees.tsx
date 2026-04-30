@@ -15,6 +15,7 @@ import { EditEmployeeDialog } from "@/components/employees/EditEmployeeDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataPagination } from "@/components/ui/data-pagination";
+import { formatHours } from "@/lib/formatHours";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -560,19 +561,19 @@ export default function Employees() {
                         <div className="rounded-lg border p-4 bg-primary/5">
                           <p className="text-sm text-muted-foreground mb-1">Hoje</p>
                           <p className="text-2xl font-bold text-primary">
-                            {hoursStats.today.toFixed(1)}h
+                            {formatHours(hoursStats.today)}
                           </p>
                         </div>
                         <div className="rounded-lg border p-4 bg-accent/5">
                           <p className="text-sm text-muted-foreground mb-1">Esta Semana</p>
                           <p className="text-2xl font-bold text-accent">
-                            {hoursStats.thisWeek.toFixed(1)}h
+                            {formatHours(hoursStats.thisWeek)}
                           </p>
                         </div>
                         <div className="rounded-lg border p-4 bg-success/5">
                           <p className="text-sm text-muted-foreground mb-1">Este Mês</p>
                           <p className="text-2xl font-bold text-success">
-                            {hoursStats.thisMonth.toFixed(1)}h
+                            {formatHours(hoursStats.thisMonth)}
                           </p>
                         </div>
                       </div>
@@ -598,7 +599,7 @@ export default function Employees() {
                                 </div>
                                 <div className="text-right">
                                   <p className="text-lg font-bold text-primary">
-                                    {data.hours.toFixed(1)}h
+                                    {formatHours(data.hours)}
                                   </p>
                                 </div>
                               </div>
