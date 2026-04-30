@@ -15,6 +15,7 @@ import { Notifications } from "@/components/Notifications";
 import { Calendar } from "@/components/ui/calendar";
 import { format, isSameDay, startOfMonth, endOfMonth, isSameMonth, startOfWeek, endOfWeek, startOfYear, endOfYear } from "date-fns";
 import { pt } from "date-fns/locale";
+import { formatHours } from "@/lib/formatHours";
 
 interface WorkOrder {
   id: string;
@@ -165,14 +166,14 @@ export default function ClientDashboard() {
     
     const currentYear = new Date().getFullYear();
     const { data } = await supabase
-      .from("client_hour_quotas" as any)
+      .from("client_hour_quotas")
       .select("contracted_hours")
       .eq("client_id", user.id)
       .eq("year", currentYear)
       .maybeSingle();
     
     if (data) {
-      setContractedHours(Number((data as any).contracted_hours));
+      setContractedHours(Number(data.contracted_hours));
     }
   };
 
@@ -280,59 +281,61 @@ export default function ClientDashboard() {
     return allWorkOrders.filter(wo => !wo.scheduled_date);
   }, [allWorkOrders]);
 
-  // Build work order hours grouped by scheduled_date
-  const workOrderHoursByDate = useMemo(() => {
-    return allWorkOrders
-      .filter(wo => wo.scheduled_date)
-      .map(wo => ({
-        date: new Date(wo.scheduled_date!),
-        hours: (wo.time_entries || []).reduce((sum, te) => sum + (te.duration_hours || 0), 0),
-      }));
+  // Build hours grouped by the real work date (time_entries.start_time), not by scheduled date.
+  const timeEntryHoursByStartDate = useMemo(() => {
+    return allWorkOrders.flatMap(wo =>
+      (wo.time_entries || [])
+        .filter(te => te.start_time)
+        .map(te => ({
+          date: new Date(te.start_time),
+          hours: Number(te.duration_hours) || 0,
+        }))
+    );
   }, [allWorkOrders]);
 
-  // Calculate total hours for the calendar month (based on work order scheduled_date)
+  // Calculate total hours for the calendar month (based on the real work date)
   const totalHoursForMonth = useMemo(() => {
     const monthStart = startOfMonth(calendarMonth);
     const monthEnd = endOfMonth(calendarMonth);
-    return workOrderHoursByDate
-      .filter(wo => wo.date >= monthStart && wo.date <= monthEnd)
-      .reduce((sum, wo) => sum + wo.hours, 0);
-  }, [workOrderHoursByDate, calendarMonth]);
+    return timeEntryHoursByStartDate
+      .filter(entry => entry.date >= monthStart && entry.date <= monthEnd)
+      .reduce((sum, entry) => sum + entry.hours, 0);
+  }, [timeEntryHoursByStartDate, calendarMonth]);
 
   // Calculate total hours for orders without date
   const totalHoursWithoutDate = useMemo(() => {
     return workOrdersWithoutDate.reduce((sum, wo) => sum + (wo.total_hours || 0), 0);
   }, [workOrdersWithoutDate]);
 
-  // Weekly hours (based on work order scheduled_date)
+  // Weekly hours (based on the real work date)
   const totalHoursThisWeek = useMemo(() => {
     const now = new Date();
     const weekStart = startOfWeek(now, { weekStartsOn: 1 });
     const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
-    return workOrderHoursByDate
-      .filter(wo => wo.date >= weekStart && wo.date <= weekEnd)
-      .reduce((sum, wo) => sum + wo.hours, 0);
-  }, [workOrderHoursByDate]);
+    return timeEntryHoursByStartDate
+      .filter(entry => entry.date >= weekStart && entry.date <= weekEnd)
+      .reduce((sum, entry) => sum + entry.hours, 0);
+  }, [timeEntryHoursByStartDate]);
 
-  // Monthly hours (based on work order scheduled_date)
+  // Monthly hours (based on the real work date)
   const totalHoursThisMonth = useMemo(() => {
     const now = new Date();
     const mStart = startOfMonth(now);
     const mEnd = endOfMonth(now);
-    return workOrderHoursByDate
-      .filter(wo => wo.date >= mStart && wo.date <= mEnd)
-      .reduce((sum, wo) => sum + wo.hours, 0);
-  }, [workOrderHoursByDate]);
+    return timeEntryHoursByStartDate
+      .filter(entry => entry.date >= mStart && entry.date <= mEnd)
+      .reduce((sum, entry) => sum + entry.hours, 0);
+  }, [timeEntryHoursByStartDate]);
 
-  // Yearly hours (based on work order scheduled_date)
+  // Yearly hours (based on the real work date)
   const totalHoursThisYear = useMemo(() => {
     const now = new Date();
     const yStart = startOfYear(now);
     const yEnd = endOfYear(now);
-    return workOrderHoursByDate
-      .filter(wo => wo.date >= yStart && wo.date <= yEnd)
-      .reduce((sum, wo) => sum + wo.hours, 0);
-  }, [workOrderHoursByDate]);
+    return timeEntryHoursByStartDate
+      .filter(entry => entry.date >= yStart && entry.date <= yEnd)
+      .reduce((sum, entry) => sum + entry.hours, 0);
+  }, [timeEntryHoursByStartDate]);
 
   // Get work orders for the selected date
   const workOrdersForSelectedDate = useMemo(() => {
@@ -400,7 +403,7 @@ export default function ClientDashboard() {
               <Clock className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalHoursThisWeek.toFixed(1)}h</div>
+              <div className="text-2xl font-bold">{formatHours(totalHoursThisWeek)}</div>
               <p className="text-xs text-muted-foreground">Esta semana</p>
             </CardContent>
           </Card>
@@ -411,7 +414,7 @@ export default function ClientDashboard() {
               <CalendarDays className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalHoursThisMonth.toFixed(1)}h</div>
+              <div className="text-2xl font-bold">{formatHours(totalHoursThisMonth)}</div>
               <p className="text-xs text-muted-foreground">{format(new Date(), "MMMM", { locale: pt })}</p>
             </CardContent>
           </Card>
@@ -422,7 +425,7 @@ export default function ClientDashboard() {
               <CalendarDays className="h-4 w-4 text-accent" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalHoursThisYear.toFixed(1)}h</div>
+              <div className="text-2xl font-bold">{formatHours(totalHoursThisYear)}</div>
               <p className="text-xs text-muted-foreground">{new Date().getFullYear()}</p>
             </CardContent>
           </Card>
@@ -440,12 +443,12 @@ export default function ClientDashboard() {
             <CardContent className="space-y-3">
               <div className="flex items-end justify-between">
                 <div>
-                  <div className="text-3xl font-bold text-primary">{totalHoursThisYear.toFixed(1)}h</div>
+                    <div className="text-3xl font-bold text-primary">{formatHours(totalHoursThisYear)}</div>
                   <p className="text-sm text-muted-foreground">utilizadas de {contractedHours}h contratadas</p>
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold text-muted-foreground">
-                    {Math.max(0, contractedHours - totalHoursThisYear).toFixed(1)}h
+                      {formatHours(Math.max(0, contractedHours - totalHoursThisYear))}
                   </div>
                   <p className="text-sm text-muted-foreground">restantes</p>
                 </div>
@@ -495,7 +498,7 @@ export default function ClientDashboard() {
                   <div className="flex items-center justify-center gap-2 mt-2">
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">
-                      Total de horas: <span className="font-bold text-foreground">{totalHoursForMonth.toFixed(1)}h</span>
+                      Total de horas: <span className="font-bold text-foreground">{formatHours(totalHoursForMonth)}</span>
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
@@ -671,10 +674,10 @@ export default function ClientDashboard() {
                         <CardTitle className="text-base">{equipment.name}</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-2">
-                        {(equipment as any).brand && (
+                        {equipment.brand && (
                           <div className="text-sm">
                             <span className="text-muted-foreground">Marca:</span>
-                            <p className="font-medium">{(equipment as any).brand}</p>
+                            <p className="font-medium">{equipment.brand}</p>
                           </div>
                         )}
                         {equipment.model && (
