@@ -356,7 +356,7 @@ export default function Clients() {
       // Get all time entries for those work orders
       const { data: timeEntries, error: teError } = await supabase
         .from('time_entries')
-        .select('id, duration_hours, work_order_id')
+        .select('id, duration_hours, work_order_id, start_time')
         .in('work_order_id', workOrderIds);
 
       if (teError) throw teError;
@@ -402,29 +402,28 @@ export default function Clients() {
         }
       });
 
-      // Use scheduled_date of each work order for date-based stats
-      workOrders.forEach(wo => {
-        const woHours = hoursPerWO[wo.id] || 0;
-        if (woHours === 0) return;
+      // Use the REAL execution date of each time entry (start_time)
+      // for date-based stats. This matches the employee dashboard logic
+      // and includes work on OTs without a scheduled_date.
+      timeEntries?.forEach((entry: any) => {
+        const hours = Number(entry.duration_hours) || 0;
+        if (hours === 0 || !entry.start_time) return;
 
-        if (wo.scheduled_date) {
-          const scheduledDate = new Date(wo.scheduled_date);
+        const workDate = new Date(entry.start_time);
 
-          if (scheduledDate >= todayStart && scheduledDate <= todayEnd) {
-            todayHours += woHours;
-          }
-          if (scheduledDate >= weekStart && scheduledDate <= weekEnd) {
-            weekHours += woHours;
-          }
-          if (scheduledDate >= monthStart && scheduledDate <= monthEnd) {
-            monthHours += woHours;
-          }
+        if (workDate >= todayStart && workDate <= todayEnd) {
+          todayHours += hours;
+        }
+        if (workDate >= weekStart && workDate <= weekEnd) {
+          weekHours += hours;
+        }
+        if (workDate >= monthStart && workDate <= monthEnd) {
+          monthHours += hours;
+        }
 
-          // Add to monthly history
-          const monthKey = format(scheduledDate, 'yyyy-MM');
-          if (monthlyHoursMap[monthKey] !== undefined) {
-            monthlyHoursMap[monthKey] += woHours;
-          }
+        const monthKey = format(workDate, 'yyyy-MM');
+        if (monthlyHoursMap[monthKey] !== undefined) {
+          monthlyHoursMap[monthKey] += hours;
         }
       });
 
