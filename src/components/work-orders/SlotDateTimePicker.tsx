@@ -150,7 +150,7 @@ export function SlotDateTimePicker({
           <Label className="text-xs text-muted-foreground">
             Horário (slots de 2 horas)
           </Label>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
             {WORK_ORDER_SLOTS.map((slot) => {
               const dayKey = getLisbonDateKey(selectedDate);
               const slotOrders = monthOrders.filter((o) => {
