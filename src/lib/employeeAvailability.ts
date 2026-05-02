@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 export const MAX_PER_SLOT = 1;
 
 // Slots fixos disponíveis (hora local Europe/Lisbon)
-export const WORK_ORDER_SLOTS = [9, 11, 14, 16] as const;
+export const WORK_ORDER_SLOTS = [9, 11, 14, 16, 19, 21, 23] as const;
 export type SlotHour = (typeof WORK_ORDER_SLOTS)[number];
 
 export const BLOCKING_STATUSES = [
