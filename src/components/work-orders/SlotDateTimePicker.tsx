@@ -39,9 +39,12 @@ function parseValue(value: string): { date?: Date; slot?: SlotHour } {
   const [, y, mo, d, h] = m;
   const date = new Date(Number(y), Number(mo) - 1, Number(d));
   const hour = Number(h);
-  const slot = (WORK_ORDER_SLOTS as readonly number[]).includes(hour)
-    ? (hour as SlotHour)
-    : undefined;
+  // Snap ao slot anterior mais próximo (ex: 10:00 -> 09, 13:00 -> 11, 18:00 -> 16).
+  // Evita perder a data quando a OT existente foi marcada numa hora fora da grelha.
+  let slot: SlotHour = WORK_ORDER_SLOTS[0];
+  for (const s of WORK_ORDER_SLOTS) {
+    if (s <= hour) slot = s;
+  }
   return { date, slot };
 }
 
