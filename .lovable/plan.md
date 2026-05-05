@@ -1,95 +1,64 @@
+# Corrigir disponibilidade de slots no calendário
 
-# Plano: Rastreamento de Tempo Individual por Funcionário
+## Problema
 
-## ✅ IMPLEMENTADO
+No seletor de data/hora das OTs (`SlotDateTimePicker`) há slots que mostram **"livre"** mesmo existindo OTs marcadas com técnicos atribuídos para essa hora.
 
-## Resumo do Problema
+A causa está em `src/lib/employeeAvailability.ts`, função `getSlot()`. Os slots fixos são `09, 11, 14, 16, 19, 21, 23` e a função só atribui uma OT a um slot se `hora ∈ [slot, slot+2)`. Resultado: qualquer OT marcada numa hora que **caia num intervalo não coberto** fica invisível na contagem dos slots e o slot aparece como "livre".
 
-Atualmente, quando um funcionário inicia, pausa ou termina uma ordem de trabalho, isso afeta o **status global** da ordem para todos. Por exemplo:
-- Se 2 funcionários estão a trabalhar na mesma OT e um pausa, a ordem fica "pendente" para ambos
-- Se um funcionário completa a ordem, ela fica "completa" para todos
+Verificado na base de dados — existem várias OTs nessa situação:
 
-## Solução Implementada
+| Ref | Hora Lisboa | Técnicos | Status |
+|---|---|---|---|
+| WO-2026-0247 | 00:00 | 2 | pending |
+| WO-2026-0211 | 13:00 | 2 | completed |
+| WO-2026-0194 | 18:00 | 2 | completed |
+| WO-2026-0177 | 18:00 | 1 | completed |
+| WO-2025-0031 | 18:00 | 2 | completed |
+| WO-2025-0006 | 18:00 | 1 | completed |
 
-Cada funcionário tem agora o seu próprio controlo de tempo **independente**:
-- Cada funcionário pode iniciar/pausar/retomar o seu próprio trabalho sem afetar os outros
-- O total de horas do cliente é a soma de todas as horas de todos os funcionários
-- O status da ordem de trabalho é baseado na atividade de **todos** os funcionários
+A hora `13:00` cai entre slots 11 (11–13) e 14 (14–16); a hora `18:00` cai entre 16 (16–18) e 19 (19–21); horas `00/03` ficam fora de tudo. Para todas estas, `getSlot()` devolve `null` e a OT desaparece da contagem do slot.
 
----
+No Dashboard do Gestor (`ManagerDashboard.tsx`) o calendário grande não tem este problema directamente (marca o dia se existir qualquer OT), mas os indicadores de carga partilhados sofrem do mesmo defeito quando dependerem de `getSlot`.
 
-## Mudanças Implementadas
+## Correção
 
-### 1. ✅ Lógica de Status da Ordem de Trabalho
+Alterar `getSlot()` para **snap ao slot mais próximo anterior** em vez de devolver `null`:
 
-**Novo comportamento:**
-- **in_progress**: Se pelo menos UM funcionário está com sessão ativa (time entry sem end_time)
-- **pending**: Se nenhum funcionário está com sessão ativa, mas a OT não está concluída
-- **completed**: Apenas quando um gerente ou funcionário explicitamente marca como concluída
+- Para uma hora `h`, escolher o maior `slot ∈ WORK_ORDER_SLOTS` tal que `slot ≤ h`.
+- Se `h` for inferior ao primeiro slot (ex.: 03:00), atribuir ao primeiro slot do dia (`09`).
+- Manter `getSlotLabel` inalterado.
 
-### 2. ✅ Dashboard do Funcionário (EmployeeDashboard.tsx)
+Assim:
+- 13:00 → slot 11 (mostra "1 OT" em vez de "livre")
+- 18:00 → slot 16
+- 00:00 / 03:00 → slot 09 (do mesmo dia em Lisboa)
 
-**Mudanças implementadas:**
-- A visualização mostra o estado do **próprio funcionário**, não da OT global
-- Um funcionário vê "Retomar" se **ele** tem sessões pausadas (não se outro funcionário pausou)
-- Categorização baseada no estado individual do funcionário:
-  - activeOrders: ordens onde O FUNCIONÁRIO tem sessão ativa
-  - startedOrders: ordens onde o funcionário já trabalhou mas não tem sessão ativa
-  - newOrders: ordens onde o funcionário nunca trabalhou
+Isto garante que toda OT com `scheduled_date` é visível em algum slot e a contagem reflecte a realidade.
 
-### 3. ✅ Pausa de Trabalho (PauseWorkOrderDialog.tsx)
+## Verificação adicional
 
-**Mudanças implementadas:**
-- Pausa apenas a sessão do funcionário atual
-- Verifica se há outras sessões ativas de outros funcionários
-- Se SIM: mantém status como in_progress
-- Se NÃO: muda status para pending
-- Mensagem de feedback diferenciada conforme o caso
+- Confirmar que `getBusyEmployees()` continua coerente: passa a bloquear o slot vizinho quando há overbooking em horas "fora da grelha", o que é o comportamento desejado (impede dois técnicos para o mesmo dia/janela próxima).
+- Revisar a lista "OTs já agendadas" no `SlotDateTimePicker` (linhas 201–220): já mostra todas as OTs do dia independentemente do slot, portanto não precisa de mudança.
+- O calendário do `ManagerDashboard` (e equivalentes em `Employees.tsx` / `Clients.tsx`) só usa `isSameDay`, não `getSlot`, portanto não precisa de alteração funcional. Mantém-se.
 
-### 4. ✅ Conclusão de Trabalho (CompleteWorkOrderDialog.tsx)
+## Ficheiros a alterar
 
-**Duas opções implementadas:**
-1. **"Terminar Minha Sessão"** - Finaliza apenas a sessão do funcionário e mantém a OT ativa para outros
-2. **"Concluir Ordem de Trabalho"** - Marca a OT como concluída, finaliza todas as sessões ativas, gera PDF
+- `src/lib/employeeAvailability.ts` — reescrever `getSlot()` para snap ao slot anterior mais próximo.
 
-**Funcionalidades adicionais:**
-- Verifica e mostra quais funcionários ainda estão ativos
-- Aviso visual quando outros funcionários têm sessões ativas
+## Notas técnicas
 
-### 5. ✅ Dashboard do Cliente (ClientDashboard.tsx)
+```ts
+export function getSlot(date: Date): SlotHour {
+  const h = getLisbonHour(date);
+  let chosen: SlotHour = WORK_ORDER_SLOTS[0];
+  for (const s of WORK_ORDER_SLOTS) {
+    if (s <= h) chosen = s;
+  }
+  return chosen;
+}
+```
 
-Já estava correto - soma todas as horas de todos os funcionários via `time_entries`.
-
-### 6. ✅ Detalhes da Ordem (WorkOrderDetails.tsx)
-
-**Melhorias implementadas:**
-- Mostra o estado de cada funcionário (Ativo, Pausado, Novo) com ícones visuais
-- Mostra horas individuais por funcionário
-- Indicadores visuais coloridos para cada estado
-
----
-
-## Ficheiros Modificados
-
-| Ficheiro | Status |
-|----------|--------|
-| `src/pages/EmployeeDashboard.tsx` | ✅ Implementado |
-| `src/components/work-orders/PauseWorkOrderDialog.tsx` | ✅ Implementado |
-| `src/components/work-orders/CompleteWorkOrderDialog.tsx` | ✅ Implementado |
-| `src/pages/WorkOrderDetails.tsx` | ✅ Implementado |
-
----
-
-## Fluxo de Uso
-
-**Cenário: 2 funcionários (João e Maria) atribuídos à mesma OT**
-
-1. **João inicia** → OT fica "in_progress", João vê timer a contar
-2. **Maria inicia** → OT continua "in_progress", Maria também vê timer
-3. **João pausa** → João finaliza sua sessão
-   - Sistema verifica: Maria ainda tem sessão ativa? Sim → OT mantém "in_progress"
-   - João vê "Retomar", Maria continua a ver timer
-4. **Maria pausa** → Maria finaliza sua sessão
-   - Sistema verifica: Há outras sessões ativas? Não → OT muda para "pending"
-5. **João retoma** → Nova sessão para João, OT volta a "in_progress"
-6. **Conclusão** → Quando alguém clica "Concluir OT", todas as sessões são finalizadas
+Tipo de retorno passa de `SlotHour | null` para `SlotHour`. Atualizar os usos:
+- `SlotDateTimePicker.tsx` linha 158, 203, 210 — remover branch `slot !== null`.
+- `employeeAvailability.ts` `getBusyEmployees` linha do `if (targetSlot === null) return [];` — remover.

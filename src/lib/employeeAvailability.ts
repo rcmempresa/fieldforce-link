@@ -68,13 +68,16 @@ export function getLisbonDateKey(date: Date): string {
  * Se a hora não cair exatamente num slot, escolhe o slot mais próximo
  * (cujo intervalo de 2h ocupado contém esta hora).
  */
-export function getSlot(date: Date): SlotHour | null {
+export function getSlot(date: Date): SlotHour {
   const h = getLisbonHour(date);
-  // Cada slot ocupa 2 horas: [slot, slot+2)
+  // Snap ao slot anterior mais próximo. Se a hora for inferior ao primeiro
+  // slot, atribui-se ao primeiro slot do dia para garantir que toda OT
+  // marcada aparece em algum slot.
+  let chosen: SlotHour = WORK_ORDER_SLOTS[0];
   for (const s of WORK_ORDER_SLOTS) {
-    if (h >= s && h < s + 2) return s;
+    if (s <= h) chosen = s;
   }
-  return null;
+  return chosen;
 }
 
 export function getSlotLabel(slot: SlotHour): string {
@@ -102,7 +105,6 @@ export async function getBusyEmployees(
 ): Promise<BusyAssignment[]> {
   const targetDay = getLisbonDateKey(scheduledDate);
   const targetSlot = getSlot(scheduledDate);
-  if (targetSlot === null) return [];
   const { start, end } = getDayBounds(scheduledDate);
 
   let query = supabase

@@ -207,7 +207,7 @@ export function SlotDateTimePicker({
                       className="text-xs flex items-start gap-2 p-1.5 rounded hover:bg-background"
                     >
                       <Badge variant="outline" className="text-[10px] py-0 h-5 shrink-0">
-                        {slot !== null ? getSlotLabel(slot) : "—"}
+                        {getSlotLabel(slot)}
                       </Badge>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium truncate">
