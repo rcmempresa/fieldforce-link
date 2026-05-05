@@ -191,7 +191,6 @@ export async function getScheduledWorkOrders(
     )
     .gte("scheduled_date", start.toISOString())
     .lte("scheduled_date", end.toISOString())
-    .in("status", [...BLOCKING_STATUSES])
     .order("scheduled_date", { ascending: true });
 
   if (error || !data) return [];
