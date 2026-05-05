@@ -1,0 +1,1 @@
+UPDATE public.work_orders SET scheduled_date = '2026-05-07 10:00:00+00' WHERE reference = 'WO-2026-0251' AND scheduled_date = '2025-05-07 10:00:00+00';
