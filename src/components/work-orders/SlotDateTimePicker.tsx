@@ -87,11 +87,10 @@ export function SlotDateTimePicker({
       59,
       59
     );
-    getScheduledWorkOrders(start, end).then((orders) => {
-      setMonthOrders(
-        excludeWorkOrderId ? orders.filter((o) => o.id !== excludeWorkOrderId) : orders
-      );
-    });
+    // Mantemos TODAS as OTs do mês (mesmo a que está a ser editada) para
+    // que o calendário e a lista do dia mostrem sempre o agendamento real.
+    // O excludeWorkOrderId só é usado para os contadores/badges abaixo.
+    getScheduledWorkOrders(start, end).then((orders) => setMonthOrders(orders));
   }, [calendarMonth, excludeWorkOrderId]);
 
   // Propagar mudanças
