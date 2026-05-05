@@ -186,14 +186,31 @@ export async function getScheduledWorkOrders(
     .from("work_orders")
     .select(
       `id, reference, title, scheduled_date, status,
-       profiles:client_id ( name, company_name ),
-       work_order_assignments ( user_id, profiles:user_id ( name ) )`
+       profiles:client_id ( name, company_name )`
     )
     .gte("scheduled_date", start.toISOString())
     .lte("scheduled_date", end.toISOString())
     .order("scheduled_date", { ascending: true });
 
   if (error || !data) return [];
+
+  const workOrderIds = data.map((row) => row.id);
+  const { data: assignments } = workOrderIds.length > 0
+    ? await supabase
+        .from("work_order_assignments")
+        .select("work_order_id, user_id, profiles:user_id ( name )")
+        .in("work_order_id", workOrderIds)
+    : { data: [] as any[] };
+
+  const assigneesByWorkOrder = new Map<string, ScheduledWorkOrder["assignees"]>();
+  for (const assignment of (assignments || []) as any[]) {
+    const list = assigneesByWorkOrder.get(assignment.work_order_id) ?? [];
+    list.push({
+      user_id: assignment.user_id,
+      name: assignment.profiles?.name || "",
+    });
+    assigneesByWorkOrder.set(assignment.work_order_id, list);
+  }
 
   return (data as any[]).map((row) => ({
     id: row.id,
@@ -202,9 +219,6 @@ export async function getScheduledWorkOrders(
     scheduled_date: row.scheduled_date,
     status: row.status,
     client_name: row.profiles?.company_name || row.profiles?.name || null,
-    assignees: (row.work_order_assignments || []).map((a: any) => ({
-      user_id: a.user_id,
-      name: a.profiles?.name || "",
-    })),
+    assignees: assigneesByWorkOrder.get(row.id) ?? [],
   }));
 }
