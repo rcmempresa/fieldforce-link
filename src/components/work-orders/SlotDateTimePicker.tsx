@@ -158,6 +158,7 @@ export function SlotDateTimePicker({
               const slotOrders = monthOrders.filter((o) => {
                 const d = new Date(o.scheduled_date);
                 if (excludeWorkOrderId && o.id === excludeWorkOrderId) return false;
+                if (o.status === "cancelled") return false;
                 return getLisbonDateKey(d) === dayKey && getSlot(d) === slot;
               });
               const count = slotOrders.length;
