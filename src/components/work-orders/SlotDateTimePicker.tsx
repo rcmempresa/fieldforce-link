@@ -157,6 +157,7 @@ export function SlotDateTimePicker({
               const dayKey = getLisbonDateKey(selectedDate);
               const slotOrders = monthOrders.filter((o) => {
                 const d = new Date(o.scheduled_date);
+                if (excludeWorkOrderId && o.id === excludeWorkOrderId) return false;
                 return getLisbonDateKey(d) === dayKey && getSlot(d) === slot;
               });
               const count = slotOrders.length;
@@ -203,10 +204,14 @@ export function SlotDateTimePicker({
                 {dayOrders.map((o) => {
                   const d = new Date(o.scheduled_date);
                   const slot = getSlot(d);
+                  const isCurrent = excludeWorkOrderId === o.id;
                   return (
                     <div
                       key={o.id}
-                      className="text-xs flex items-start gap-2 p-1.5 rounded hover:bg-background"
+                      className={cn(
+                        "text-xs flex items-start gap-2 p-1.5 rounded hover:bg-background",
+                        isCurrent && "bg-primary/10 border border-primary/30"
+                      )}
                     >
                       <Badge variant="outline" className="text-[10px] py-0 h-5 shrink-0">
                         {getSlotLabel(slot)}
@@ -214,6 +219,9 @@ export function SlotDateTimePicker({
                       <div className="flex-1 min-w-0">
                         <div className="font-medium truncate">
                           {o.reference} · {o.title}
+                          {isCurrent && (
+                            <span className="ml-1 text-[10px] text-primary">(esta OT)</span>
+                          )}
                         </div>
                         <div className="text-muted-foreground truncate">
                           {o.client_name || "—"}
