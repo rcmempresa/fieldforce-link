@@ -639,24 +639,17 @@ export default function EmployeeDashboard() {
                           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
                             {getStatusLabel(order.status)}
                           </span>
-                          {order.status === "in_progress" && order.active_time_entry_start && (
+                          {order.active_time_entry_start && (
                             <TimeTracker startTime={order.active_time_entry_start} className="text-xs" />
                           )}
                         </div>
                         <div className="flex items-center gap-1">
-                          {order.status === "pending" && (
-                            <Button size="sm" onClick={() => handleStartWork(order.id, order.reference)}>
-                              <Play className="h-4 w-4 mr-1" />
-                              Iniciar
-                            </Button>
-                          )}
-                          {order.status === "in_progress" && (
+                          {order.status !== "completed" && order.active_time_entry_id && (
                             <>
-                              <Button 
-                                size="sm" 
+                              <Button
+                                size="sm"
                                 variant="outline"
                                 onClick={() => handlePauseClick(order.id, order.reference, order.active_time_entry_id!)}
-                                disabled={!order.active_time_entry_id}
                               >
                                 <Pause className="h-4 w-4 mr-1" />
                                 Pausar
@@ -666,6 +659,12 @@ export default function EmployeeDashboard() {
                                 Concluir
                               </Button>
                             </>
+                          )}
+                          {order.status !== "completed" && !order.active_time_entry_id && (
+                            <Button size="sm" onClick={() => handleStartWork(order.id, order.reference)}>
+                              <Play className="h-4 w-4 mr-1" />
+                              {order.has_been_started ? "Retomar" : "Iniciar"}
+                            </Button>
                           )}
                         </div>
                       </div>

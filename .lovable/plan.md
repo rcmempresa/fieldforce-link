@@ -1,64 +1,30 @@
-# Corrigir disponibilidade de slots no calendário
-
 ## Problema
 
-No seletor de data/hora das OTs (`SlotDateTimePicker`) há slots que mostram **"livre"** mesmo existindo OTs marcadas com técnicos atribuídos para essa hora.
+Quando vários funcionários estão atribuídos à mesma OT, apenas o primeiro consegue clicar em "Iniciar". Os restantes deixam de ver o botão.
 
-A causa está em `src/lib/employeeAvailability.ts`, função `getSlot()`. Os slots fixos são `09, 11, 14, 16, 19, 21, 23` e a função só atribui uma OT a um slot se `hora ∈ [slot, slot+2)`. Resultado: qualquer OT marcada numa hora que **caia num intervalo não coberto** fica invisível na contagem dos slots e o slot aparece como "livre".
+## Causa
 
-Verificado na base de dados — existem várias OTs nessa situação:
+No `src/pages/EmployeeDashboard.tsx`, na secção **"Ordens para [data selecionada]"** (calendário do dia, ~linhas 634–681), os botões dependem do `status` global da OT:
 
-| Ref | Hora Lisboa | Técnicos | Status |
-|---|---|---|---|
-| WO-2026-0247 | 00:00 | 2 | pending |
-| WO-2026-0211 | 13:00 | 2 | completed |
-| WO-2026-0194 | 18:00 | 2 | completed |
-| WO-2026-0177 | 18:00 | 1 | completed |
-| WO-2025-0031 | 18:00 | 2 | completed |
-| WO-2025-0006 | 18:00 | 1 | completed |
+- `status === "pending"` → mostra "Iniciar"
+- `status === "in_progress"` → mostra "Pausar" + "Concluir"
 
-A hora `13:00` cai entre slots 11 (11–13) e 14 (14–16); a hora `18:00` cai entre 16 (16–18) e 19 (19–21); horas `00/03` ficam fora de tudo. Para todas estas, `getSlot()` devolve `null` e a OT desaparece da contagem do slot.
+Quando o 1.º funcionário inicia, o `status` global passa a `in_progress`. Para o 2.º funcionário, esse cartão deixa de mostrar "Iniciar" e mostra "Pausar" (desativado, porque não tem `active_time_entry_id` próprio) e "Concluir". Resultado: o 2.º funcionário não tem como iniciar a sua sessão a partir do calendário do dia.
 
-No Dashboard do Gestor (`ManagerDashboard.tsx`) o calendário grande não tem este problema directamente (marca o dia se existir qualquer OT), mas os indicadores de carga partilhados sofrem do mesmo defeito quando dependerem de `getSlot`.
+A lógica das tabs "Minhas Ordens de Trabalho" (Ativas/Pausadas/Novas/Concluídas) já usa o estado por funcionário (`active_time_entry_id`, `has_been_started`) e funciona corretamente — o problema é apenas no cartão do calendário do dia.
 
 ## Correção
 
-Alterar `getSlot()` para **snap ao slot mais próximo anterior** em vez de devolver `null`:
+Em `src/pages/EmployeeDashboard.tsx`, no bloco "Ordens para [data]", trocar a condição dos botões para usar o estado por funcionário, igual ao que já existe nas tabs:
 
-- Para uma hora `h`, escolher o maior `slot ∈ WORK_ORDER_SLOTS` tal que `slot ≤ h`.
-- Se `h` for inferior ao primeiro slot (ex.: 03:00), atribuir ao primeiro slot do dia (`09`).
-- Manter `getSlotLabel` inalterado.
+- Se `order.active_time_entry_id` → o funcionário tem sessão ativa → mostrar "Pausar" + "Concluir"
+- Senão, se `order.status !== "completed"` → mostrar "Iniciar" (rotulado "Retomar" quando `order.has_been_started`)
+- Se `order.status === "completed"` → não mostrar ações de execução
 
-Assim:
-- 13:00 → slot 11 (mostra "1 OT" em vez de "livre")
-- 18:00 → slot 16
-- 00:00 / 03:00 → slot 09 (do mesmo dia em Lisboa)
+Também mostrar o `TimeTracker` apenas quando o próprio funcionário tem sessão ativa (`active_time_entry_start` presente), independentemente do status global.
 
-Isto garante que toda OT com `scheduled_date` é visível em algum slot e a contagem reflecte a realidade.
+## Ficheiros alterados
 
-## Verificação adicional
+- `src/pages/EmployeeDashboard.tsx` (apenas a renderização do cartão de ordens do dia, ~linhas 634–681)
 
-- Confirmar que `getBusyEmployees()` continua coerente: passa a bloquear o slot vizinho quando há overbooking em horas "fora da grelha", o que é o comportamento desejado (impede dois técnicos para o mesmo dia/janela próxima).
-- Revisar a lista "OTs já agendadas" no `SlotDateTimePicker` (linhas 201–220): já mostra todas as OTs do dia independentemente do slot, portanto não precisa de mudança.
-- O calendário do `ManagerDashboard` (e equivalentes em `Employees.tsx` / `Clients.tsx`) só usa `isSameDay`, não `getSlot`, portanto não precisa de alteração funcional. Mantém-se.
-
-## Ficheiros a alterar
-
-- `src/lib/employeeAvailability.ts` — reescrever `getSlot()` para snap ao slot anterior mais próximo.
-
-## Notas técnicas
-
-```ts
-export function getSlot(date: Date): SlotHour {
-  const h = getLisbonHour(date);
-  let chosen: SlotHour = WORK_ORDER_SLOTS[0];
-  for (const s of WORK_ORDER_SLOTS) {
-    if (s <= h) chosen = s;
-  }
-  return chosen;
-}
-```
-
-Tipo de retorno passa de `SlotHour | null` para `SlotHour`. Atualizar os usos:
-- `SlotDateTimePicker.tsx` linha 158, 203, 210 — remover branch `slot !== null`.
-- `employeeAvailability.ts` `getBusyEmployees` linha do `if (targetSlot === null) return [];` — remover.
+Sem alterações de schema, RLS ou backend — `handleStartWork` já trata corretamente do caso de a OT já estar `in_progress` (só atualiza o status se ainda não estiver).
