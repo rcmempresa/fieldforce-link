@@ -16,6 +16,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format, isSameDay, startOfMonth, endOfMonth, isSameMonth, startOfWeek, endOfWeek, startOfYear, endOfYear } from "date-fns";
 import { pt } from "date-fns/locale";
 import { formatHours } from "@/lib/formatHours";
+import { ClientExtraEmails } from "@/components/clients/ClientExtraEmails";
 
 interface WorkOrder {
   id: string;
@@ -783,6 +784,17 @@ export default function ClientDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {currentUserId && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="text-base">Emails de notificação</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ClientExtraEmails userId={currentUserId} showTitle={false} />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Dialogs */}
       <CreateClientWorkOrderDialog
