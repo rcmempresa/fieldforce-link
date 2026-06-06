@@ -75,6 +75,35 @@ async function sendEmailViaResend(to: string, subject: string, html: string, att
   return response;
 }
 
+// Fetches extra notification emails registered for a client user.
+// Returns an empty array for non-client users (no rows) or on error.
+async function fetchExtraClientEmails(supabaseAdmin: any, userId: string, primaryEmail: string): Promise<string[]> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("client_emails")
+      .select("email")
+      .eq("user_id", userId);
+    if (error) {
+      console.error("Error fetching extra client emails:", error);
+      return [];
+    }
+    const primaryLower = primaryEmail.toLowerCase();
+    const seen = new Set<string>([primaryLower]);
+    const extras: string[] = [];
+    for (const row of data || []) {
+      const e = String(row.email || "").trim().toLowerCase();
+      if (e && !seen.has(e)) {
+        seen.add(e);
+        extras.push(row.email);
+      }
+    }
+    return extras;
+  } catch (e) {
+    console.error("Unexpected error fetching extra client emails:", e);
+    return [];
+  }
+}
+
 // Helper function to send missing material emails to all managers
 async function sendMissingMaterialToManagers(supabaseAdmin: any, data: any): Promise<Response> {
   console.log("Sending missing material emails to all managers");
@@ -674,43 +703,60 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    const response = await sendEmailViaResend(to, subject, html, attachments);
+    // Build full recipient list: primary email + any extra emails registered
+    // for this user (used for clients with multiple contact addresses).
+    const extraRecipients = await fetchExtraClientEmails(supabaseAdmin, userId, to);
+    const allRecipients = [to, ...extraRecipients];
 
-    if (!response.ok) {
-      const result = await response.text();
-      console.error("Error sending email:", result);
-      
-      await supabaseAdmin.from('email_logs').insert({
-        user_id: userId,
-        email: to,
-        subject,
-        notification_type: type,
-        status: 'failed',
-        error_message: result,
-        work_order_id: workOrderId,
-      });
+    let anySuccess = false;
+    let lastError: string | null = null;
 
-      // Don't throw - log the error but return success to avoid blocking the caller
-      console.error("Email failed but not blocking:", result);
-      return new Response(JSON.stringify({ success: false, error: "Email sending failed" }), {
+    for (const recipient of allRecipients) {
+      try {
+        const response = await sendEmailViaResend(recipient, subject, html, attachments);
+
+        if (!response.ok) {
+          const result = await response.text();
+          console.error("Error sending email to", recipient, ":", result);
+          lastError = result;
+
+          await supabaseAdmin.from('email_logs').insert({
+            user_id: userId,
+            email: recipient,
+            subject,
+            notification_type: type,
+            status: 'failed',
+            error_message: result,
+            work_order_id: workOrderId,
+          });
+        } else {
+          const resultJson = await response.json();
+          console.log("Email sent successfully to:", recipient, resultJson);
+          anySuccess = true;
+
+          await supabaseAdmin.from('email_logs').insert({
+            user_id: userId,
+            email: recipient,
+            subject,
+            notification_type: type,
+            status: 'sent',
+            work_order_id: workOrderId,
+          });
+        }
+      } catch (sendErr: any) {
+        console.error("Unexpected error sending to", recipient, sendErr);
+        lastError = sendErr?.message || String(sendErr);
+      }
+    }
+
+    if (!anySuccess) {
+      return new Response(JSON.stringify({ success: false, error: lastError || "Email sending failed" }), {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
-    const resultJson = await response.json();
-    console.log("Email sent successfully to:", to, resultJson);
-
-    await supabaseAdmin.from('email_logs').insert({
-      user_id: userId,
-      email: to,
-      subject,
-      notification_type: type,
-      status: 'sent',
-      work_order_id: workOrderId,
-    });
-
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify({ success: true, recipients: allRecipients.length }), {
       status: 200,
       headers: {
         "Content-Type": "application/json",
