@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ClientExtraEmails } from "@/components/clients/ClientExtraEmails";
+import { Separator } from "@/components/ui/separator";
 
 interface Employee {
   id: string;
@@ -98,7 +100,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, onSuccess }: 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Editar Utilizador</DialogTitle>
         </DialogHeader>
@@ -169,6 +171,13 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, onSuccess }: 
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
             />
           </div>
+
+          {formData.role === "client" && employee && (
+            <>
+              <Separator />
+              <ClientExtraEmails userId={employee.id} />
+            </>
+          )}
 
           <div className="flex gap-2 justify-end">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
