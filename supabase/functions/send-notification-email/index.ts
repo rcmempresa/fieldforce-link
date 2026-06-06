@@ -75,6 +75,35 @@ async function sendEmailViaResend(to: string, subject: string, html: string, att
   return response;
 }
 
+// Fetches extra notification emails registered for a client user.
+// Returns an empty array for non-client users (no rows) or on error.
+async function fetchExtraClientEmails(supabaseAdmin: any, userId: string, primaryEmail: string): Promise<string[]> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("client_emails")
+      .select("email")
+      .eq("user_id", userId);
+    if (error) {
+      console.error("Error fetching extra client emails:", error);
+      return [];
+    }
+    const primaryLower = primaryEmail.toLowerCase();
+    const seen = new Set<string>([primaryLower]);
+    const extras: string[] = [];
+    for (const row of data || []) {
+      const e = String(row.email || "").trim().toLowerCase();
+      if (e && !seen.has(e)) {
+        seen.add(e);
+        extras.push(row.email);
+      }
+    }
+    return extras;
+  } catch (e) {
+    console.error("Unexpected error fetching extra client emails:", e);
+    return [];
+  }
+}
+
 // Helper function to send missing material emails to all managers
 async function sendMissingMaterialToManagers(supabaseAdmin: any, data: any): Promise<Response> {
   console.log("Sending missing material emails to all managers");
