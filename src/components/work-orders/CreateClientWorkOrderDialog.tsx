@@ -37,6 +37,7 @@ export function CreateClientWorkOrderDialog({
   clientId,
 }: CreateClientWorkOrderDialogProps) {
   const [equipments, setEquipments] = useState<Equipment[]>([]);
+  const [equipmentSearch, setEquipmentSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
