@@ -96,6 +96,7 @@ export function CreateWorkOrderDialog({
       setEquipments([]);
       setFormData(prev => ({ ...prev, equipment_ids: [] }));
     }
+    setEquipmentSearch("");
   }, [formData.client_id]);
 
   // Recompute busy employees when scheduled_date changes
