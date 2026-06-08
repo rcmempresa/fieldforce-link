@@ -63,6 +63,7 @@ export function CreateWorkOrderDialog({
 }: CreateWorkOrderDialogProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [equipments, setEquipments] = useState<Equipment[]>([]);
+  const [equipmentSearch, setEquipmentSearch] = useState("");
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [busyEmployeeIds, setBusyEmployeeIds] = useState<Set<string>>(new Set());
   const [overbookingConfirm, setOverbookingConfirm] = useState(false);
