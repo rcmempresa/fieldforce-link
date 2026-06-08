@@ -53,6 +53,7 @@ export function CreateClientWorkOrderDialog({
   useEffect(() => {
     if (open && clientId) {
       fetchEquipments();
+      setEquipmentSearch("");
     }
   }, [open, clientId]);
 
