@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Search } from "lucide-react";
 
 interface CreateClientWorkOrderDialogProps {
   open: boolean;
@@ -36,6 +37,7 @@ export function CreateClientWorkOrderDialog({
   clientId,
 }: CreateClientWorkOrderDialogProps) {
   const [equipments, setEquipments] = useState<Equipment[]>([]);
+  const [equipmentSearch, setEquipmentSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
@@ -51,6 +53,7 @@ export function CreateClientWorkOrderDialog({
   useEffect(() => {
     if (open && clientId) {
       fetchEquipments();
+      setEquipmentSearch("");
     }
   }, [open, clientId]);
 
@@ -276,32 +279,50 @@ export function CreateClientWorkOrderDialog({
           {equipments.length > 0 && (
             <div className="space-y-2">
               <Label>Equipamentos Relacionados</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Pesquisar por nome ou morada..."
+                  value={equipmentSearch}
+                  onChange={(e) => setEquipmentSearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
               <div className="border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
-                {equipments.map((equipment) => (
-                  <label
-                    key={equipment.id}
-                    className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={formData.equipment_ids.includes(equipment.id)}
-                      onChange={() => toggleEquipment(equipment.id)}
-                      className="h-4 w-4"
-                    />
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">{equipment.name}</div>
-                      {(equipment.model || equipment.serial_number || equipment.location) && (
-                        <div className="text-xs text-muted-foreground">
-                          {equipment.model && `Modelo: ${equipment.model}`}
-                          {equipment.model && (equipment.serial_number || equipment.location) && " • "}
-                          {equipment.serial_number && `S/N: ${equipment.serial_number}`}
-                          {equipment.serial_number && equipment.location && " • "}
-                          {equipment.location && `📍 ${equipment.location}`}
-                        </div>
-                      )}
-                    </div>
-                  </label>
-                ))}
+                {equipments
+                  .filter((eq) => {
+                    const term = equipmentSearch.toLowerCase();
+                    return (
+                      !term ||
+                      eq.name.toLowerCase().includes(term) ||
+                      (eq.location && eq.location.toLowerCase().includes(term))
+                    );
+                  })
+                  .map((equipment) => (
+                    <label
+                      key={equipment.id}
+                      className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.equipment_ids.includes(equipment.id)}
+                        onChange={() => toggleEquipment(equipment.id)}
+                        className="h-4 w-4"
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium text-sm">{equipment.name}</div>
+                        {(equipment.model || equipment.serial_number || equipment.location) && (
+                          <div className="text-xs text-muted-foreground">
+                            {equipment.model && `Modelo: ${equipment.model}`}
+                            {equipment.model && (equipment.serial_number || equipment.location) && " • "}
+                            {equipment.serial_number && `S/N: ${equipment.serial_number}`}
+                            {equipment.serial_number && equipment.location && " • "}
+                            {equipment.location && `📍 ${equipment.location}`}
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                  ))}
               </div>
             </div>
           )}
