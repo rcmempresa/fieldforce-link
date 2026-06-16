@@ -746,80 +746,62 @@ export default function ManagerDashboard() {
         {/* Notifications */}
         <Notifications />
 
-        {/* Stats Cards */}
-        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          <Card className="bg-gradient-to-br from-warning/5 via-background to-background border-warning/20 hover:shadow-lg transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Ordens Pendentes</CardTitle>
-              <div className="h-10 w-10 rounded-full bg-warning/10 flex items-center justify-center">
-                <ClipboardList className="h-5 w-5 text-warning" />
+        {/* KPI Strip — most important glance metrics */}
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+          <Card className="bg-gradient-to-br from-orange-500/10 to-background border-orange-500/30 hover:shadow-md transition-all">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-muted-foreground">A Aprovar</span>
+                <AlertTriangle className="h-4 w-4 text-orange-500" />
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-warning">{stats.pending}</div>
-              <p className="text-xs text-muted-foreground mt-1">Aguardam aprovação</p>
+              <div className="text-2xl font-bold text-orange-500">{pendingRequests.length}</div>
             </CardContent>
           </Card>
-          
-          <Card className="bg-gradient-to-br from-primary/5 via-background to-background border-primary/20 hover:shadow-lg transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Em Progresso</CardTitle>
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <ClipboardList className="h-5 w-5 text-primary" />
+          <Card className="bg-gradient-to-br from-warning/10 to-background border-warning/30 hover:shadow-md transition-all">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-muted-foreground">Sem Data</span>
+                <CalendarIcon className="h-4 w-4 text-warning" />
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-primary">{stats.inProgress}</div>
-              <p className="text-xs text-muted-foreground mt-1">Em execução</p>
+              <div className="text-2xl font-bold text-warning">{pendingScheduling.length}</div>
             </CardContent>
           </Card>
-          
-          <Card className="bg-gradient-to-br from-accent/5 via-background to-background border-accent/20 hover:shadow-lg transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Concluídas</CardTitle>
-              <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center">
-                <CheckCircle className="h-5 w-5 text-accent" />
+          <Card className="bg-gradient-to-br from-warning/5 to-background border-warning/20 hover:shadow-md transition-all">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-muted-foreground">Pendentes</span>
+                <ClipboardList className="h-4 w-4 text-warning" />
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-accent">{stats.completed}</div>
-              <p className="text-xs text-muted-foreground mt-1">Este mês</p>
+              <div className="text-2xl font-bold text-warning">{stats.pending}</div>
             </CardContent>
           </Card>
-        </div>
-
-        {/* Team Stats */}
-        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
-          <Card className="hover:shadow-md transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-base font-semibold">Equipa</CardTitle>
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Users className="h-5 w-5 text-primary" />
+          <Card className="bg-gradient-to-br from-primary/5 to-background border-primary/20 hover:shadow-md transition-all">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-muted-foreground">Em Progresso</span>
+                <ClipboardList className="h-4 w-4 text-primary" />
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Funcionários Ativos</span>
-                  <span className="text-2xl font-bold text-primary">{stats.activeEmployees}</span>
-                </div>
-              </div>
+              <div className="text-2xl font-bold text-primary">{stats.inProgress}</div>
             </CardContent>
           </Card>
-          
-          <Card className="hover:shadow-md transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-base font-semibold">Clientes</CardTitle>
-              <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center">
-                <Users className="h-5 w-5 text-accent" />
+          <Card className="bg-gradient-to-br from-accent/5 to-background border-accent/20 hover:shadow-md transition-all">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-muted-foreground">Concluídas/mês</span>
+                <CheckCircle className="h-4 w-4 text-accent" />
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Clientes Ativos</span>
-                  <span className="text-2xl font-bold text-accent">{stats.activeClients}</span>
-                </div>
+              <div className="text-2xl font-bold text-accent">{stats.completed}</div>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-all">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-muted-foreground">Equipa / Clientes</span>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="text-2xl font-bold">
+                {stats.activeEmployees}
+                <span className="text-muted-foreground text-base font-normal"> / {stats.activeClients}</span>
               </div>
             </CardContent>
           </Card>
