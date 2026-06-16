@@ -14,6 +14,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Search } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface CreateClientWorkOrderDialogProps {
   open: boolean;
@@ -47,6 +48,7 @@ export function CreateClientWorkOrderDialog({
     priority: "medium",
     address: "",
     scheduled_date: "",
+    needs_scheduling: false,
   });
   const { toast } = useToast();
 
@@ -98,7 +100,8 @@ export function CreateClientWorkOrderDialog({
         service_type: formData.service_type as "repair" | "maintenance" | "installation" | "warranty",
         priority: formData.priority as "low" | "medium" | "high",
         address: formData.address || null,
-        scheduled_date: formData.scheduled_date || null,
+        scheduled_date: formData.needs_scheduling ? null : (formData.scheduled_date || null),
+        needs_scheduling: formData.needs_scheduling,
         created_by: user.id,
         status: "awaiting_approval" as const,
       })
@@ -180,6 +183,7 @@ export function CreateClientWorkOrderDialog({
       priority: "medium",
       address: "",
       scheduled_date: "",
+      needs_scheduling: false,
     });
     onOpenChange(false);
     onSuccess();
