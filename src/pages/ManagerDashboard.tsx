@@ -65,6 +65,7 @@ interface WorkOrder {
   created_at?: string;
   total_hours?: number;
   employee_hours?: EmployeeHours[];
+  needs_scheduling?: boolean | null;
 }
 
 interface Stats {
@@ -79,6 +80,8 @@ export default function ManagerDashboard() {
   const navigate = useNavigate();
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [pendingRequests, setPendingRequests] = useState<WorkOrder[]>([]);
+  const [pendingScheduling, setPendingScheduling] = useState<WorkOrder[]>([]);
+  const [schedulingDates, setSchedulingDates] = useState<Record<string, string>>({});
   const [selectedRoles, setSelectedRoles] = useState<Record<string, string>>({});
   const [scheduledDates, setScheduledDates] = useState<Record<string, string>>({});
   const [employees, setEmployees] = useState<{ id: string; name: string }[]>([]);
@@ -93,6 +96,7 @@ export default function ManagerDashboard() {
   useEffect(() => {
     fetchPendingUsers();
     fetchPendingRequests();
+    fetchPendingScheduling();
     fetchStats();
     fetchRecentOrders();
     fetchCalendarOrders();
@@ -198,6 +202,133 @@ export default function ManagerDashboard() {
         return next;
       });
     }
+  };
+
+  const fetchPendingScheduling = async () => {
+    const { data } = await supabase
+      .from("work_orders")
+      .select(`
+        id,
+        reference,
+        title,
+        status,
+        service_type,
+        priority,
+        created_at,
+        scheduled_date,
+        needs_scheduling,
+        profiles!work_orders_client_id_fkey (
+          name,
+          company_name
+        )
+      `)
+      .eq("needs_scheduling", true)
+      .neq("status", "cancelled")
+      .neq("status", "completed")
+      .order("created_at", { ascending: false });
+
+    if (data) {
+      const formatted = data.map((order: any) => ({
+        ...order,
+        client_name: order.profiles?.company_name || order.profiles?.name || "N/A",
+      }));
+      setPendingScheduling(formatted);
+    }
+  };
+
+  const markAsPending = async (requestId: string) => {
+    const { data: workOrderData } = await supabase
+      .from("work_orders")
+      .select("client_id, reference, title, profiles!work_orders_client_id_fkey(name)")
+      .eq("id", requestId)
+      .single();
+
+    const { error } = await supabase
+      .from("work_orders")
+      .update({ status: "pending", needs_scheduling: true, scheduled_date: null })
+      .eq("id", requestId);
+
+    if (error) {
+      toast({ title: "Erro", description: "Erro ao marcar como pendente", variant: "destructive" });
+      return;
+    }
+
+    if (workOrderData) {
+      const clientProfile = workOrderData.profiles as any;
+      supabase.functions.invoke("send-notification-email", {
+        body: {
+          type: "work_order_approved",
+          userId: workOrderData.client_id,
+          data: {
+            recipientName: clientProfile?.name || "Cliente",
+            workOrderReference: workOrderData.reference || "",
+            workOrderTitle: workOrderData.title || "",
+            isClient: true,
+          },
+        },
+      });
+    }
+
+    toast({ title: "Sucesso", description: "Solicitação aprovada e marcada como pendente (aguarda data)" });
+    fetchPendingRequests();
+    fetchPendingScheduling();
+    fetchStats();
+    fetchRecentOrders();
+  };
+
+  const scheduleOrder = async (requestId: string) => {
+    const scheduledDate = schedulingDates[requestId];
+    if (!scheduledDate) {
+      toast({ title: "Erro", description: "Selecione uma data e hora", variant: "destructive" });
+      return;
+    }
+
+    const { data: workOrderData } = await supabase
+      .from("work_orders")
+      .select("client_id, reference, title, profiles!work_orders_client_id_fkey(name)")
+      .eq("id", requestId)
+      .single();
+
+    const { error } = await supabase
+      .from("work_orders")
+      .update({
+        scheduled_date: new Date(scheduledDate).toISOString(),
+        needs_scheduling: false,
+      })
+      .eq("id", requestId);
+
+    if (error) {
+      toast({ title: "Erro", description: "Erro ao agendar OT", variant: "destructive" });
+      return;
+    }
+
+    if (workOrderData) {
+      const clientProfile = workOrderData.profiles as any;
+      const formattedDate = format(new Date(scheduledDate), "dd/MM/yyyy 'às' HH:mm", { locale: pt });
+      supabase.functions.invoke("send-notification-email", {
+        body: {
+          type: "work_order_approved",
+          userId: workOrderData.client_id,
+          data: {
+            recipientName: clientProfile?.name || "Cliente",
+            workOrderReference: workOrderData.reference || "",
+            workOrderTitle: workOrderData.title || "",
+            scheduledDate: formattedDate,
+            isClient: true,
+          },
+        },
+      });
+    }
+
+    toast({ title: "Sucesso", description: "OT agendada com sucesso" });
+    setSchedulingDates((prev) => {
+      const next = { ...prev };
+      delete next[requestId];
+      return next;
+    });
+    fetchPendingScheduling();
+    fetchCalendarOrders();
+    fetchRecentOrders();
   };
 
   const fetchStats = async () => {
