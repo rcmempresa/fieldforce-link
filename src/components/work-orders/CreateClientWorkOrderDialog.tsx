@@ -274,10 +274,26 @@ export function CreateClientWorkOrderDialog({
               type="datetime-local"
               value={formData.scheduled_date}
               onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+              disabled={formData.needs_scheduling}
             />
             <p className="text-xs text-muted-foreground">
               Indique uma data preferencial. O gerente irá verificar a disponibilidade dos técnicos.
             </p>
+            <label className="flex items-center gap-2 pt-1 cursor-pointer">
+              <Checkbox
+                checked={formData.needs_scheduling}
+                onCheckedChange={(checked) =>
+                  setFormData({
+                    ...formData,
+                    needs_scheduling: checked === true,
+                    scheduled_date: checked === true ? "" : formData.scheduled_date,
+                  })
+                }
+              />
+              <span className="text-sm">
+                Não sei a data — deixar pendente para o gerente agendar mais tarde
+              </span>
+            </label>
           </div>
 
           {equipments.length > 0 && (
