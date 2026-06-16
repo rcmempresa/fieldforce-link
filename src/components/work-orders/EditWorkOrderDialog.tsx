@@ -176,6 +176,7 @@ export function EditWorkOrderDialog({
         status: formData.status as "pending" | "in_progress" | "completed" | "cancelled",
         priority: formData.priority as "low" | "medium" | "high",
         scheduled_date: formData.scheduled_date || null,
+        needs_scheduling: formData.scheduled_date ? false : undefined,
         notes: formData.notes,
         address: formData.address || null,
       })
