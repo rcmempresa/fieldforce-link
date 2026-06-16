@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ClipboardList, Users, CheckCircle, UserCheck, Calendar as CalendarIcon, Mail, Clock, Package } from "lucide-react";
+import { ClipboardList, Users, CheckCircle, UserCheck, Calendar as CalendarIcon, Mail, Clock, Package, Search, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import { formatHours } from "@/lib/formatHours";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -82,6 +82,11 @@ export default function ManagerDashboard() {
   const [pendingRequests, setPendingRequests] = useState<WorkOrder[]>([]);
   const [pendingScheduling, setPendingScheduling] = useState<WorkOrder[]>([]);
   const [schedulingDates, setSchedulingDates] = useState<Record<string, string>>({});
+  const [schedSearch, setSchedSearch] = useState("");
+  const [schedPriority, setSchedPriority] = useState<string>("all");
+  const [schedServiceType, setSchedServiceType] = useState<string>("all");
+  const [schedPage, setSchedPage] = useState(1);
+  const SCHED_PAGE_SIZE = 5;
   const [selectedRoles, setSelectedRoles] = useState<Record<string, string>>({});
   const [scheduledDates, setScheduledDates] = useState<Record<string, string>>({});
   const [employees, setEmployees] = useState<{ id: string; name: string }[]>([]);
@@ -741,80 +746,62 @@ export default function ManagerDashboard() {
         {/* Notifications */}
         <Notifications />
 
-        {/* Stats Cards */}
-        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          <Card className="bg-gradient-to-br from-warning/5 via-background to-background border-warning/20 hover:shadow-lg transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Ordens Pendentes</CardTitle>
-              <div className="h-10 w-10 rounded-full bg-warning/10 flex items-center justify-center">
-                <ClipboardList className="h-5 w-5 text-warning" />
+        {/* KPI Strip — most important glance metrics */}
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+          <Card className="bg-gradient-to-br from-orange-500/10 to-background border-orange-500/30 hover:shadow-md transition-all">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-muted-foreground">A Aprovar</span>
+                <AlertTriangle className="h-4 w-4 text-orange-500" />
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-warning">{stats.pending}</div>
-              <p className="text-xs text-muted-foreground mt-1">Aguardam aprovação</p>
+              <div className="text-2xl font-bold text-orange-500">{pendingRequests.length}</div>
             </CardContent>
           </Card>
-          
-          <Card className="bg-gradient-to-br from-primary/5 via-background to-background border-primary/20 hover:shadow-lg transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Em Progresso</CardTitle>
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <ClipboardList className="h-5 w-5 text-primary" />
+          <Card className="bg-gradient-to-br from-warning/10 to-background border-warning/30 hover:shadow-md transition-all">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-muted-foreground">Sem Data</span>
+                <CalendarIcon className="h-4 w-4 text-warning" />
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-primary">{stats.inProgress}</div>
-              <p className="text-xs text-muted-foreground mt-1">Em execução</p>
+              <div className="text-2xl font-bold text-warning">{pendingScheduling.length}</div>
             </CardContent>
           </Card>
-          
-          <Card className="bg-gradient-to-br from-accent/5 via-background to-background border-accent/20 hover:shadow-lg transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Concluídas</CardTitle>
-              <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center">
-                <CheckCircle className="h-5 w-5 text-accent" />
+          <Card className="bg-gradient-to-br from-warning/5 to-background border-warning/20 hover:shadow-md transition-all">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-muted-foreground">Pendentes</span>
+                <ClipboardList className="h-4 w-4 text-warning" />
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-accent">{stats.completed}</div>
-              <p className="text-xs text-muted-foreground mt-1">Este mês</p>
+              <div className="text-2xl font-bold text-warning">{stats.pending}</div>
             </CardContent>
           </Card>
-        </div>
-
-        {/* Team Stats */}
-        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
-          <Card className="hover:shadow-md transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-base font-semibold">Equipa</CardTitle>
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Users className="h-5 w-5 text-primary" />
+          <Card className="bg-gradient-to-br from-primary/5 to-background border-primary/20 hover:shadow-md transition-all">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-muted-foreground">Em Progresso</span>
+                <ClipboardList className="h-4 w-4 text-primary" />
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Funcionários Ativos</span>
-                  <span className="text-2xl font-bold text-primary">{stats.activeEmployees}</span>
-                </div>
-              </div>
+              <div className="text-2xl font-bold text-primary">{stats.inProgress}</div>
             </CardContent>
           </Card>
-          
-          <Card className="hover:shadow-md transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-base font-semibold">Clientes</CardTitle>
-              <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center">
-                <Users className="h-5 w-5 text-accent" />
+          <Card className="bg-gradient-to-br from-accent/5 to-background border-accent/20 hover:shadow-md transition-all">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-muted-foreground">Concluídas/mês</span>
+                <CheckCircle className="h-4 w-4 text-accent" />
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Clientes Ativos</span>
-                  <span className="text-2xl font-bold text-accent">{stats.activeClients}</span>
-                </div>
+              <div className="text-2xl font-bold text-accent">{stats.completed}</div>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-all">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-muted-foreground">Equipa / Clientes</span>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="text-2xl font-bold">
+                {stats.activeEmployees}
+                <span className="text-muted-foreground text-base font-normal"> / {stats.activeClients}</span>
               </div>
             </CardContent>
           </Card>
@@ -1062,20 +1049,84 @@ export default function ManagerDashboard() {
         )}
 
         {/* Pending OTs awaiting scheduling */}
-        {pendingScheduling.length > 0 && (
+        {pendingScheduling.length > 0 && (() => {
+          const q = schedSearch.trim().toLowerCase();
+          const filtered = pendingScheduling.filter((o) => {
+            if (schedPriority !== "all" && o.priority !== schedPriority) return false;
+            if (schedServiceType !== "all" && o.service_type !== schedServiceType) return false;
+            if (!q) return true;
+            return (
+              (o.reference || "").toLowerCase().includes(q) ||
+              (o.title || "").toLowerCase().includes(q) ||
+              (o.client_name || "").toLowerCase().includes(q)
+            );
+          });
+          const totalPages = Math.max(1, Math.ceil(filtered.length / SCHED_PAGE_SIZE));
+          const currentPage = Math.min(schedPage, totalPages);
+          const pageItems = filtered.slice(
+            (currentPage - 1) * SCHED_PAGE_SIZE,
+            currentPage * SCHED_PAGE_SIZE
+          );
+          return (
           <Card className="border-warning/30 bg-gradient-to-br from-warning/5 via-background to-background">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-warning">
-                <CalendarIcon className="h-5 w-5" />
-                OT Pendentes (Aguardam Data)
-                <Badge variant="secondary" className="ml-2">
-                  {pendingScheduling.length}
-                </Badge>
-              </CardTitle>
+            <CardHeader className="space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <CardTitle className="flex items-center gap-2 text-warning">
+                  <CalendarIcon className="h-5 w-5" />
+                  OT Pendentes (Aguardam Data)
+                  <Badge variant="secondary" className="ml-2">
+                    {pendingScheduling.length}
+                  </Badge>
+                </CardTitle>
+                {filtered.length !== pendingScheduling.length && (
+                  <span className="text-xs text-muted-foreground">
+                    {filtered.length} de {pendingScheduling.length} após filtros
+                  </span>
+                )}
+              </div>
+              <div className="grid gap-2 grid-cols-1 sm:grid-cols-[1fr_auto_auto]">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={schedSearch}
+                    onChange={(e) => { setSchedSearch(e.target.value); setSchedPage(1); }}
+                    placeholder="Procurar por referência, título ou cliente..."
+                    className="pl-8"
+                  />
+                </div>
+                <Select value={schedPriority} onValueChange={(v) => { setSchedPriority(v); setSchedPage(1); }}>
+                  <SelectTrigger className="w-full sm:w-[150px]">
+                    <SelectValue placeholder="Prioridade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas prioridades</SelectItem>
+                    <SelectItem value="high">Alta</SelectItem>
+                    <SelectItem value="medium">Média</SelectItem>
+                    <SelectItem value="low">Baixa</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={schedServiceType} onValueChange={(v) => { setSchedServiceType(v); setSchedPage(1); }}>
+                  <SelectTrigger className="w-full sm:w-[170px]">
+                    <SelectValue placeholder="Tipo serviço" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os tipos</SelectItem>
+                    <SelectItem value="repair">Reparação</SelectItem>
+                    <SelectItem value="maintenance">Manutenção</SelectItem>
+                    <SelectItem value="installation">Instalação</SelectItem>
+                    <SelectItem value="warranty">Garantia</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </CardHeader>
             <CardContent>
+              {pageItems.length === 0 ? (
+                <div className="text-center py-8 text-sm text-muted-foreground">
+                  Nenhuma OT corresponde aos filtros.
+                </div>
+              ) : (
               <div className="space-y-4">
-                {pendingScheduling.map((order) => (
+                {pageItems.map((order) => (
                   <div key={order.id} className="flex flex-col gap-4 rounded-lg border border-warning/20 bg-warning/5 p-4">
                     <div className="space-y-1 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -1140,49 +1191,38 @@ export default function ManagerDashboard() {
                   </div>
                 ))}
               </div>
+              )}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 pt-3 border-t">
+                  <span className="text-xs text-muted-foreground">
+                    Página {currentPage} de {totalPages}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setSchedPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage <= 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Anterior
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setSchedPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage >= totalPages}
+                    >
+                      Seguinte
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
-        )}
-
-        {/* Quick Actions */}
-        <Card className="border-2 hover:shadow-lg transition-all duration-300">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ClipboardList className="h-5 w-5 text-primary" />
-              Ações Rápidas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Button 
-                onClick={() => navigate('/work-orders')}
-                className="h-20 flex flex-col gap-2"
-                size="lg"
-              >
-                <ClipboardList className="h-6 w-6" />
-                <span>Gerir Ordens</span>
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => navigate('/employees')}
-                className="h-20 flex flex-col gap-2 hover:bg-primary hover:text-primary-foreground"
-                size="lg"
-              >
-                <Users className="h-6 w-6" />
-                <span>Funcionários</span>
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => navigate('/clients')}
-                className="h-20 flex flex-col gap-2 hover:bg-accent hover:text-accent-foreground"
-                size="lg"
-              >
-                <Users className="h-6 w-6" />
-                <span>Clientes</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          );
+        })()}
 
         {/* Recent Work Orders */}
         <Card className="hover:shadow-md transition-all duration-300">
