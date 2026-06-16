@@ -1067,20 +1067,84 @@ export default function ManagerDashboard() {
         )}
 
         {/* Pending OTs awaiting scheduling */}
-        {pendingScheduling.length > 0 && (
+        {pendingScheduling.length > 0 && (() => {
+          const q = schedSearch.trim().toLowerCase();
+          const filtered = pendingScheduling.filter((o) => {
+            if (schedPriority !== "all" && o.priority !== schedPriority) return false;
+            if (schedServiceType !== "all" && o.service_type !== schedServiceType) return false;
+            if (!q) return true;
+            return (
+              (o.reference || "").toLowerCase().includes(q) ||
+              (o.title || "").toLowerCase().includes(q) ||
+              (o.client_name || "").toLowerCase().includes(q)
+            );
+          });
+          const totalPages = Math.max(1, Math.ceil(filtered.length / SCHED_PAGE_SIZE));
+          const currentPage = Math.min(schedPage, totalPages);
+          const pageItems = filtered.slice(
+            (currentPage - 1) * SCHED_PAGE_SIZE,
+            currentPage * SCHED_PAGE_SIZE
+          );
+          return (
           <Card className="border-warning/30 bg-gradient-to-br from-warning/5 via-background to-background">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-warning">
-                <CalendarIcon className="h-5 w-5" />
-                OT Pendentes (Aguardam Data)
-                <Badge variant="secondary" className="ml-2">
-                  {pendingScheduling.length}
-                </Badge>
-              </CardTitle>
+            <CardHeader className="space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <CardTitle className="flex items-center gap-2 text-warning">
+                  <CalendarIcon className="h-5 w-5" />
+                  OT Pendentes (Aguardam Data)
+                  <Badge variant="secondary" className="ml-2">
+                    {pendingScheduling.length}
+                  </Badge>
+                </CardTitle>
+                {filtered.length !== pendingScheduling.length && (
+                  <span className="text-xs text-muted-foreground">
+                    {filtered.length} de {pendingScheduling.length} após filtros
+                  </span>
+                )}
+              </div>
+              <div className="grid gap-2 grid-cols-1 sm:grid-cols-[1fr_auto_auto]">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={schedSearch}
+                    onChange={(e) => { setSchedSearch(e.target.value); setSchedPage(1); }}
+                    placeholder="Procurar por referência, título ou cliente..."
+                    className="pl-8"
+                  />
+                </div>
+                <Select value={schedPriority} onValueChange={(v) => { setSchedPriority(v); setSchedPage(1); }}>
+                  <SelectTrigger className="w-full sm:w-[150px]">
+                    <SelectValue placeholder="Prioridade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas prioridades</SelectItem>
+                    <SelectItem value="high">Alta</SelectItem>
+                    <SelectItem value="medium">Média</SelectItem>
+                    <SelectItem value="low">Baixa</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={schedServiceType} onValueChange={(v) => { setSchedServiceType(v); setSchedPage(1); }}>
+                  <SelectTrigger className="w-full sm:w-[170px]">
+                    <SelectValue placeholder="Tipo serviço" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os tipos</SelectItem>
+                    <SelectItem value="repair">Reparação</SelectItem>
+                    <SelectItem value="maintenance">Manutenção</SelectItem>
+                    <SelectItem value="installation">Instalação</SelectItem>
+                    <SelectItem value="warranty">Garantia</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </CardHeader>
             <CardContent>
+              {pageItems.length === 0 ? (
+                <div className="text-center py-8 text-sm text-muted-foreground">
+                  Nenhuma OT corresponde aos filtros.
+                </div>
+              ) : (
               <div className="space-y-4">
-                {pendingScheduling.map((order) => (
+                {pageItems.map((order) => (
                   <div key={order.id} className="flex flex-col gap-4 rounded-lg border border-warning/20 bg-warning/5 p-4">
                     <div className="space-y-1 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -1145,49 +1209,38 @@ export default function ManagerDashboard() {
                   </div>
                 ))}
               </div>
+              )}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 pt-3 border-t">
+                  <span className="text-xs text-muted-foreground">
+                    Página {currentPage} de {totalPages}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setSchedPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage <= 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Anterior
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setSchedPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage >= totalPages}
+                    >
+                      Seguinte
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
-        )}
-
-        {/* Quick Actions */}
-        <Card className="border-2 hover:shadow-lg transition-all duration-300">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ClipboardList className="h-5 w-5 text-primary" />
-              Ações Rápidas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Button 
-                onClick={() => navigate('/work-orders')}
-                className="h-20 flex flex-col gap-2"
-                size="lg"
-              >
-                <ClipboardList className="h-6 w-6" />
-                <span>Gerir Ordens</span>
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => navigate('/employees')}
-                className="h-20 flex flex-col gap-2 hover:bg-primary hover:text-primary-foreground"
-                size="lg"
-              >
-                <Users className="h-6 w-6" />
-                <span>Funcionários</span>
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => navigate('/clients')}
-                className="h-20 flex flex-col gap-2 hover:bg-accent hover:text-accent-foreground"
-                size="lg"
-              >
-                <Users className="h-6 w-6" />
-                <span>Clientes</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          );
+        })()}
 
         {/* Recent Work Orders */}
         <Card className="hover:shadow-md transition-all duration-300">
