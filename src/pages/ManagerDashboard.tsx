@@ -65,6 +65,7 @@ interface WorkOrder {
   created_at?: string;
   total_hours?: number;
   employee_hours?: EmployeeHours[];
+  needs_scheduling?: boolean | null;
 }
 
 interface Stats {
@@ -79,6 +80,8 @@ export default function ManagerDashboard() {
   const navigate = useNavigate();
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [pendingRequests, setPendingRequests] = useState<WorkOrder[]>([]);
+  const [pendingScheduling, setPendingScheduling] = useState<WorkOrder[]>([]);
+  const [schedulingDates, setSchedulingDates] = useState<Record<string, string>>({});
   const [selectedRoles, setSelectedRoles] = useState<Record<string, string>>({});
   const [scheduledDates, setScheduledDates] = useState<Record<string, string>>({});
   const [employees, setEmployees] = useState<{ id: string; name: string }[]>([]);
@@ -93,6 +96,7 @@ export default function ManagerDashboard() {
   useEffect(() => {
     fetchPendingUsers();
     fetchPendingRequests();
+    fetchPendingScheduling();
     fetchStats();
     fetchRecentOrders();
     fetchCalendarOrders();
@@ -198,6 +202,133 @@ export default function ManagerDashboard() {
         return next;
       });
     }
+  };
+
+  const fetchPendingScheduling = async () => {
+    const { data } = await supabase
+      .from("work_orders")
+      .select(`
+        id,
+        reference,
+        title,
+        status,
+        service_type,
+        priority,
+        created_at,
+        scheduled_date,
+        needs_scheduling,
+        profiles!work_orders_client_id_fkey (
+          name,
+          company_name
+        )
+      `)
+      .eq("needs_scheduling", true)
+      .neq("status", "cancelled")
+      .neq("status", "completed")
+      .order("created_at", { ascending: false });
+
+    if (data) {
+      const formatted = data.map((order: any) => ({
+        ...order,
+        client_name: order.profiles?.company_name || order.profiles?.name || "N/A",
+      }));
+      setPendingScheduling(formatted);
+    }
+  };
+
+  const markAsPending = async (requestId: string) => {
+    const { data: workOrderData } = await supabase
+      .from("work_orders")
+      .select("client_id, reference, title, profiles!work_orders_client_id_fkey(name)")
+      .eq("id", requestId)
+      .single();
+
+    const { error } = await supabase
+      .from("work_orders")
+      .update({ status: "pending", needs_scheduling: true, scheduled_date: null })
+      .eq("id", requestId);
+
+    if (error) {
+      toast({ title: "Erro", description: "Erro ao marcar como pendente", variant: "destructive" });
+      return;
+    }
+
+    if (workOrderData) {
+      const clientProfile = workOrderData.profiles as any;
+      supabase.functions.invoke("send-notification-email", {
+        body: {
+          type: "work_order_approved",
+          userId: workOrderData.client_id,
+          data: {
+            recipientName: clientProfile?.name || "Cliente",
+            workOrderReference: workOrderData.reference || "",
+            workOrderTitle: workOrderData.title || "",
+            isClient: true,
+          },
+        },
+      });
+    }
+
+    toast({ title: "Sucesso", description: "Solicitação aprovada e marcada como pendente (aguarda data)" });
+    fetchPendingRequests();
+    fetchPendingScheduling();
+    fetchStats();
+    fetchRecentOrders();
+  };
+
+  const scheduleOrder = async (requestId: string) => {
+    const scheduledDate = schedulingDates[requestId];
+    if (!scheduledDate) {
+      toast({ title: "Erro", description: "Selecione uma data e hora", variant: "destructive" });
+      return;
+    }
+
+    const { data: workOrderData } = await supabase
+      .from("work_orders")
+      .select("client_id, reference, title, profiles!work_orders_client_id_fkey(name)")
+      .eq("id", requestId)
+      .single();
+
+    const { error } = await supabase
+      .from("work_orders")
+      .update({
+        scheduled_date: new Date(scheduledDate).toISOString(),
+        needs_scheduling: false,
+      })
+      .eq("id", requestId);
+
+    if (error) {
+      toast({ title: "Erro", description: "Erro ao agendar OT", variant: "destructive" });
+      return;
+    }
+
+    if (workOrderData) {
+      const clientProfile = workOrderData.profiles as any;
+      const formattedDate = format(new Date(scheduledDate), "dd/MM/yyyy 'às' HH:mm", { locale: pt });
+      supabase.functions.invoke("send-notification-email", {
+        body: {
+          type: "work_order_approved",
+          userId: workOrderData.client_id,
+          data: {
+            recipientName: clientProfile?.name || "Cliente",
+            workOrderReference: workOrderData.reference || "",
+            workOrderTitle: workOrderData.title || "",
+            scheduledDate: formattedDate,
+            isClient: true,
+          },
+        },
+      });
+    }
+
+    toast({ title: "Sucesso", description: "OT agendada com sucesso" });
+    setSchedulingDates((prev) => {
+      const next = { ...prev };
+      delete next[requestId];
+      return next;
+    });
+    fetchPendingScheduling();
+    fetchCalendarOrders();
+    fetchRecentOrders();
   };
 
   const fetchStats = async () => {
@@ -909,10 +1040,101 @@ export default function ManagerDashboard() {
                       </Button>
                       <Button
                         size="sm"
+                        variant="outline"
+                        onClick={() => markAsPending(request.id)}
+                        className="border-warning text-warning hover:bg-warning/10"
+                      >
+                        Marcar como Pendente
+                      </Button>
+                      <Button
+                        size="sm"
                         variant="destructive"
                         onClick={() => rejectRequest(request.id)}
                       >
                         Rejeitar
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Pending OTs awaiting scheduling */}
+        {pendingScheduling.length > 0 && (
+          <Card className="border-warning/30 bg-gradient-to-br from-warning/5 via-background to-background">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-warning">
+                <CalendarIcon className="h-5 w-5" />
+                OT Pendentes (Aguardam Data)
+                <Badge variant="secondary" className="ml-2">
+                  {pendingScheduling.length}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {pendingScheduling.map((order) => (
+                  <div key={order.id} className="flex flex-col gap-4 rounded-lg border border-warning/20 bg-warning/5 p-4">
+                    <div className="space-y-1 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium">{order.reference}</p>
+                        <Badge className="bg-warning/15 text-warning hover:bg-warning/20">
+                          Aguarda data
+                        </Badge>
+                      </div>
+                      <p className="text-sm">{order.title}</p>
+                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mt-2">
+                        <span>Cliente: {order.client_name}</span>
+                        {order.service_type && (
+                          <span>Tipo: {
+                            order.service_type === 'repair' ? 'Reparação' :
+                            order.service_type === 'maintenance' ? 'Manutenção' :
+                            order.service_type === 'installation' ? 'Instalação' :
+                            order.service_type === 'warranty' ? 'Garantia' : order.service_type
+                          }</span>
+                        )}
+                        {order.priority && (
+                          <span className={`font-medium ${
+                            order.priority === 'high' ? 'text-destructive' :
+                            order.priority === 'medium' ? 'text-warning' :
+                            'text-accent'
+                          }`}>
+                            Prioridade: {
+                              order.priority === 'high' ? 'Alta' :
+                              order.priority === 'medium' ? 'Média' : 'Baixa'
+                            }
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="rounded-md border bg-background/60 p-3">
+                      <SlotDateTimePicker
+                        value={schedulingDates[order.id] || ""}
+                        onChange={(v) =>
+                          setSchedulingDates({ ...schedulingDates, [order.id]: v })
+                        }
+                        excludeWorkOrderId={order.id}
+                      />
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigate(`/work-orders/${order.id}`)}
+                      >
+                        Ver detalhes
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => scheduleOrder(order.id)}
+                        disabled={!schedulingDates[order.id]}
+                        className="bg-accent hover:bg-accent/90"
+                      >
+                        Agendar OT
                       </Button>
                     </div>
                   </div>
