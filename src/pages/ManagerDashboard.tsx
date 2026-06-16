@@ -1040,10 +1040,101 @@ export default function ManagerDashboard() {
                       </Button>
                       <Button
                         size="sm"
+                        variant="outline"
+                        onClick={() => markAsPending(request.id)}
+                        className="border-warning text-warning hover:bg-warning/10"
+                      >
+                        Marcar como Pendente
+                      </Button>
+                      <Button
+                        size="sm"
                         variant="destructive"
                         onClick={() => rejectRequest(request.id)}
                       >
                         Rejeitar
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Pending OTs awaiting scheduling */}
+        {pendingScheduling.length > 0 && (
+          <Card className="border-warning/30 bg-gradient-to-br from-warning/5 via-background to-background">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-warning">
+                <CalendarIcon className="h-5 w-5" />
+                OT Pendentes (Aguardam Data)
+                <Badge variant="secondary" className="ml-2">
+                  {pendingScheduling.length}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {pendingScheduling.map((order) => (
+                  <div key={order.id} className="flex flex-col gap-4 rounded-lg border border-warning/20 bg-warning/5 p-4">
+                    <div className="space-y-1 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium">{order.reference}</p>
+                        <Badge className="bg-warning/15 text-warning hover:bg-warning/20">
+                          Aguarda data
+                        </Badge>
+                      </div>
+                      <p className="text-sm">{order.title}</p>
+                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mt-2">
+                        <span>Cliente: {order.client_name}</span>
+                        {order.service_type && (
+                          <span>Tipo: {
+                            order.service_type === 'repair' ? 'Reparação' :
+                            order.service_type === 'maintenance' ? 'Manutenção' :
+                            order.service_type === 'installation' ? 'Instalação' :
+                            order.service_type === 'warranty' ? 'Garantia' : order.service_type
+                          }</span>
+                        )}
+                        {order.priority && (
+                          <span className={`font-medium ${
+                            order.priority === 'high' ? 'text-destructive' :
+                            order.priority === 'medium' ? 'text-warning' :
+                            'text-accent'
+                          }`}>
+                            Prioridade: {
+                              order.priority === 'high' ? 'Alta' :
+                              order.priority === 'medium' ? 'Média' : 'Baixa'
+                            }
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="rounded-md border bg-background/60 p-3">
+                      <SlotDateTimePicker
+                        value={schedulingDates[order.id] || ""}
+                        onChange={(v) =>
+                          setSchedulingDates({ ...schedulingDates, [order.id]: v })
+                        }
+                        excludeWorkOrderId={order.id}
+                      />
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigate(`/work-orders/${order.id}`)}
+                      >
+                        Ver detalhes
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => scheduleOrder(order.id)}
+                        disabled={!schedulingDates[order.id]}
+                        className="bg-accent hover:bg-accent/90"
+                      >
+                        Agendar OT
                       </Button>
                     </div>
                   </div>
