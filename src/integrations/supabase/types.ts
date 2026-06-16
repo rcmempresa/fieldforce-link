@@ -733,6 +733,7 @@ export type Database = {
           created_by: string
           description: string | null
           id: string
+          needs_scheduling: boolean
           notes: string | null
           priority: Database["public"]["Enums"]["work_order_priority"]
           reference: string | null
@@ -750,6 +751,7 @@ export type Database = {
           created_by: string
           description?: string | null
           id?: string
+          needs_scheduling?: boolean
           notes?: string | null
           priority?: Database["public"]["Enums"]["work_order_priority"]
           reference?: string | null
@@ -767,6 +769,7 @@ export type Database = {
           created_by?: string
           description?: string | null
           id?: string
+          needs_scheduling?: boolean
           notes?: string | null
           priority?: Database["public"]["Enums"]["work_order_priority"]
           reference?: string | null

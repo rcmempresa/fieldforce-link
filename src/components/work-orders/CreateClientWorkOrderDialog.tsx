@@ -14,6 +14,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Search } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface CreateClientWorkOrderDialogProps {
   open: boolean;
@@ -47,6 +48,7 @@ export function CreateClientWorkOrderDialog({
     priority: "medium",
     address: "",
     scheduled_date: "",
+    needs_scheduling: false,
   });
   const { toast } = useToast();
 
@@ -98,7 +100,8 @@ export function CreateClientWorkOrderDialog({
         service_type: formData.service_type as "repair" | "maintenance" | "installation" | "warranty",
         priority: formData.priority as "low" | "medium" | "high",
         address: formData.address || null,
-        scheduled_date: formData.scheduled_date || null,
+        scheduled_date: formData.needs_scheduling ? null : (formData.scheduled_date || null),
+        needs_scheduling: formData.needs_scheduling,
         created_by: user.id,
         status: "awaiting_approval" as const,
       })
@@ -180,6 +183,7 @@ export function CreateClientWorkOrderDialog({
       priority: "medium",
       address: "",
       scheduled_date: "",
+      needs_scheduling: false,
     });
     onOpenChange(false);
     onSuccess();
@@ -270,10 +274,26 @@ export function CreateClientWorkOrderDialog({
               type="datetime-local"
               value={formData.scheduled_date}
               onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+              disabled={formData.needs_scheduling}
             />
             <p className="text-xs text-muted-foreground">
               Indique uma data preferencial. O gerente irá verificar a disponibilidade dos técnicos.
             </p>
+            <label className="flex items-center gap-2 pt-1 cursor-pointer">
+              <Checkbox
+                checked={formData.needs_scheduling}
+                onCheckedChange={(checked) =>
+                  setFormData({
+                    ...formData,
+                    needs_scheduling: checked === true,
+                    scheduled_date: checked === true ? "" : formData.scheduled_date,
+                  })
+                }
+              />
+              <span className="text-sm">
+                Não sei a data — deixar pendente para o gerente agendar mais tarde
+              </span>
+            </label>
           </div>
 
           {equipments.length > 0 && (

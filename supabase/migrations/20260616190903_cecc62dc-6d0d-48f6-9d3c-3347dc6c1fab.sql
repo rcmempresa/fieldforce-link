@@ -1,0 +1,2 @@
+ALTER TABLE public.work_orders ADD COLUMN IF NOT EXISTS needs_scheduling boolean NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS idx_work_orders_needs_scheduling ON public.work_orders(needs_scheduling) WHERE needs_scheduling = true;
