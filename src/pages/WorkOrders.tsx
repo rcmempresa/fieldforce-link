@@ -28,6 +28,7 @@ interface WorkOrder {
   status: string;
   priority: string;
   scheduled_date: string | null;
+  needs_scheduling?: boolean | null;
   client_id: string;
   profiles: {
     name: string;
@@ -76,6 +77,7 @@ export default function WorkOrders() {
         status,
         priority,
         scheduled_date,
+        needs_scheduling,
         client_id,
         profiles!work_orders_client_id_fkey (
           name
@@ -107,7 +109,11 @@ export default function WorkOrders() {
     }
 
     if (statusFilter !== "all") {
-      filtered = filtered.filter((order) => order.status === statusFilter);
+      if (statusFilter === "needs_scheduling") {
+        filtered = filtered.filter((order) => order.needs_scheduling);
+      } else {
+        filtered = filtered.filter((order) => order.status === statusFilter);
+      }
     }
 
     if (priorityFilter !== "all") {
@@ -291,6 +297,11 @@ export default function WorkOrders() {
                         >
                           {getPriorityLabel(order.priority)}
                         </span>
+                        {order.needs_scheduling && (
+                          <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-amber-500/15 text-amber-600 border border-amber-500/30">
+                            Aguarda data
+                          </span>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground">{order.title}</p>
                       <p className="text-xs text-muted-foreground">
