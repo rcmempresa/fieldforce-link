@@ -211,6 +211,7 @@ export default function Employees() {
       });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast({
         title: "Sucesso",
@@ -219,11 +220,11 @@ export default function Employees() {
       fetchEmployees();
       setDeleteDialogOpen(false);
       setSelectedEmployee(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting employee:', error);
       toast({
         title: "Erro",
-        description: "Erro ao eliminar funcionário",
+        description: error?.message || "Erro ao eliminar funcionário",
         variant: "destructive",
       });
     }
