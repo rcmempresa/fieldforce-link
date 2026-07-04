@@ -603,18 +603,18 @@ export default function Employees() {
                       <div className="rounded-lg border p-4 bg-muted/50">
                         <p className="text-sm text-muted-foreground mb-1">Total (últimos 12 meses)</p>
                         <p className="text-2xl font-bold">
-                          {formatHours(hoursStats.monthlyHistory.reduce((s, m) => s + m.hours, 0))}
+                          {formatHours((hoursStats.monthlyHistory ?? []).reduce((s, m) => s + m.hours, 0))}
                         </p>
                       </div>
                     </TabsContent>
                     <TabsContent value="monthly" className="mt-4">
-                      {hoursStats.monthlyHistory.every(m => m.hours === 0) ? (
+                      {(hoursStats.monthlyHistory ?? []).every(m => m.hours === 0) ? (
                         <p className="text-center text-muted-foreground py-8">
                           Nenhuma hora registada
                         </p>
                       ) : (
                         <div className="space-y-2">
-                          {hoursStats.monthlyHistory
+                          {(hoursStats.monthlyHistory ?? [])
                             .filter(m => m.hours > 0)
                             .map((m, idx) => (
                               <div
