@@ -7,7 +7,7 @@ import { Search, Mail, Phone, Trash2, Edit, CalendarIcon, Briefcase, Clock, Arro
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
-import { format, isSameDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
+import { format, isSameDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { CreateEmployeeDialog } from "@/components/employees/CreateEmployeeDialog";
@@ -65,6 +65,7 @@ interface HoursStats {
   thisWeek: number;
   thisMonth: number;
   byWorkOrder: { [key: string]: { hours: number; reference: string; title: string } };
+  monthlyHistory: { month: Date; hours: number; label: string }[];
 }
 
 export default function Employees() {
