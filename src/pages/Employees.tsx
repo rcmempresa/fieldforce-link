@@ -331,6 +331,13 @@ export default function Employees() {
       let monthHours = 0;
       const workOrderHours: { [key: string]: { hours: number; reference: string; title: string } } = {};
 
+      // Últimos 12 meses (inclui atual)
+      const monthlyHoursMap: { [key: string]: number } = {};
+      for (let i = 0; i < 12; i++) {
+        const md = subMonths(now, i);
+        monthlyHoursMap[format(md, 'yyyy-MM')] = 0;
+      }
+
       data?.forEach((entry: any) => {
         // Agrupa pelas horas REAIS de execução (start_time da entrada),
         // não pela data agendada da OT. Assim, refletimos o trabalho efetivo
@@ -348,6 +355,10 @@ export default function Employees() {
           if (workDate >= monthStart && workDate <= monthEnd) {
             monthHours += hours;
           }
+          const mKey = format(workDate, 'yyyy-MM');
+          if (monthlyHoursMap[mKey] !== undefined) {
+            monthlyHoursMap[mKey] += hours;
+          }
         }
 
         const woId = entry.work_order_id;
@@ -361,11 +372,20 @@ export default function Employees() {
         workOrderHours[woId].hours += hours;
       });
 
+      const monthlyHistory = Object.entries(monthlyHoursMap)
+        .map(([key, hours]) => {
+          const [y, m] = key.split('-');
+          const md = new Date(parseInt(y), parseInt(m) - 1, 1);
+          return { month: md, hours, label: format(md, "MMMM 'de' yyyy", { locale: pt }) };
+        })
+        .sort((a, b) => b.month.getTime() - a.month.getTime());
+
       setHoursStats({
         today: todayHours,
         thisWeek: weekHours,
         thisMonth: monthHours,
         byWorkOrder: workOrderHours,
+        monthlyHistory,
       });
     } catch (error) {
       console.error('Error fetching employee hours:', error);
