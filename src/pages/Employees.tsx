@@ -7,7 +7,7 @@ import { Search, Mail, Phone, Trash2, Edit, CalendarIcon, Briefcase, Clock, Arro
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
-import { format, isSameDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths } from "date-fns";
+import { format, isSameDay, isSameMonth, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { CreateEmployeeDialog } from "@/components/employees/CreateEmployeeDialog";
@@ -81,6 +81,7 @@ export default function Employees() {
   const [selectedCalendarEmployee, setSelectedCalendarEmployee] = useState<Employee | null>(null);
   const [calendarOrders, setCalendarOrders] = useState<WorkOrder[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [hoursStats, setHoursStats] = useState<HoursStats | null>(null);
   const [loadingHours, setLoadingHours] = useState(false);
   const { toast } = useToast();
@@ -580,26 +581,32 @@ export default function Employees() {
                       <TabsTrigger value="by-order">Por OT</TabsTrigger>
                     </TabsList>
                     <TabsContent value="summary" className="space-y-4 mt-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="rounded-lg border p-4 bg-primary/5">
-                          <p className="text-sm text-muted-foreground mb-1">Hoje</p>
-                          <p className="text-2xl font-bold text-primary">
-                            {formatHours(hoursStats.today)}
-                          </p>
-                        </div>
-                        <div className="rounded-lg border p-4 bg-accent/5">
-                          <p className="text-sm text-muted-foreground mb-1">Esta Semana</p>
-                          <p className="text-2xl font-bold text-accent">
-                            {formatHours(hoursStats.thisWeek)}
-                          </p>
-                        </div>
-                        <div className="rounded-lg border p-4 bg-success/5">
-                          <p className="text-sm text-muted-foreground mb-1">Este Mês</p>
-                          <p className="text-2xl font-bold text-success">
-                            {formatHours(hoursStats.thisMonth)}
-                          </p>
-                        </div>
+                      <div className="rounded-lg border p-4 bg-success/5">
+                        <p className="text-sm text-muted-foreground mb-1 capitalize">
+                          {format(calendarMonth, "MMMM 'de' yyyy", { locale: pt })}
+                        </p>
+                        <p className="text-3xl font-bold text-success">
+                          {formatHours(
+                            (hoursStats.monthlyHistory ?? []).find(m => isSameMonth(m.month, calendarMonth))?.hours || 0
+                          )}
+                        </p>
                       </div>
+                      {isSameMonth(calendarMonth, new Date()) && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="rounded-lg border p-4 bg-primary/5">
+                            <p className="text-sm text-muted-foreground mb-1">Hoje</p>
+                            <p className="text-2xl font-bold text-primary">
+                              {formatHours(hoursStats.today)}
+                            </p>
+                          </div>
+                          <div className="rounded-lg border p-4 bg-accent/5">
+                            <p className="text-sm text-muted-foreground mb-1">Esta Semana</p>
+                            <p className="text-2xl font-bold text-accent">
+                              {formatHours(hoursStats.thisWeek)}
+                            </p>
+                          </div>
+                        </div>
+                      )}
                       <div className="rounded-lg border p-4 bg-muted/50">
                         <p className="text-sm text-muted-foreground mb-1">Total (últimos 12 meses)</p>
                         <p className="text-2xl font-bold">
@@ -675,6 +682,8 @@ export default function Employees() {
                     mode="single"
                     selected={selectedDate}
                     onSelect={(date) => date && setSelectedDate(date)}
+                    month={calendarMonth}
+                    onMonthChange={setCalendarMonth}
                     locale={pt}
                     modifiers={{
                       hasOrders: (date) => hasOrdersOnDate(date),
