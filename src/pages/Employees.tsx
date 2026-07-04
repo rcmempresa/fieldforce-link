@@ -574,8 +574,9 @@ export default function Employees() {
                   <p className="text-center text-muted-foreground py-4">A carregar...</p>
                 ) : hoursStats ? (
                   <Tabs defaultValue="summary" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
+                    <TabsList className="grid w-full grid-cols-3">
                       <TabsTrigger value="summary">Resumo</TabsTrigger>
+                      <TabsTrigger value="monthly">Mensal</TabsTrigger>
                       <TabsTrigger value="by-order">Por OT</TabsTrigger>
                     </TabsList>
                     <TabsContent value="summary" className="space-y-4 mt-4">
@@ -599,6 +600,35 @@ export default function Employees() {
                           </p>
                         </div>
                       </div>
+                      <div className="rounded-lg border p-4 bg-muted/50">
+                        <p className="text-sm text-muted-foreground mb-1">Total (últimos 12 meses)</p>
+                        <p className="text-2xl font-bold">
+                          {formatHours(hoursStats.monthlyHistory.reduce((s, m) => s + m.hours, 0))}
+                        </p>
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="monthly" className="mt-4">
+                      {hoursStats.monthlyHistory.every(m => m.hours === 0) ? (
+                        <p className="text-center text-muted-foreground py-8">
+                          Nenhuma hora registada
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {hoursStats.monthlyHistory
+                            .filter(m => m.hours > 0)
+                            .map((m, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center justify-between rounded-lg border p-3"
+                              >
+                                <p className="font-medium text-sm capitalize">{m.label}</p>
+                                <p className="text-lg font-bold text-primary">
+                                  {formatHours(m.hours)}
+                                </p>
+                              </div>
+                            ))}
+                        </div>
+                      )}
                     </TabsContent>
                     <TabsContent value="by-order" className="mt-4">
                       {Object.keys(hoursStats.byWorkOrder).length === 0 ? (
