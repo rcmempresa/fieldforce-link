@@ -7,7 +7,7 @@ import { Search, Mail, Phone, Trash2, Edit, CalendarIcon, Briefcase, Clock, Arro
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
-import { format, isSameDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
+import { format, isSameDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { CreateEmployeeDialog } from "@/components/employees/CreateEmployeeDialog";
@@ -65,6 +65,7 @@ interface HoursStats {
   thisWeek: number;
   thisMonth: number;
   byWorkOrder: { [key: string]: { hours: number; reference: string; title: string } };
+  monthlyHistory: { month: Date; hours: number; label: string }[];
 }
 
 export default function Employees() {
@@ -330,6 +331,13 @@ export default function Employees() {
       let monthHours = 0;
       const workOrderHours: { [key: string]: { hours: number; reference: string; title: string } } = {};
 
+      // Últimos 12 meses (inclui atual)
+      const monthlyHoursMap: { [key: string]: number } = {};
+      for (let i = 0; i < 12; i++) {
+        const md = subMonths(now, i);
+        monthlyHoursMap[format(md, 'yyyy-MM')] = 0;
+      }
+
       data?.forEach((entry: any) => {
         // Agrupa pelas horas REAIS de execução (start_time da entrada),
         // não pela data agendada da OT. Assim, refletimos o trabalho efetivo
@@ -347,6 +355,10 @@ export default function Employees() {
           if (workDate >= monthStart && workDate <= monthEnd) {
             monthHours += hours;
           }
+          const mKey = format(workDate, 'yyyy-MM');
+          if (monthlyHoursMap[mKey] !== undefined) {
+            monthlyHoursMap[mKey] += hours;
+          }
         }
 
         const woId = entry.work_order_id;
@@ -360,11 +372,20 @@ export default function Employees() {
         workOrderHours[woId].hours += hours;
       });
 
+      const monthlyHistory = Object.entries(monthlyHoursMap)
+        .map(([key, hours]) => {
+          const [y, m] = key.split('-');
+          const md = new Date(parseInt(y), parseInt(m) - 1, 1);
+          return { month: md, hours, label: format(md, "MMMM 'de' yyyy", { locale: pt }) };
+        })
+        .sort((a, b) => b.month.getTime() - a.month.getTime());
+
       setHoursStats({
         today: todayHours,
         thisWeek: weekHours,
         thisMonth: monthHours,
         byWorkOrder: workOrderHours,
+        monthlyHistory,
       });
     } catch (error) {
       console.error('Error fetching employee hours:', error);
@@ -553,8 +574,9 @@ export default function Employees() {
                   <p className="text-center text-muted-foreground py-4">A carregar...</p>
                 ) : hoursStats ? (
                   <Tabs defaultValue="summary" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
+                    <TabsList className="grid w-full grid-cols-3">
                       <TabsTrigger value="summary">Resumo</TabsTrigger>
+                      <TabsTrigger value="monthly">Mensal</TabsTrigger>
                       <TabsTrigger value="by-order">Por OT</TabsTrigger>
                     </TabsList>
                     <TabsContent value="summary" className="space-y-4 mt-4">
@@ -578,6 +600,35 @@ export default function Employees() {
                           </p>
                         </div>
                       </div>
+                      <div className="rounded-lg border p-4 bg-muted/50">
+                        <p className="text-sm text-muted-foreground mb-1">Total (últimos 12 meses)</p>
+                        <p className="text-2xl font-bold">
+                          {formatHours(hoursStats.monthlyHistory.reduce((s, m) => s + m.hours, 0))}
+                        </p>
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="monthly" className="mt-4">
+                      {hoursStats.monthlyHistory.every(m => m.hours === 0) ? (
+                        <p className="text-center text-muted-foreground py-8">
+                          Nenhuma hora registada
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {hoursStats.monthlyHistory
+                            .filter(m => m.hours > 0)
+                            .map((m, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center justify-between rounded-lg border p-3"
+                              >
+                                <p className="font-medium text-sm capitalize">{m.label}</p>
+                                <p className="text-lg font-bold text-primary">
+                                  {formatHours(m.hours)}
+                                </p>
+                              </div>
+                            ))}
+                        </div>
+                      )}
                     </TabsContent>
                     <TabsContent value="by-order" className="mt-4">
                       {Object.keys(hoursStats.byWorkOrder).length === 0 ? (
