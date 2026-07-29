@@ -173,7 +173,7 @@ export function EditWorkOrderDialog({
       .update({
         title: formData.title,
         description: formData.description,
-        status: formData.status as "pending" | "in_progress" | "completed" | "cancelled",
+        status: formData.status as "pending" | "in_progress" | "completed" | "cancelled" | "invoiced",
         priority: formData.priority as "low" | "medium" | "high",
         scheduled_date: formData.scheduled_date || null,
         needs_scheduling: formData.scheduled_date ? false : undefined,
@@ -399,6 +399,7 @@ export function EditWorkOrderDialog({
                   <SelectItem value="pending">Pendente</SelectItem>
                   <SelectItem value="in_progress">Em Progresso</SelectItem>
                   <SelectItem value="completed">Concluída</SelectItem>
+                  <SelectItem value="invoiced">Faturada</SelectItem>
                   <SelectItem value="cancelled">Cancelada</SelectItem>
                 </SelectContent>
               </Select>
