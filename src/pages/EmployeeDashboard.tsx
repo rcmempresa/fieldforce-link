@@ -509,18 +509,18 @@ export default function EmployeeDashboard() {
   // Separate orders into categories based on THE EMPLOYEE's state (not global status)
   // Active: employee has an active session (time entry without end_time)
   const activeOrders = assignedOrders.filter(
-    (order) => order.active_time_entry_id && order.status !== "completed"
+    (order) => order.active_time_entry_id && order.status !== "completed" && order.status !== "invoiced"
   );
   // Started/Paused: employee has worked on this before but doesn't have an active session
   const startedOrders = assignedOrders.filter(
-    (order) => order.has_been_started && !order.active_time_entry_id && order.status !== "completed"
+    (order) => order.has_been_started && !order.active_time_entry_id && order.status !== "completed" && order.status !== "invoiced"
   );
   // New: employee has never worked on this order
   const newOrders = assignedOrders.filter(
-    (order) => !order.has_been_started && order.status !== "completed"
+    (order) => !order.has_been_started && order.status !== "completed" && order.status !== "invoiced"
   );
   const completedOrders = assignedOrders.filter(
-    (order) => order.status === "completed"
+    (order) => (order.status === "completed" || order.status === "invoiced")
   );
 
   return (
@@ -648,7 +648,7 @@ export default function EmployeeDashboard() {
                           )}
                         </div>
                         <div className="flex items-center gap-1">
-                          {order.status !== "completed" && order.active_time_entry_id && (
+                          {order.status !== "completed" && order.status !== "invoiced" && order.active_time_entry_id && (
                             <>
                               <Button
                                 size="sm"
@@ -664,7 +664,7 @@ export default function EmployeeDashboard() {
                               </Button>
                             </>
                           )}
-                          {order.status !== "completed" && !order.active_time_entry_id && (
+                          {order.status !== "completed" && order.status !== "invoiced" && !order.active_time_entry_id && (
                             <Button size="sm" onClick={() => handleStartWork(order.id, order.reference)}>
                               <Play className="h-4 w-4 mr-1" />
                               {order.has_been_started ? "Retomar" : "Iniciar"}
