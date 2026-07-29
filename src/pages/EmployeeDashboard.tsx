@@ -330,6 +330,8 @@ export default function EmployeeDashboard() {
         return "bg-primary/10 text-primary";
       case "completed":
         return "bg-accent/10 text-accent";
+      case "invoiced":
+        return "bg-blue-500/10 text-blue-500";
       default:
         return "bg-muted text-muted-foreground";
     }
@@ -343,6 +345,8 @@ export default function EmployeeDashboard() {
         return "Em Progresso";
       case "completed":
         return "Concluída";
+      case "invoiced":
+        return "Faturada";
       default:
         return status;
     }

@@ -473,6 +473,8 @@ export default function WorkOrderDetails() {
         return "bg-primary/10 text-primary";
       case "completed":
         return "bg-accent/10 text-accent";
+      case "invoiced":
+        return "bg-blue-500/10 text-blue-500";
       case "cancelled":
         return "bg-destructive/10 text-destructive";
       default:
@@ -490,6 +492,8 @@ export default function WorkOrderDetails() {
         return "Em Progresso";
       case "completed":
         return "Concluída";
+      case "invoiced":
+        return "Faturada";
       case "cancelled":
         return "Cancelada";
       default:
