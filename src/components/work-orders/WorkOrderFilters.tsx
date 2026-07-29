@@ -54,6 +54,7 @@ export function WorkOrderFilters({
             <SelectItem value="approved">Aprovada</SelectItem>
             <SelectItem value="in_progress">Em Progresso</SelectItem>
             <SelectItem value="completed">Concluída</SelectItem>
+            <SelectItem value="invoiced">Faturada</SelectItem>
             <SelectItem value="cancelled">Cancelada</SelectItem>
           </SelectContent>
         </Select>
