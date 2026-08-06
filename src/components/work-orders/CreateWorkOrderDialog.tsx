@@ -535,6 +535,9 @@ export function CreateWorkOrderDialog({
           {employees.length > 0 && (
             <div className="space-y-2">
               <Label>Atribuir Funcionários (opcional)</Label>
+              <p className="text-xs text-muted-foreground">
+                Pode criar a OT sem técnico — ela ficará listada em "OT Sem Técnico Atribuído" no painel do gerente.
+              </p>
               <div className="border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
                 {employees.map((employee) => {
                   const busy = busyEmployeeIds.has(employee.id);
