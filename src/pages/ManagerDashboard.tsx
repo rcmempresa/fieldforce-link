@@ -107,6 +107,7 @@ export default function ManagerDashboard() {
     fetchPendingRequests();
     fetchPendingScheduling();
     fetchUnassignedOrders();
+    fetchUnassignedOrders();
     fetchStats();
     fetchRecentOrders();
     fetchCalendarOrders();
@@ -324,6 +325,7 @@ export default function ManagerDashboard() {
     toast({ title: "Sucesso", description: "Solicitação aprovada e marcada como pendente (aguarda data)" });
     fetchPendingRequests();
     fetchPendingScheduling();
+    fetchUnassignedOrders();
     fetchStats();
     fetchRecentOrders();
   };
@@ -379,6 +381,7 @@ export default function ManagerDashboard() {
       return next;
     });
     fetchPendingScheduling();
+    fetchUnassignedOrders();
     fetchCalendarOrders();
     fetchRecentOrders();
   };
