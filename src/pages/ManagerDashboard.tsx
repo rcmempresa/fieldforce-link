@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ClipboardList, Users, CheckCircle, UserCheck, Calendar as CalendarIcon, Mail, Clock, Package, Search, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
+import { ClipboardList, Users, CheckCircle, UserCheck, Calendar as CalendarIcon, Mail, Clock, Package, Search, ChevronLeft, ChevronRight, AlertTriangle, UserX } from "lucide-react";
 import { formatHours } from "@/lib/formatHours";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -81,6 +81,10 @@ export default function ManagerDashboard() {
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [pendingRequests, setPendingRequests] = useState<WorkOrder[]>([]);
   const [pendingScheduling, setPendingScheduling] = useState<WorkOrder[]>([]);
+  const [unassignedOrders, setUnassignedOrders] = useState<WorkOrder[]>([]);
+  const [unassignedSearch, setUnassignedSearch] = useState("");
+  const [unassignedPage, setUnassignedPage] = useState(1);
+  const UNASSIGNED_PAGE_SIZE = 5;
   const [schedulingDates, setSchedulingDates] = useState<Record<string, string>>({});
   const [schedSearch, setSchedSearch] = useState("");
   const [schedPriority, setSchedPriority] = useState<string>("all");
@@ -102,6 +106,7 @@ export default function ManagerDashboard() {
     fetchPendingUsers();
     fetchPendingRequests();
     fetchPendingScheduling();
+    fetchUnassignedOrders();
     fetchStats();
     fetchRecentOrders();
     fetchCalendarOrders();
