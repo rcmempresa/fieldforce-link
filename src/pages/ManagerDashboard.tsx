@@ -107,7 +107,6 @@ export default function ManagerDashboard() {
     fetchPendingRequests();
     fetchPendingScheduling();
     fetchUnassignedOrders();
-    fetchUnassignedOrders();
     fetchStats();
     fetchRecentOrders();
     fetchCalendarOrders();
