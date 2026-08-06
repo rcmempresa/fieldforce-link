@@ -214,8 +214,49 @@ export default function ManagerDashboard() {
     }
   };
 
+  const fetchUnassignedOrders = async () => {
+    const { data } = await supabase
+      .from("work_orders")
+      .select(`
+        id,
+        reference,
+        title,
+        status,
+        service_type,
+        priority,
+        created_at,
+        scheduled_date,
+        profiles!work_orders_client_id_fkey ( name, company_name )
+      `)
+      .in("status", ["pending", "approved", "in_progress"])
+      .order("created_at", { ascending: false });
+
+    if (!data) {
+      setUnassignedOrders([]);
+      return;
+    }
+
+    const ids = data.map((o: any) => o.id);
+    let assignedIds = new Set<string>();
+    if (ids.length > 0) {
+      const { data: assignments } = await supabase
+        .from("work_order_assignments")
+        .select("work_order_id")
+        .in("work_order_id", ids);
+      assignedIds = new Set((assignments || []).map((a: any) => a.work_order_id));
+    }
+
+    setUnassignedOrders(
+      data
+        .filter((o: any) => !assignedIds.has(o.id))
+        .map((o: any) => ({
+          ...o,
+          client_name: o.profiles?.company_name || o.profiles?.name || "N/A",
+        }))
+    );
+  };
+
   const fetchPendingScheduling = async () => {
-    await Promise.resolve();
     const { data } = await supabase
       .from("work_orders")
       .select(`
