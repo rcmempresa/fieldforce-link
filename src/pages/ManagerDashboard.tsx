@@ -1284,6 +1284,106 @@ export default function ManagerDashboard() {
           );
         })()}
 
+        {/* Unassigned work orders */}
+        {unassignedOrders.length > 0 && (() => {
+          const q = unassignedSearch.trim().toLowerCase();
+          const filtered = unassignedOrders.filter((o) =>
+            !q ||
+            (o.reference || "").toLowerCase().includes(q) ||
+            (o.title || "").toLowerCase().includes(q) ||
+            (o.client_name || "").toLowerCase().includes(q)
+          );
+          const totalPages = Math.max(1, Math.ceil(filtered.length / UNASSIGNED_PAGE_SIZE));
+          const currentPage = Math.min(unassignedPage, totalPages);
+          const pageItems = filtered.slice(
+            (currentPage - 1) * UNASSIGNED_PAGE_SIZE,
+            currentPage * UNASSIGNED_PAGE_SIZE
+          );
+          return (
+            <Card className="border-destructive/30 bg-gradient-to-br from-destructive/5 via-background to-background">
+              <CardHeader className="space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <CardTitle className="flex items-center gap-2 text-destructive">
+                    <UserX className="h-5 w-5" />
+                    OT Sem Técnico Atribuído
+                    <Badge variant="secondary" className="ml-2">{unassignedOrders.length}</Badge>
+                  </CardTitle>
+                  {filtered.length !== unassignedOrders.length && (
+                    <span className="text-xs text-muted-foreground">
+                      {filtered.length} de {unassignedOrders.length} após filtros
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={unassignedSearch}
+                    onChange={(e) => { setUnassignedSearch(e.target.value); setUnassignedPage(1); }}
+                    placeholder="Procurar por referência, título ou cliente..."
+                    className="pl-8"
+                  />
+                </div>
+              </CardHeader>
+              <CardContent>
+                {pageItems.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-muted-foreground">
+                    Nenhuma OT corresponde à pesquisa.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {pageItems.map((order) => (
+                      <div
+                        key={order.id}
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-4 cursor-pointer hover:bg-destructive/10 transition-colors"
+                        onClick={() => navigate(`/work-orders/${order.id}`)}
+                      >
+                        <div className="space-y-1 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold">{order.reference}</p>
+                            <Badge variant="destructive">Sem técnico</Badge>
+                            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusColor(order.status)}`}>
+                              {getStatusLabel(order.status)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{order.title}</p>
+                          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                            <span>Cliente: {order.client_name}</span>
+                            {order.scheduled_date && (
+                              <span>
+                                Agendada: {format(new Date(order.scheduled_date), "dd/MM/yyyy 'às' HH:mm", { locale: pt })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); navigate(`/work-orders/${order.id}`); }}>
+                          Atribuir técnico
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-4 pt-3 border-t">
+                    <span className="text-xs text-muted-foreground">
+                      Página {currentPage} de {totalPages}
+                    </span>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setUnassignedPage((p) => Math.max(1, p - 1))} disabled={currentPage <= 1}>
+                        <ChevronLeft className="h-4 w-4" />
+                        Anterior
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setUnassignedPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}>
+                        Seguinte
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })()}
+
         {/* Recent Work Orders */}
         <Card className="hover:shadow-md transition-all duration-300">
           <CardHeader>
