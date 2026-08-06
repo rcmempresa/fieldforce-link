@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ClipboardList, Users, CheckCircle, UserCheck, Calendar as CalendarIcon, Mail, Clock, Package, Search, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
+import { ClipboardList, Users, CheckCircle, UserCheck, Calendar as CalendarIcon, Mail, Clock, Package, Search, ChevronLeft, ChevronRight, AlertTriangle, UserX } from "lucide-react";
 import { formatHours } from "@/lib/formatHours";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -81,6 +81,10 @@ export default function ManagerDashboard() {
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [pendingRequests, setPendingRequests] = useState<WorkOrder[]>([]);
   const [pendingScheduling, setPendingScheduling] = useState<WorkOrder[]>([]);
+  const [unassignedOrders, setUnassignedOrders] = useState<WorkOrder[]>([]);
+  const [unassignedSearch, setUnassignedSearch] = useState("");
+  const [unassignedPage, setUnassignedPage] = useState(1);
+  const UNASSIGNED_PAGE_SIZE = 5;
   const [schedulingDates, setSchedulingDates] = useState<Record<string, string>>({});
   const [schedSearch, setSchedSearch] = useState("");
   const [schedPriority, setSchedPriority] = useState<string>("all");
@@ -102,6 +106,7 @@ export default function ManagerDashboard() {
     fetchPendingUsers();
     fetchPendingRequests();
     fetchPendingScheduling();
+    fetchUnassignedOrders();
     fetchStats();
     fetchRecentOrders();
     fetchCalendarOrders();
@@ -209,6 +214,48 @@ export default function ManagerDashboard() {
     }
   };
 
+  const fetchUnassignedOrders = async () => {
+    const { data } = await supabase
+      .from("work_orders")
+      .select(`
+        id,
+        reference,
+        title,
+        status,
+        service_type,
+        priority,
+        created_at,
+        scheduled_date,
+        profiles!work_orders_client_id_fkey ( name, company_name )
+      `)
+      .in("status", ["pending", "approved", "in_progress"])
+      .order("created_at", { ascending: false });
+
+    if (!data) {
+      setUnassignedOrders([]);
+      return;
+    }
+
+    const ids = data.map((o: any) => o.id);
+    let assignedIds = new Set<string>();
+    if (ids.length > 0) {
+      const { data: assignments } = await supabase
+        .from("work_order_assignments")
+        .select("work_order_id")
+        .in("work_order_id", ids);
+      assignedIds = new Set((assignments || []).map((a: any) => a.work_order_id));
+    }
+
+    setUnassignedOrders(
+      data
+        .filter((o: any) => !assignedIds.has(o.id))
+        .map((o: any) => ({
+          ...o,
+          client_name: o.profiles?.company_name || o.profiles?.name || "N/A",
+        }))
+    );
+  };
+
   const fetchPendingScheduling = async () => {
     const { data } = await supabase
       .from("work_orders")
@@ -277,6 +324,7 @@ export default function ManagerDashboard() {
     toast({ title: "Sucesso", description: "Solicitação aprovada e marcada como pendente (aguarda data)" });
     fetchPendingRequests();
     fetchPendingScheduling();
+    fetchUnassignedOrders();
     fetchStats();
     fetchRecentOrders();
   };
@@ -332,6 +380,7 @@ export default function ManagerDashboard() {
       return next;
     });
     fetchPendingScheduling();
+    fetchUnassignedOrders();
     fetchCalendarOrders();
     fetchRecentOrders();
   };
@@ -777,6 +826,15 @@ export default function ManagerDashboard() {
                 <ClipboardList className="h-4 w-4 text-warning" />
               </div>
               <div className="text-2xl font-bold text-warning">{stats.pending}</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-destructive/10 to-background border-destructive/30 hover:shadow-md transition-all">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-muted-foreground">Sem Técnico</span>
+                <UserX className="h-4 w-4 text-destructive" />
+              </div>
+              <div className="text-2xl font-bold text-destructive">{unassignedOrders.length}</div>
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-primary/5 to-background border-primary/20 hover:shadow-md transition-all">
@@ -1225,6 +1283,106 @@ export default function ManagerDashboard() {
               )}
             </CardContent>
           </Card>
+          );
+        })()}
+
+        {/* Unassigned work orders */}
+        {unassignedOrders.length > 0 && (() => {
+          const q = unassignedSearch.trim().toLowerCase();
+          const filtered = unassignedOrders.filter((o) =>
+            !q ||
+            (o.reference || "").toLowerCase().includes(q) ||
+            (o.title || "").toLowerCase().includes(q) ||
+            (o.client_name || "").toLowerCase().includes(q)
+          );
+          const totalPages = Math.max(1, Math.ceil(filtered.length / UNASSIGNED_PAGE_SIZE));
+          const currentPage = Math.min(unassignedPage, totalPages);
+          const pageItems = filtered.slice(
+            (currentPage - 1) * UNASSIGNED_PAGE_SIZE,
+            currentPage * UNASSIGNED_PAGE_SIZE
+          );
+          return (
+            <Card className="border-destructive/30 bg-gradient-to-br from-destructive/5 via-background to-background">
+              <CardHeader className="space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <CardTitle className="flex items-center gap-2 text-destructive">
+                    <UserX className="h-5 w-5" />
+                    OT Sem Técnico Atribuído
+                    <Badge variant="secondary" className="ml-2">{unassignedOrders.length}</Badge>
+                  </CardTitle>
+                  {filtered.length !== unassignedOrders.length && (
+                    <span className="text-xs text-muted-foreground">
+                      {filtered.length} de {unassignedOrders.length} após filtros
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={unassignedSearch}
+                    onChange={(e) => { setUnassignedSearch(e.target.value); setUnassignedPage(1); }}
+                    placeholder="Procurar por referência, título ou cliente..."
+                    className="pl-8"
+                  />
+                </div>
+              </CardHeader>
+              <CardContent>
+                {pageItems.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-muted-foreground">
+                    Nenhuma OT corresponde à pesquisa.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {pageItems.map((order) => (
+                      <div
+                        key={order.id}
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-4 cursor-pointer hover:bg-destructive/10 transition-colors"
+                        onClick={() => navigate(`/work-orders/${order.id}`)}
+                      >
+                        <div className="space-y-1 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold">{order.reference}</p>
+                            <Badge variant="destructive">Sem técnico</Badge>
+                            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusColor(order.status)}`}>
+                              {getStatusLabel(order.status)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{order.title}</p>
+                          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                            <span>Cliente: {order.client_name}</span>
+                            {order.scheduled_date && (
+                              <span>
+                                Agendada: {format(new Date(order.scheduled_date), "dd/MM/yyyy 'às' HH:mm", { locale: pt })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); navigate(`/work-orders/${order.id}`); }}>
+                          Atribuir técnico
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-4 pt-3 border-t">
+                    <span className="text-xs text-muted-foreground">
+                      Página {currentPage} de {totalPages}
+                    </span>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setUnassignedPage((p) => Math.max(1, p - 1))} disabled={currentPage <= 1}>
+                        <ChevronLeft className="h-4 w-4" />
+                        Anterior
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setUnassignedPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}>
+                        Seguinte
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           );
         })()}
 
