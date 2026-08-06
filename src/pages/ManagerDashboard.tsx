@@ -215,6 +215,7 @@ export default function ManagerDashboard() {
   };
 
   const fetchPendingScheduling = async () => {
+    await Promise.resolve();
     const { data } = await supabase
       .from("work_orders")
       .select(`
