@@ -826,6 +826,15 @@ export default function ManagerDashboard() {
               <div className="text-2xl font-bold text-warning">{stats.pending}</div>
             </CardContent>
           </Card>
+          <Card className="bg-gradient-to-br from-destructive/10 to-background border-destructive/30 hover:shadow-md transition-all">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-muted-foreground">Sem Técnico</span>
+                <UserX className="h-4 w-4 text-destructive" />
+              </div>
+              <div className="text-2xl font-bold text-destructive">{unassignedOrders.length}</div>
+            </CardContent>
+          </Card>
           <Card className="bg-gradient-to-br from-primary/5 to-background border-primary/20 hover:shadow-md transition-all">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-1">
