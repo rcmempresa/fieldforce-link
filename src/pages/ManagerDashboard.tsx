@@ -820,6 +820,11 @@ export default function ManagerDashboard() {
         variant: "destructive",
       });
     } else {
+      await assignTechnicians(
+        requestId,
+        pendingRequests.find((r) => r.id === requestId),
+        scheduledDate
+      );
       // Send approval email to client
       if (workOrderData) {
         const clientProfile = workOrderData.profiles as any;
