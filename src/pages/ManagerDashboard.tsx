@@ -1283,6 +1283,12 @@ export default function ManagerDashboard() {
                           </div>
                         );
                       })()}
+
+                      {renderTechSelector(
+                        request.id,
+                        scheduledDates[request.id],
+                        busyByRequest[request.id] ?? new Set<string>()
+                      )}
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
