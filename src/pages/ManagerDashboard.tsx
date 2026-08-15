@@ -187,6 +187,54 @@ export default function ManagerDashboard() {
     });
   };
 
+  const renderTechSelector = (
+    orderId: string,
+    dateValue: string | undefined,
+    busy: Set<string>
+  ) => {
+    if (employees.length === 0) return null;
+    const selected = orderTechs[orderId] ?? [];
+    const slotLabel = dateValue ? getSlotLabel(getSlot(new Date(dateValue))) : "";
+    return (
+      <div className="mt-3 space-y-2">
+        <Label className="text-xs text-muted-foreground">
+          Escolher técnicos{slotLabel && ` (slot ${slotLabel})`}
+        </Label>
+        <div className="flex flex-wrap gap-1.5">
+          {employees.map((emp) => {
+            const isBusy = busy.has(emp.id);
+            const isSelected = selected.includes(emp.id);
+            return (
+              <button
+                type="button"
+                key={emp.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleTech(orderId, emp.id);
+                }}
+              >
+                <Badge
+                  variant={isSelected ? "default" : "outline"}
+                  className={`cursor-pointer ${
+                    isSelected ? "bg-accent text-accent-foreground" : ""
+                  } ${isBusy && !isSelected ? "opacity-60" : ""}`}
+                >
+                  {emp.name}
+                  {isBusy && " · ocupado"}
+                </Badge>
+              </button>
+            );
+          })}
+        </div>
+        {selected.length === 0 && (
+          <p className="text-xs text-muted-foreground">
+            Nenhum técnico selecionado (opcional).
+          </p>
+        )}
+      </div>
+    );
+  };
+
   const assignTechnicians = async (
     orderId: string,
     order?: WorkOrder,
