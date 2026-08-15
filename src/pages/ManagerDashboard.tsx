@@ -187,7 +187,11 @@ export default function ManagerDashboard() {
     });
   };
 
-  const assignTechnicians = async (orderId: string) => {
+  const assignTechnicians = async (
+    orderId: string,
+    order?: WorkOrder,
+    scheduledDate?: string
+  ) => {
     const techs = orderTechs[orderId] ?? [];
     if (techs.length === 0) return true;
 
@@ -213,7 +217,20 @@ export default function ManagerDashboard() {
 
     for (const id of toInsert.map((t) => t.user_id)) {
       supabase.functions.invoke("send-notification-email", {
-        body: { type: "work_order_assigned", userId: id, data: { workOrderId: orderId } },
+        body: {
+          type: "work_order_assigned",
+          userId: id,
+          data: {
+            recipientName: employees.find((e) => e.id === id)?.name || "Funcionário",
+            workOrderId: orderId,
+            workOrderReference: order?.reference || "",
+            workOrderTitle: order?.title || "",
+            clientName: order?.client_name || "",
+            scheduledDate: scheduledDate
+              ? format(new Date(scheduledDate), "dd/MM/yyyy 'às' HH:mm", { locale: pt })
+              : undefined,
+          },
+        },
       });
     }
     return true;
@@ -242,7 +259,8 @@ export default function ManagerDashboard() {
       }
     }
 
-    const ok = await assignTechnicians(orderId);
+    const order = unassignedOrders.find((o) => o.id === orderId);
+    const ok = await assignTechnicians(orderId, order, dateValue || order?.scheduled_date || undefined);
     if (!ok) return;
 
     toast({ title: "Sucesso", description: "OT atualizada com sucesso" });
