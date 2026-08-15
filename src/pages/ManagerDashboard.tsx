@@ -86,6 +86,9 @@ export default function ManagerDashboard() {
   const [unassignedPage, setUnassignedPage] = useState(1);
   const UNASSIGNED_PAGE_SIZE = 5;
   const [schedulingDates, setSchedulingDates] = useState<Record<string, string>>({});
+  const [unassignedDates, setUnassignedDates] = useState<Record<string, string>>({});
+  const [orderTechs, setOrderTechs] = useState<Record<string, string[]>>({});
+  const [busyByOrder, setBusyByOrder] = useState<Record<string, Set<string>>>({});
   const [schedSearch, setSchedSearch] = useState("");
   const [schedPriority, setSchedPriority] = useState<string>("all");
   const [schedServiceType, setSchedServiceType] = useState<string>("all");
@@ -147,6 +150,179 @@ export default function ManagerDashboard() {
     };
     recompute();
   }, [scheduledDates, pendingRequests, employees]);
+
+  // Disponibilidade para OTs pendentes (aguardam data) e OTs sem técnico
+  useEffect(() => {
+    const recompute = async () => {
+      const next: Record<string, Set<string>> = {};
+      const entries: [string, string | undefined][] = [
+        ...pendingScheduling.map((o) => [o.id, schedulingDates[o.id]] as [string, string | undefined]),
+        ...unassignedOrders.map((o) => [o.id, unassignedDates[o.id]] as [string, string | undefined]),
+      ];
+      for (const [orderId, v] of entries) {
+        if (v && employees.length > 0) {
+          next[orderId] = await getBusyEmployeeIds(
+            new Date(v),
+            employees.map((e) => e.id),
+            orderId
+          );
+        } else {
+          next[orderId] = new Set();
+        }
+      }
+      setBusyByOrder(next);
+    };
+    recompute();
+  }, [schedulingDates, unassignedDates, pendingScheduling, unassignedOrders, employees]);
+
+  const toggleTech = (orderId: string, empId: string) => {
+    setOrderTechs((prev) => {
+      const current = prev[orderId] ?? [];
+      return {
+        ...prev,
+        [orderId]: current.includes(empId)
+          ? current.filter((id) => id !== empId)
+          : [...current, empId],
+      };
+    });
+  };
+
+  const renderTechSelector = (
+    orderId: string,
+    dateValue: string | undefined,
+    busy: Set<string>
+  ) => {
+    if (employees.length === 0) return null;
+    const selected = orderTechs[orderId] ?? [];
+    const slotLabel = dateValue ? getSlotLabel(getSlot(new Date(dateValue))) : "";
+    return (
+      <div className="mt-3 space-y-2">
+        <Label className="text-xs text-muted-foreground">
+          Escolher técnicos{slotLabel && ` (slot ${slotLabel})`}
+        </Label>
+        <div className="flex flex-wrap gap-1.5">
+          {employees.map((emp) => {
+            const isBusy = busy.has(emp.id);
+            const isSelected = selected.includes(emp.id);
+            return (
+              <button
+                type="button"
+                key={emp.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleTech(orderId, emp.id);
+                }}
+              >
+                <Badge
+                  variant={isSelected ? "default" : "outline"}
+                  className={`cursor-pointer ${
+                    isSelected ? "bg-accent text-accent-foreground" : ""
+                  } ${isBusy && !isSelected ? "opacity-60" : ""}`}
+                >
+                  {emp.name}
+                  {isBusy && " · ocupado"}
+                </Badge>
+              </button>
+            );
+          })}
+        </div>
+        {selected.length === 0 && (
+          <p className="text-xs text-muted-foreground">
+            Nenhum técnico selecionado (opcional).
+          </p>
+        )}
+      </div>
+    );
+  };
+
+  const assignTechnicians = async (
+    orderId: string,
+    order?: WorkOrder,
+    scheduledDate?: string
+  ) => {
+    const techs = orderTechs[orderId] ?? [];
+    // Atribui apenas os técnicos escolhidos pelo gerente
+    if (techs.length === 0) return true;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+
+    const { data: existing } = await supabase
+      .from("work_order_assignments")
+      .select("user_id")
+      .eq("work_order_id", orderId);
+    const already = new Set((existing || []).map((a: any) => a.user_id));
+    const toInsert = techs
+      .filter((id) => !already.has(id))
+      .map((id) => ({ work_order_id: orderId, user_id: id, assigned_by: user.id }));
+
+    if (toInsert.length === 0) return true;
+
+    const { error } = await supabase.from("work_order_assignments").insert(toInsert);
+    if (error) {
+      toast({ title: "Erro", description: "Erro ao atribuir técnicos: " + error.message, variant: "destructive" });
+      return false;
+    }
+
+    for (const id of toInsert.map((t) => t.user_id)) {
+      supabase.functions.invoke("send-notification-email", {
+        body: {
+          type: "work_order_assigned",
+          userId: id,
+          data: {
+            recipientName: employees.find((e) => e.id === id)?.name || "Funcionário",
+            workOrderId: orderId,
+            workOrderReference: order?.reference || "",
+            workOrderTitle: order?.title || "",
+            clientName: order?.client_name || "",
+            scheduledDate: scheduledDate
+              ? format(new Date(scheduledDate), "dd/MM/yyyy 'às' HH:mm", { locale: pt })
+              : undefined,
+          },
+        },
+      });
+    }
+    return true;
+  };
+
+  const scheduleUnassigned = async (orderId: string) => {
+    const dateValue = unassignedDates[orderId];
+    const techs = orderTechs[orderId] ?? [];
+
+    if (!dateValue && techs.length === 0) {
+      toast({ title: "Erro", description: "Selecione uma data/hora ou pelo menos um técnico", variant: "destructive" });
+      return;
+    }
+
+    if (dateValue) {
+      const { error } = await supabase
+        .from("work_orders")
+        .update({
+          scheduled_date: new Date(dateValue).toISOString(),
+          needs_scheduling: false,
+        })
+        .eq("id", orderId);
+      if (error) {
+        toast({ title: "Erro", description: "Erro ao agendar OT", variant: "destructive" });
+        return;
+      }
+    }
+
+    const order = unassignedOrders.find((o) => o.id === orderId);
+    const ok = await assignTechnicians(orderId, order, dateValue || order?.scheduled_date || undefined);
+    if (!ok) return;
+
+    toast({ title: "Sucesso", description: "OT atualizada com sucesso" });
+    setOrderTechs((prev) => {
+      const next = { ...prev };
+      delete next[orderId];
+      return next;
+    });
+    fetchUnassignedOrders();
+    fetchPendingScheduling();
+    fetchCalendarOrders();
+    fetchRecentOrders();
+  };
 
   const fetchPendingUsers = async () => {
     try {
@@ -254,6 +430,20 @@ export default function ManagerDashboard() {
           client_name: o.profiles?.company_name || o.profiles?.name || "N/A",
         }))
     );
+
+    // Pré-preencher a data já agendada (se existir) no seletor
+    setUnassignedDates((prev) => {
+      const next = { ...prev };
+      for (const o of data.filter((x: any) => !assignedIds.has(x.id))) {
+        if (o.scheduled_date && !next[o.id]) {
+          const d = new Date(o.scheduled_date);
+          next[o.id] = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+            d.getDate()
+          ).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}:00`;
+        }
+      }
+      return next;
+    });
   };
 
   const fetchPendingScheduling = async () => {
@@ -355,6 +545,12 @@ export default function ManagerDashboard() {
       return;
     }
 
+    await assignTechnicians(
+      requestId,
+      pendingScheduling.find((o) => o.id === requestId),
+      scheduledDate
+    );
+
     if (workOrderData) {
       const clientProfile = workOrderData.profiles as any;
       const formattedDate = format(new Date(scheduledDate), "dd/MM/yyyy 'às' HH:mm", { locale: pt });
@@ -375,6 +571,11 @@ export default function ManagerDashboard() {
 
     toast({ title: "Sucesso", description: "OT agendada com sucesso" });
     setSchedulingDates((prev) => {
+      const next = { ...prev };
+      delete next[requestId];
+      return next;
+    });
+    setOrderTechs((prev) => {
       const next = { ...prev };
       delete next[requestId];
       return next;
@@ -668,6 +869,11 @@ export default function ManagerDashboard() {
         variant: "destructive",
       });
     } else {
+      await assignTechnicians(
+        requestId,
+        pendingRequests.find((r) => r.id === requestId),
+        scheduledDate
+      );
       // Send approval email to client
       if (workOrderData) {
         const clientProfile = workOrderData.profiles as any;
@@ -1077,6 +1283,12 @@ export default function ManagerDashboard() {
                           </div>
                         );
                       })()}
+
+                      {renderTechSelector(
+                        request.id,
+                        scheduledDates[request.id],
+                        busyByRequest[request.id] ?? new Set<string>()
+                      )}
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
@@ -1231,6 +1443,11 @@ export default function ManagerDashboard() {
                         }
                         excludeWorkOrderId={order.id}
                       />
+                      {renderTechSelector(
+                        order.id,
+                        schedulingDates[order.id],
+                        busyByOrder[order.id] ?? new Set<string>()
+                      )}
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
@@ -1336,8 +1553,7 @@ export default function ManagerDashboard() {
                     {pageItems.map((order) => (
                       <div
                         key={order.id}
-                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-4 cursor-pointer hover:bg-destructive/10 transition-colors"
-                        onClick={() => navigate(`/work-orders/${order.id}`)}
+                        className="flex flex-col gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-4"
                       >
                         <div className="space-y-1 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -1357,9 +1573,38 @@ export default function ManagerDashboard() {
                             )}
                           </div>
                         </div>
-                        <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); navigate(`/work-orders/${order.id}`); }}>
-                          Atribuir técnico
-                        </Button>
+
+                        <div className="rounded-md border bg-background/60 p-3">
+                          <SlotDateTimePicker
+                            value={unassignedDates[order.id] || ""}
+                            onChange={(v) =>
+                              setUnassignedDates({ ...unassignedDates, [order.id]: v })
+                            }
+                            excludeWorkOrderId={order.id}
+                          />
+                          {renderTechSelector(
+                            order.id,
+                            unassignedDates[order.id],
+                            busyByOrder[order.id] ?? new Set<string>()
+                          )}
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+                          <Button size="sm" variant="outline" onClick={() => navigate(`/work-orders/${order.id}`)}>
+                            Ver detalhes
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="bg-accent hover:bg-accent/90"
+                            onClick={() => scheduleUnassigned(order.id)}
+                            disabled={
+                              !unassignedDates[order.id] &&
+                              (orderTechs[order.id]?.length ?? 0) === 0
+                            }
+                          >
+                            Guardar data e técnicos
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
