@@ -193,6 +193,7 @@ export default function ManagerDashboard() {
     scheduledDate?: string
   ) => {
     const techs = orderTechs[orderId] ?? [];
+    // Atribui apenas os técnicos escolhidos pelo gerente
     if (techs.length === 0) return true;
 
     const { data: { user } } = await supabase.auth.getUser();
