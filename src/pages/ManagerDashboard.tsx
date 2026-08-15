@@ -496,6 +496,12 @@ export default function ManagerDashboard() {
       return;
     }
 
+    await assignTechnicians(
+      requestId,
+      pendingScheduling.find((o) => o.id === requestId),
+      scheduledDate
+    );
+
     if (workOrderData) {
       const clientProfile = workOrderData.profiles as any;
       const formattedDate = format(new Date(scheduledDate), "dd/MM/yyyy 'às' HH:mm", { locale: pt });
@@ -516,6 +522,11 @@ export default function ManagerDashboard() {
 
     toast({ title: "Sucesso", description: "OT agendada com sucesso" });
     setSchedulingDates((prev) => {
+      const next = { ...prev };
+      delete next[requestId];
+      return next;
+    });
+    setOrderTechs((prev) => {
       const next = { ...prev };
       delete next[requestId];
       return next;
