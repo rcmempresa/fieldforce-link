@@ -86,6 +86,9 @@ export default function ManagerDashboard() {
   const [unassignedPage, setUnassignedPage] = useState(1);
   const UNASSIGNED_PAGE_SIZE = 5;
   const [schedulingDates, setSchedulingDates] = useState<Record<string, string>>({});
+  const [unassignedDates, setUnassignedDates] = useState<Record<string, string>>({});
+  const [orderTechs, setOrderTechs] = useState<Record<string, string[]>>({});
+  const [busyByOrder, setBusyByOrder] = useState<Record<string, Set<string>>>({});
   const [schedSearch, setSchedSearch] = useState("");
   const [schedPriority, setSchedPriority] = useState<string>("all");
   const [schedServiceType, setSchedServiceType] = useState<string>("all");
