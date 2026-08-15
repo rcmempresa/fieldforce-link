@@ -151,6 +151,112 @@ export default function ManagerDashboard() {
     recompute();
   }, [scheduledDates, pendingRequests, employees]);
 
+  // Disponibilidade para OTs pendentes (aguardam data) e OTs sem técnico
+  useEffect(() => {
+    const recompute = async () => {
+      const next: Record<string, Set<string>> = {};
+      const entries: [string, string | undefined][] = [
+        ...pendingScheduling.map((o) => [o.id, schedulingDates[o.id]] as [string, string | undefined]),
+        ...unassignedOrders.map((o) => [o.id, unassignedDates[o.id]] as [string, string | undefined]),
+      ];
+      for (const [orderId, v] of entries) {
+        if (v && employees.length > 0) {
+          next[orderId] = await getBusyEmployeeIds(
+            new Date(v),
+            employees.map((e) => e.id),
+            orderId
+          );
+        } else {
+          next[orderId] = new Set();
+        }
+      }
+      setBusyByOrder(next);
+    };
+    recompute();
+  }, [schedulingDates, unassignedDates, pendingScheduling, unassignedOrders, employees]);
+
+  const toggleTech = (orderId: string, empId: string) => {
+    setOrderTechs((prev) => {
+      const current = prev[orderId] ?? [];
+      return {
+        ...prev,
+        [orderId]: current.includes(empId)
+          ? current.filter((id) => id !== empId)
+          : [...current, empId],
+      };
+    });
+  };
+
+  const assignTechnicians = async (orderId: string) => {
+    const techs = orderTechs[orderId] ?? [];
+    if (techs.length === 0) return true;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+
+    const { data: existing } = await supabase
+      .from("work_order_assignments")
+      .select("user_id")
+      .eq("work_order_id", orderId);
+    const already = new Set((existing || []).map((a: any) => a.user_id));
+    const toInsert = techs
+      .filter((id) => !already.has(id))
+      .map((id) => ({ work_order_id: orderId, user_id: id, assigned_by: user.id }));
+
+    if (toInsert.length === 0) return true;
+
+    const { error } = await supabase.from("work_order_assignments").insert(toInsert);
+    if (error) {
+      toast({ title: "Erro", description: "Erro ao atribuir técnicos: " + error.message, variant: "destructive" });
+      return false;
+    }
+
+    for (const id of toInsert.map((t) => t.user_id)) {
+      supabase.functions.invoke("send-notification-email", {
+        body: { type: "work_order_assigned", userId: id, data: { workOrderId: orderId } },
+      });
+    }
+    return true;
+  };
+
+  const scheduleUnassigned = async (orderId: string) => {
+    const dateValue = unassignedDates[orderId];
+    const techs = orderTechs[orderId] ?? [];
+
+    if (!dateValue && techs.length === 0) {
+      toast({ title: "Erro", description: "Selecione uma data/hora ou pelo menos um técnico", variant: "destructive" });
+      return;
+    }
+
+    if (dateValue) {
+      const { error } = await supabase
+        .from("work_orders")
+        .update({
+          scheduled_date: new Date(dateValue).toISOString(),
+          needs_scheduling: false,
+        })
+        .eq("id", orderId);
+      if (error) {
+        toast({ title: "Erro", description: "Erro ao agendar OT", variant: "destructive" });
+        return;
+      }
+    }
+
+    const ok = await assignTechnicians(orderId);
+    if (!ok) return;
+
+    toast({ title: "Sucesso", description: "OT atualizada com sucesso" });
+    setOrderTechs((prev) => {
+      const next = { ...prev };
+      delete next[orderId];
+      return next;
+    });
+    fetchUnassignedOrders();
+    fetchPendingScheduling();
+    fetchCalendarOrders();
+    fetchRecentOrders();
+  };
+
   const fetchPendingUsers = async () => {
     try {
       // Call the secure edge function to list pending users
