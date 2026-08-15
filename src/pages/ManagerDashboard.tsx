@@ -381,6 +381,20 @@ export default function ManagerDashboard() {
           client_name: o.profiles?.company_name || o.profiles?.name || "N/A",
         }))
     );
+
+    // Pré-preencher a data já agendada (se existir) no seletor
+    setUnassignedDates((prev) => {
+      const next = { ...prev };
+      for (const o of data.filter((x: any) => !assignedIds.has(x.id))) {
+        if (o.scheduled_date && !next[o.id]) {
+          const d = new Date(o.scheduled_date);
+          next[o.id] = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+            d.getDate()
+          ).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}:00`;
+        }
+      }
+      return next;
+    });
   };
 
   const fetchPendingScheduling = async () => {
