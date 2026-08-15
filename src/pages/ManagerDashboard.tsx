@@ -1553,8 +1553,7 @@ export default function ManagerDashboard() {
                     {pageItems.map((order) => (
                       <div
                         key={order.id}
-                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-4 cursor-pointer hover:bg-destructive/10 transition-colors"
-                        onClick={() => navigate(`/work-orders/${order.id}`)}
+                        className="flex flex-col gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-4"
                       >
                         <div className="space-y-1 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -1574,9 +1573,38 @@ export default function ManagerDashboard() {
                             )}
                           </div>
                         </div>
-                        <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); navigate(`/work-orders/${order.id}`); }}>
-                          Atribuir técnico
-                        </Button>
+
+                        <div className="rounded-md border bg-background/60 p-3">
+                          <SlotDateTimePicker
+                            value={unassignedDates[order.id] || ""}
+                            onChange={(v) =>
+                              setUnassignedDates({ ...unassignedDates, [order.id]: v })
+                            }
+                            excludeWorkOrderId={order.id}
+                          />
+                          {renderTechSelector(
+                            order.id,
+                            unassignedDates[order.id],
+                            busyByOrder[order.id] ?? new Set<string>()
+                          )}
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+                          <Button size="sm" variant="outline" onClick={() => navigate(`/work-orders/${order.id}`)}>
+                            Ver detalhes
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="bg-accent hover:bg-accent/90"
+                            onClick={() => scheduleUnassigned(order.id)}
+                            disabled={
+                              !unassignedDates[order.id] &&
+                              (orderTechs[order.id]?.length ?? 0) === 0
+                            }
+                          >
+                            Guardar data e técnicos
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
