@@ -1437,6 +1437,11 @@ export default function ManagerDashboard() {
                         }
                         excludeWorkOrderId={order.id}
                       />
+                      {renderTechSelector(
+                        order.id,
+                        schedulingDates[order.id],
+                        busyByOrder[order.id] ?? new Set<string>()
+                      )}
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
