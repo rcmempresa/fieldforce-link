@@ -294,7 +294,7 @@ export function CompleteWorkOrderDialog({
               duration_hours: durationHours,
               note: entry.user_id === user.id ? (note || null) : null,
               ...(entry.id === myActiveEntryId ? { work_regime: endRegime } : {}),
-            })
+            } as any)
             .eq("id", entry.id);
         }
       }
