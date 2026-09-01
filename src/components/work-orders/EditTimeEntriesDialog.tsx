@@ -15,12 +15,14 @@ import { WorkRegime, entryRegime, regimeLabel } from "@/lib/workRegime";
 
 interface TimeEntry {
   id: string;
+  user_id: string;
   start_time: string;
   end_time: string | null;
   duration_hours: number | null;
   note: string | null;
   pause_reason: string | null;
   work_regime: WorkRegime | null;
+  user_name?: string;
 }
 
 interface EditTimeEntriesDialogProps {
@@ -31,6 +33,8 @@ interface EditTimeEntriesDialogProps {
   onUpdate: () => void;
   /** Quando true, as horas só podem ser consultadas (OT concluída/faturada) */
   readOnly?: boolean;
+  /** Modo gerente: mostra e permite editar as sessões de todos os técnicos */
+  allUsers?: boolean;
 }
 
 export function EditTimeEntriesDialog({
@@ -40,6 +44,7 @@ export function EditTimeEntriesDialog({
   workOrderReference,
   onUpdate,
   readOnly = false,
+  allUsers = false,
 }: EditTimeEntriesDialogProps) {
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [loading, setLoading] = useState(false);
