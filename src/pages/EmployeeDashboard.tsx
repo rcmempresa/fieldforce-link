@@ -374,7 +374,27 @@ export default function EmployeeDashboard() {
     }
   };
 
-  const handleStartWork = async (workOrderId: string, reference: string) => {
+  const openStartRegimeDialog = (workOrderId: string, reference: string, resume = false) => {
+    setStartRegime(entryRegime({ start_time: new Date() }));
+    setStartRegimeOrder({ id: workOrderId, reference, resume });
+  };
+
+  const handleChangeActiveRegime = async (order: WorkOrder, regime: WorkRegime) => {
+    if (!order.active_time_entry_id || entryRegime({ work_regime: order.active_time_entry_regime, start_time: order.active_time_entry_start }) === regime) return;
+    const { error } = await supabase
+      .from("time_entries")
+      .update({ work_regime: regime } as any)
+      .eq("id", order.active_time_entry_id);
+    if (error) {
+      toast({ title: "Erro", description: "Não foi possível alterar o regime", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Regime atualizado", description: `Sessão marcada como ${regimeLabel(regime)}` });
+    await fetchAssignedOrders();
+  };
+
+  const handleStartWork = async (workOrderId: string, reference: string, regime: WorkRegime) => {
+    setStartingWork(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
@@ -397,7 +417,7 @@ export default function EmployeeDashboard() {
         return;
       }
 
-      // Create time entry (regime sugerido pela hora de início; o técnico pode alterar em "Gerir Horas")
+      // Create time entry com o regime escolhido pelo técnico
       const startedAt = new Date();
       const { error: timeEntryError } = await supabase
         .from("time_entries")
@@ -405,7 +425,7 @@ export default function EmployeeDashboard() {
           work_order_id: workOrderId,
           user_id: user.id,
           start_time: startedAt.toISOString(),
-          work_regime: entryRegime({ start_time: startedAt }),
+          work_regime: regime,
         } as any);
 
 
@@ -429,9 +449,10 @@ export default function EmployeeDashboard() {
 
       toast({
         title: "Trabalho Iniciado",
-        description: `A sua sessão na ordem ${reference} foi iniciada`,
+        description: `Sessão em ${reference} iniciada como ${regimeLabel(regime)}`,
       });
 
+      setStartRegimeOrder(null);
       await fetchAssignedOrders();
       await fetchStats();
     } catch (error) {
@@ -441,6 +462,8 @@ export default function EmployeeDashboard() {
         description: "Erro ao iniciar trabalho",
         variant: "destructive",
       });
+    } finally {
+      setStartingWork(false);
     }
   };
 
