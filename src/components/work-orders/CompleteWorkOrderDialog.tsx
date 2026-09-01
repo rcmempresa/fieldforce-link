@@ -293,6 +293,7 @@ export function CompleteWorkOrderDialog({
               end_time: now.toISOString(),
               duration_hours: durationHours,
               note: entry.user_id === user.id ? (note || null) : null,
+              ...(entry.id === myActiveEntryId ? { work_regime: endRegime } : {}),
             })
             .eq("id", entry.id);
         }
