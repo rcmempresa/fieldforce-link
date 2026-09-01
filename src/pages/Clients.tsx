@@ -351,6 +351,9 @@ export default function Clients() {
           thisMonth: 0,
           monthlyHistory: [],
           byWorkOrder: {},
+          totalLabor: 0,
+          totalAfter: 0,
+
         });
         setLoadingHours(false);
         return;
