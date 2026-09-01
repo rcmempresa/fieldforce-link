@@ -210,7 +210,7 @@ export function CompleteWorkOrderDialog({
           duration_hours: sessionDurationHours,
           note: note || null,
           work_regime: endRegime,
-        })
+        } as any)
         .eq("id", activeTimeEntry.id);
 
       if (timeEntryError) throw timeEntryError;
