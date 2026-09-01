@@ -893,6 +893,29 @@ export default function Clients() {
                         </p>
                       </div>
 
+                      {/* Laboral vs Pós-laboral */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="rounded-lg border p-4 bg-success/5">
+                          <p className="text-sm text-muted-foreground mb-1">Horas laborais</p>
+                          <p className="text-2xl font-bold text-success">
+                            {formatHours(hoursStats.monthlyHistory.find(m => isSameMonth(m.month, calendarMonth))?.labor || 0)}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Total 12 meses: {formatHours(hoursStats.totalLabor ?? 0)}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border p-4 bg-warning/5">
+                          <p className="text-sm text-muted-foreground mb-1">Horas pós-laborais</p>
+                          <p className="text-2xl font-bold text-warning">
+                            {formatHours(hoursStats.monthlyHistory.find(m => isSameMonth(m.month, calendarMonth))?.after || 0)}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Total 12 meses: {formatHours(hoursStats.totalAfter ?? 0)}
+                          </p>
+                        </div>
+                      </div>
+
+
                       {/* Quick stats for current period */}
                       {isSameMonth(calendarMonth, new Date()) && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
