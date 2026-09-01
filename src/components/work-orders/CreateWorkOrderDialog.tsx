@@ -79,6 +79,8 @@ export function CreateWorkOrderDialog({
     priority: "medium",
     scheduled_date: "",
     address: "",
+    is_labor_hours: false,
+    is_after_hours: false,
   });
   const { toast } = useToast();
 
@@ -237,6 +239,8 @@ export function CreateWorkOrderDialog({
         priority: formData.priority as "low" | "medium" | "high",
         scheduled_date: formData.scheduled_date || null,
         address: formData.address || null,
+        is_labor_hours: formData.is_labor_hours,
+        is_after_hours: formData.is_after_hours,
         created_by: user.id,
         status: "pending" as const,
       })
