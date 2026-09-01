@@ -57,8 +57,27 @@ export function CompleteWorkOrderDialog({
     if (open) {
       checkActiveSessions();
       checkMaterials();
+      loadRegimeTotals();
     }
   }, [open, workOrderId]);
+
+  const loadRegimeTotals = async () => {
+    const { data } = await supabase
+      .from("time_entries")
+      .select("duration_hours, start_time, end_time, work_regime")
+      .eq("work_order_id", workOrderId);
+
+    const now = Date.now();
+    const totals = { labor: 0, after: 0 };
+    for (const e of data || []) {
+      const hours = e.end_time
+        ? Number(e.duration_hours) || 0
+        : (now - new Date(e.start_time).getTime()) / 3600000;
+      if (entryRegime(e as any) === "labor") totals.labor += hours;
+      else totals.after += hours;
+    }
+    setRegimeTotals(totals);
+  };
 
   const checkActiveSessions = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -67,13 +86,15 @@ export function CompleteWorkOrderDialog({
     // Check if current user has active session
     const { data: mySession } = await supabase
       .from("time_entries")
-      .select("id")
+      .select("id, start_time, work_regime")
       .eq("work_order_id", workOrderId)
       .eq("user_id", user.id)
       .is("end_time", null)
       .maybeSingle();
 
     setHasActiveSession(!!mySession);
+    setMyActiveEntryId(mySession?.id ?? null);
+    if (mySession) setEndRegime(entryRegime(mySession as any));
 
     // Check for other active sessions
     const { data: otherSessions } = await supabase
