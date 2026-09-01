@@ -78,6 +78,18 @@ export function EditTimeEntriesDialog({
     setTimeEntries(data || []);
   };
 
+  const fetchWoRegime = async () => {
+    const { data, error } = await supabase
+      .from("work_orders")
+      .select("is_labor_hours, is_after_hours")
+      .eq("id", workOrderId)
+      .single();
+
+    if (!error && data) {
+      setWoRegime(data);
+    }
+  };
+
   const handleEditClick = (entry: TimeEntry) => {
     setEditingEntry(entry);
     setEditHours(entry.duration_hours?.toString() || "");
