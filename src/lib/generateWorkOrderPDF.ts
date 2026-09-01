@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 interface EmployeeHours {
   name: string;
   hours: number;
+  laborHours?: number;
+  afterHours?: number;
 }
 
 interface WorkOrderData {
@@ -20,8 +22,6 @@ interface WorkOrderData {
   total_hours: number | null;
   created_at: string;
   completed_at: string;
-  is_labor_hours?: boolean | null;
-  is_after_hours?: boolean | null;
   labor_hours_worked?: number;
   after_hours_worked?: number;
 }
@@ -74,14 +74,10 @@ export async function generateWorkOrderPDF(
   doc.text(`Tipo de Serviço: ${workOrderData.service_type}`, 20, descEndY + 2);
   doc.text(`Prioridade: ${workOrderData.priority}`, 20, descEndY + 10);
   doc.text(`Status: Concluída`, 20, descEndY + 18);
-  const regimeLabels: string[] = [];
-  if (workOrderData.is_labor_hours) regimeLabels.push("Laboral");
-  if (workOrderData.is_after_hours) regimeLabels.push("Pós-laboral");
-  doc.text(`Regime: ${regimeLabels.length ? regimeLabels.join(" + ") : "Não definido"}`, 20, descEndY + 26);
 
   
   // Client Information
-  let sectionY = descEndY + 38;
+  let sectionY = descEndY + 30;
   doc.setFont("helvetica", "bold");
   doc.text("Informações do Cliente:", 20, sectionY);
   
@@ -99,6 +95,14 @@ export async function generateWorkOrderPDF(
   let empY = sectionY + 36;
   for (const emp of employeeHoursList) {
     doc.text(`• ${emp.name}: ${formatDecimalHoursToTime(emp.hours)}`, 25, empY);
+    empY += 6;
+    doc.setFontSize(9);
+    doc.text(
+      `Laboral: ${formatDecimalHoursToTime(emp.laborHours ?? 0)}  |  Pós-laboral: ${formatDecimalHoursToTime(emp.afterHours ?? 0)}`,
+      30,
+      empY
+    );
+    doc.setFontSize(11);
     empY += 7;
   }
   

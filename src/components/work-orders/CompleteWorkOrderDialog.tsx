@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import SignatureCanvas from "react-signature-canvas";
 import { generateWorkOrderPDF, uploadWorkOrderPDF } from "@/lib/generateWorkOrderPDF";
-import { classifyRegime } from "@/lib/workRegime";
+import { entryRegime } from "@/lib/workRegime";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, UserCheck, CheckCircle, Package } from "lucide-react";
@@ -275,14 +275,17 @@ export function CompleteWorkOrderDialog({
       // Get all time entries grouped by employee for the PDF breakdown
       const { data: allTimeEntries } = await supabase
         .from("time_entries")
-        .select("duration_hours, start_time, user_id, profiles!time_entries_user_id_fkey(name)")
+        .select("duration_hours, start_time, work_regime, user_id, profiles!time_entries_user_id_fkey(name)")
         .eq("work_order_id", workOrderId);
 
-      const employeeHoursMap = new Map<string, { name: string; hours: number }>();
+      const employeeHoursMap = new Map<string, { name: string; hours: number; laborHours: number; afterHours: number }>();
       for (const entry of allTimeEntries || []) {
         const empName = (entry as any).profiles?.name || "N/A";
-        const existing = employeeHoursMap.get(entry.user_id) || { name: empName, hours: 0 };
-        existing.hours += entry.duration_hours || 0;
+        const existing = employeeHoursMap.get(entry.user_id) || { name: empName, hours: 0, laborHours: 0, afterHours: 0 };
+        const h = entry.duration_hours || 0;
+        existing.hours += h;
+        if (entryRegime(entry as any) === "labor") existing.laborHours += h;
+        else existing.afterHours += h;
         employeeHoursMap.set(entry.user_id, existing);
       }
       const employeeHoursList = Array.from(employeeHoursMap.values());
@@ -326,13 +329,8 @@ export function CompleteWorkOrderDialog({
       const signatureDataUrl = signatureRef.current!.toDataURL();
 
       // Split hours by work regime (laboral / pós-laboral)
-      let laborHours = 0;
-      let afterHours = 0;
-      for (const entry of allTimeEntries || []) {
-        const h = (entry as any).duration_hours || 0;
-        if (classifyRegime(workOrder, (entry as any).start_time) === "labor") laborHours += h;
-        else afterHours += h;
-      }
+      const laborHours = employeeHoursList.reduce((s, e) => s + e.laborHours, 0);
+      const afterHours = employeeHoursList.reduce((s, e) => s + e.afterHours, 0);
 
       // Generate PDF with work order details
       const pdfBlob = await generateWorkOrderPDF(
@@ -350,8 +348,6 @@ export function CompleteWorkOrderDialog({
           total_hours: workOrder.total_hours,
           created_at: workOrder.created_at,
           completed_at: now.toISOString(),
-          is_labor_hours: (workOrder as any).is_labor_hours ?? null,
-          is_after_hours: (workOrder as any).is_after_hours ?? null,
           labor_hours_worked: laborHours,
           after_hours_worked: afterHours,
         },
