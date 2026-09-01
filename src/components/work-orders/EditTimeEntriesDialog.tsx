@@ -201,7 +201,19 @@ export function EditTimeEntriesDialog({
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {readOnly ? "Horas Registadas" : "Gerenciar Horas"} - {workOrderReference}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span>{readOnly ? "Horas Registadas" : "Gerenciar Horas"} - {workOrderReference}</span>
+                {woRegime?.is_labor_hours && (
+                  <span className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-medium">
+                    Laboral
+                  </span>
+                )}
+                {woRegime?.is_after_hours && (
+                  <span className="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-medium">
+                    Pós-laboral
+                  </span>
+                )}
+              </div>
             </DialogTitle>
           </DialogHeader>
 
