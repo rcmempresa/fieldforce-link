@@ -339,7 +339,7 @@ export default function Clients() {
       // Get all work orders for this client with scheduled_date
       const { data: workOrders, error: woError } = await supabase
         .from('work_orders')
-        .select('id, reference, title, scheduled_date, total_hours')
+        .select('id, reference, title, scheduled_date, total_hours, is_labor_hours, is_after_hours')
         .eq('client_id', clientId);
 
       if (woError) throw woError;
