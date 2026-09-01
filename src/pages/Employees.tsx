@@ -65,8 +65,11 @@ interface HoursStats {
   thisWeek: number;
   thisMonth: number;
   byWorkOrder: { [key: string]: { hours: number; reference: string; title: string } };
-  monthlyHistory: { month: Date; hours: number; label: string }[];
+  monthlyHistory: { month: Date; hours: number; labor: number; after: number; label: string }[];
+  totalLabor: number;
+  totalAfter: number;
 }
+
 
 export default function Employees() {
   const [employees, setEmployees] = useState<Employee[]>([]);
