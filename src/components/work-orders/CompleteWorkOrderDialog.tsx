@@ -46,6 +46,9 @@ export function CompleteWorkOrderDialog({
   const [hasMaterials, setHasMaterials] = useState<boolean | null>(null);
   const [showNoMaterialsConfirm, setShowNoMaterialsConfirm] = useState(false);
   const [pendingAction, setPendingAction] = useState<"end_session" | "complete_order" | null>(null);
+  const [endRegime, setEndRegime] = useState<WorkRegime>("labor");
+  const [myActiveEntryId, setMyActiveEntryId] = useState<string | null>(null);
+  const [regimeTotals, setRegimeTotals] = useState<{ labor: number; after: number }>({ labor: 0, after: 0 });
   const { toast } = useToast();
   const signatureRef = useRef<SignatureCanvas>(null);
   const [signatureEmpty, setSignatureEmpty] = useState(true);
