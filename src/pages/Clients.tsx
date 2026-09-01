@@ -27,7 +27,7 @@ import { format, isSameDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, st
 import { pt } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { formatHours } from "@/lib/formatHours";
-import { classifyRegime } from "@/lib/workRegime";
+import { entryRegime } from "@/lib/workRegime";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -341,7 +341,7 @@ export default function Clients() {
       // Get all work orders for this client with scheduled_date
       const { data: workOrders, error: woError } = await supabase
         .from('work_orders')
-        .select('id, reference, title, scheduled_date, total_hours, is_labor_hours, is_after_hours')
+        .select('id, reference, title, scheduled_date, total_hours')
         .eq('client_id', clientId);
 
       if (woError) throw woError;
@@ -423,7 +423,7 @@ export default function Clients() {
         if (hours === 0 || !entry.start_time) return;
 
         const workDate = new Date(entry.start_time);
-        const regime = classifyRegime(woById[entry.work_order_id], entry.start_time);
+        const regime = entryRegime(entry);
         if (regime === 'labor') totalLabor += hours; else totalAfter += hours;
 
         if (workDate >= todayStart && workDate <= todayEnd) {
