@@ -79,6 +79,9 @@ export default function EmployeeDashboard() {
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportWorkOrder, setReportWorkOrder] = useState<{ id: string; reference: string } | null>(null);
   const [reportType, setReportType] = useState<"electricity" | "hvac" | "generator" | "cctv" | null>(null);
+  const [startRegimeOrder, setStartRegimeOrder] = useState<{ id: string; reference: string; resume: boolean } | null>(null);
+  const [startRegime, setStartRegime] = useState<WorkRegime>("labor");
+  const [startingWork, setStartingWork] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
