@@ -74,6 +74,11 @@ export async function generateWorkOrderPDF(
   doc.text(`Tipo de Serviço: ${workOrderData.service_type}`, 20, descEndY + 2);
   doc.text(`Prioridade: ${workOrderData.priority}`, 20, descEndY + 10);
   doc.text(`Status: Concluída`, 20, descEndY + 18);
+  const regimeLabels: string[] = [];
+  if (workOrderData.is_labor_hours) regimeLabels.push("Laboral");
+  if (workOrderData.is_after_hours) regimeLabels.push("Pós-laboral");
+  doc.text(`Regime: ${regimeLabels.length ? regimeLabels.join(" + ") : "Não definido"}`, 20, descEndY + 26);
+
   
   // Client Information
   let sectionY = descEndY + 30;
