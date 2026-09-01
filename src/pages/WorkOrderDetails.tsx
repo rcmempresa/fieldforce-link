@@ -107,6 +107,7 @@ export default function WorkOrderDetails() {
   
   // Individual hours per employee
   const [employeeHours, setEmployeeHours] = useState<EmployeeHours[]>([]);
+  const [manageHoursOpen, setManageHoursOpen] = useState(false);
 
   useEffect(() => {
     fetchWorkOrderDetails();
