@@ -26,6 +26,8 @@ interface EditTimeEntriesDialogProps {
   workOrderId: string;
   workOrderReference: string;
   onUpdate: () => void;
+  /** Quando true, as horas só podem ser consultadas (OT concluída/faturada) */
+  readOnly?: boolean;
 }
 
 export function EditTimeEntriesDialog({
@@ -34,6 +36,7 @@ export function EditTimeEntriesDialog({
   workOrderId,
   workOrderReference,
   onUpdate,
+  readOnly = false,
 }: EditTimeEntriesDialogProps) {
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [loading, setLoading] = useState(false);
