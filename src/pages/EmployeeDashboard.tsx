@@ -869,6 +869,30 @@ export default function EmployeeDashboard() {
                             {order.client_name && (
                               <p className="text-xs text-muted-foreground">Cliente: {order.client_name}</p>
                             )}
+                            {order.active_time_entry_id && (() => {
+                              const currentRegime = entryRegime({ work_regime: order.active_time_entry_regime, start_time: order.active_time_entry_start });
+                              return (
+                                <div className="flex items-center gap-2 pt-1 flex-wrap">
+                                  <span className="text-xs text-muted-foreground">Regime desta sessão:</span>
+                                  <Button
+                                    size="sm"
+                                    variant={currentRegime === "labor" ? "default" : "outline"}
+                                    className="h-7 px-2 text-xs"
+                                    onClick={() => handleChangeActiveRegime(order, "labor")}
+                                  >
+                                    Laboral
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant={currentRegime === "after" ? "default" : "outline"}
+                                    className="h-7 px-2 text-xs"
+                                    onClick={() => handleChangeActiveRegime(order, "after")}
+                                  >
+                                    Pós-laboral
+                                  </Button>
+                                </div>
+                              );
+                            })()}
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
                             <Button size="sm" variant="outline" onClick={() => handlePauseClick(order.id, order.reference, order.active_time_entry_id!)}>
