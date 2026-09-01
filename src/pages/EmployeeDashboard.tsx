@@ -747,7 +747,7 @@ export default function EmployeeDashboard() {
                             </>
                           )}
                           {order.status !== "completed" && order.status !== "invoiced" && !order.active_time_entry_id && (
-                            <Button size="sm" onClick={() => handleStartWork(order.id, order.reference)}>
+                            <Button size="sm" onClick={() => openStartRegimeDialog(order.id, order.reference, order.has_been_started)}>
                               <Play className="h-4 w-4 mr-1" />
                               {order.has_been_started ? "Retomar" : "Iniciar"}
                             </Button>
@@ -927,7 +927,7 @@ export default function EmployeeDashboard() {
                             )}
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <Button size="sm" onClick={() => handleStartWork(order.id, order.reference)}>
+                            <Button size="sm" onClick={() => openStartRegimeDialog(order.id, order.reference, order.has_been_started)}>
                               <Play className="h-3.5 w-3.5 mr-1" />
                               Retomar
                             </Button>
@@ -982,7 +982,7 @@ export default function EmployeeDashboard() {
                             )}
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <Button size="sm" onClick={() => handleStartWork(order.id, order.reference)}>
+                            <Button size="sm" onClick={() => openStartRegimeDialog(order.id, order.reference, order.has_been_started)}>
                               <Play className="h-3.5 w-3.5 mr-1" />
                               Iniciar
                             </Button>
