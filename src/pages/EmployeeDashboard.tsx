@@ -49,6 +49,8 @@ interface Stats {
 interface MonthlyHours {
   month: Date;
   hours: number;
+  labor: number;
+  after: number;
 }
 
 export default function EmployeeDashboard() {
@@ -246,32 +248,37 @@ export default function EmployeeDashboard() {
 
     const { data: timeEntries } = await supabase
       .from("time_entries")
-      .select("start_time, duration_hours")
+      .select("start_time, duration_hours, work_regime")
       .eq("user_id", user.id)
       .gte("start_time", twelveMonthsAgo.toISOString());
 
     if (timeEntries) {
-      const monthlyMap = new Map<string, { month: Date; hours: number }>();
-      
+      const monthlyMap = new Map<string, MonthlyHours>();
+
       timeEntries.forEach(entry => {
         const entryDate = new Date(entry.start_time);
         const monthKey = `${entryDate.getFullYear()}-${entryDate.getMonth()}`;
-        
+
         if (!monthlyMap.has(monthKey)) {
-          monthlyMap.set(monthKey, { 
-            month: new Date(entryDate.getFullYear(), entryDate.getMonth(), 1), 
-            hours: 0 
+          monthlyMap.set(monthKey, {
+            month: new Date(entryDate.getFullYear(), entryDate.getMonth(), 1),
+            hours: 0,
+            labor: 0,
+            after: 0,
           });
         }
-        
+
         const existing = monthlyMap.get(monthKey)!;
-        existing.hours += entry.duration_hours || 0;
+        const h = entry.duration_hours || 0;
+        existing.hours += h;
+        if (entryRegime(entry) === "labor") existing.labor += h;
+        else existing.after += h;
       });
 
       const sortedMonths = Array.from(monthlyMap.values()).sort(
         (a, b) => b.month.getTime() - a.month.getTime()
       );
-      
+
       setMonthlyHours(sortedMonths);
     }
   };
@@ -279,6 +286,14 @@ export default function EmployeeDashboard() {
   const getHoursForCalendarMonth = (): number => {
     const monthData = monthlyHours.find(m => isSameMonth(m.month, calendarMonth));
     return monthData ? Math.round(monthData.hours * 10) / 10 : 0;
+  };
+
+  const getRegimeForCalendarMonth = (): { labor: number; after: number } => {
+    const monthData = monthlyHours.find(m => isSameMonth(m.month, calendarMonth));
+    return {
+      labor: monthData ? Math.round(monthData.labor * 10) / 10 : 0,
+      after: monthData ? Math.round(monthData.after * 10) / 10 : 0,
+    };
   };
 
   // Get unique clients for filter
@@ -590,6 +605,39 @@ export default function EmployeeDashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{stats.completedOrders}</div>
               <p className="text-xs text-muted-foreground">Total</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Regime Cards (mês do calendário) */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Horas Laborais — {format(calendarMonth, "MMMM yyyy", { locale: ptBR })}
+              </CardTitle>
+              <Clock className="h-4 w-4 text-success" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-success">
+                {formatHours(getRegimeForCalendarMonth().labor)}
+              </div>
+              <p className="text-xs text-muted-foreground">Regime laboral neste mês</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Horas Pós-laborais — {format(calendarMonth, "MMMM yyyy", { locale: ptBR })}
+              </CardTitle>
+              <Clock className="h-4 w-4 text-warning" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-warning">
+                {formatHours(getRegimeForCalendarMonth().after)}
+              </div>
+              <p className="text-xs text-muted-foreground">Regime pós-laboral neste mês</p>
             </CardContent>
           </Card>
         </div>
