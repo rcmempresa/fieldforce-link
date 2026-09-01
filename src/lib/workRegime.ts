@@ -1,22 +1,20 @@
 export type WorkRegime = "labor" | "after";
 
-export interface RegimeFlags {
-  is_labor_hours?: boolean | null;
-  is_after_hours?: boolean | null;
+export interface RegimeEntry {
+  work_regime?: WorkRegime | string | null;
+  start_time?: string | Date | null;
 }
 
 /**
- * Classifica uma entrada de tempo como laboral ou pós-laboral.
- * Prioriza o regime definido na OT; se ambos (ou nenhum) estiverem marcados,
- * usa a hora real de execução (08:00–20:00 = laboral).
+ * Classifica um registo de horas como laboral ou pós-laboral.
+ * Usa o regime escolhido pelo técnico (time_entries.work_regime);
+ * se não existir, deduz pela hora real de execução (08:00–20:00 = laboral).
  */
-export function classifyRegime(flags: RegimeFlags | null | undefined, startTime?: string | Date | null): WorkRegime {
-  const labor = !!flags?.is_labor_hours;
-  const after = !!flags?.is_after_hours;
-  if (labor && !after) return "labor";
-  if (after && !labor) return "after";
-
-  const d = startTime ? new Date(startTime) : null;
+export function entryRegime(entry: RegimeEntry | null | undefined): WorkRegime {
+  if (entry?.work_regime === "labor" || entry?.work_regime === "after") {
+    return entry.work_regime;
+  }
+  const d = entry?.start_time ? new Date(entry.start_time) : null;
   if (!d || isNaN(d.getTime())) return "labor";
   const h = d.getHours();
   return h >= 20 || h < 8 ? "after" : "labor";
