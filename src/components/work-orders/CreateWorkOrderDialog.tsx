@@ -380,6 +380,8 @@ export function CreateWorkOrderDialog({
       priority: "medium",
       scheduled_date: "",
       address: "",
+      is_labor_hours: false,
+      is_after_hours: false,
     });
     onOpenChange(false);
     onSuccess();
