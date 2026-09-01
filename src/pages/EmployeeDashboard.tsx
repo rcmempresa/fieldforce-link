@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { entryRegime } from "@/lib/workRegime";
+import { entryRegime, regimeLabel, WorkRegime } from "@/lib/workRegime";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ClipboardList, Clock, CheckCircle, CalendarDays, Pause, Play, PlayCircle, Circle, ChevronLeft, ChevronRight, Filter, FileText, Zap, Wind, Cog, Camera } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { CompleteWorkOrderDialog } from "@/components/work-orders/CompleteWorkOrderDialog";
@@ -34,6 +34,7 @@ interface WorkOrder {
   client_name?: string;
   active_time_entry_id?: string;
   active_time_entry_start?: string;
+  active_time_entry_regime?: string | null;
   has_been_started?: boolean;
   total_hours_worked?: number;
 }
@@ -78,6 +79,9 @@ export default function EmployeeDashboard() {
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportWorkOrder, setReportWorkOrder] = useState<{ id: string; reference: string } | null>(null);
   const [reportType, setReportType] = useState<"electricity" | "hvac" | "generator" | "cctv" | null>(null);
+  const [startRegimeOrder, setStartRegimeOrder] = useState<{ id: string; reference: string; resume: boolean } | null>(null);
+  const [startRegime, setStartRegime] = useState<WorkRegime>("labor");
+  const [startingWork, setStartingWork] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -114,12 +118,12 @@ export default function EmployeeDashboard() {
       // Get active time entries for in_progress orders
       const { data: activeTimeEntries } = await supabase
         .from("time_entries")
-        .select("id, work_order_id, start_time")
+        .select("id, work_order_id, start_time, work_regime")
         .eq("user_id", user.id)
         .is("end_time", null);
 
       const activeTimeEntriesMap = new Map(
-        activeTimeEntries?.map(entry => [entry.work_order_id, { id: entry.id, start_time: entry.start_time }]) || []
+        activeTimeEntries?.map(entry => [entry.work_order_id, { id: entry.id, start_time: entry.start_time, work_regime: (entry as any).work_regime }]) || []
       );
 
       // Get all work order IDs that have been started at least once (have any time entries)
@@ -159,6 +163,7 @@ export default function EmployeeDashboard() {
             client_name: wo.profiles?.name || 'N/A',
             active_time_entry_id: activeEntry?.id,
             active_time_entry_start: activeEntry?.start_time,
+            active_time_entry_regime: activeEntry?.work_regime,
             has_been_started: startedWorkOrderIds.has(wo.id),
             total_hours_worked: hoursPerWorkOrder.get(wo.id) || 0,
           };
@@ -369,7 +374,27 @@ export default function EmployeeDashboard() {
     }
   };
 
-  const handleStartWork = async (workOrderId: string, reference: string) => {
+  const openStartRegimeDialog = (workOrderId: string, reference: string, resume = false) => {
+    setStartRegime(entryRegime({ start_time: new Date() }));
+    setStartRegimeOrder({ id: workOrderId, reference, resume });
+  };
+
+  const handleChangeActiveRegime = async (order: WorkOrder, regime: WorkRegime) => {
+    if (!order.active_time_entry_id || entryRegime({ work_regime: order.active_time_entry_regime, start_time: order.active_time_entry_start }) === regime) return;
+    const { error } = await supabase
+      .from("time_entries")
+      .update({ work_regime: regime } as any)
+      .eq("id", order.active_time_entry_id);
+    if (error) {
+      toast({ title: "Erro", description: "Não foi possível alterar o regime", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Regime atualizado", description: `Sessão marcada como ${regimeLabel(regime)}` });
+    await fetchAssignedOrders();
+  };
+
+  const handleStartWork = async (workOrderId: string, reference: string, regime: WorkRegime) => {
+    setStartingWork(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
@@ -392,7 +417,7 @@ export default function EmployeeDashboard() {
         return;
       }
 
-      // Create time entry (regime sugerido pela hora de início; o técnico pode alterar em "Gerir Horas")
+      // Create time entry com o regime escolhido pelo técnico
       const startedAt = new Date();
       const { error: timeEntryError } = await supabase
         .from("time_entries")
@@ -400,7 +425,7 @@ export default function EmployeeDashboard() {
           work_order_id: workOrderId,
           user_id: user.id,
           start_time: startedAt.toISOString(),
-          work_regime: entryRegime({ start_time: startedAt }),
+          work_regime: regime,
         } as any);
 
 
@@ -424,9 +449,10 @@ export default function EmployeeDashboard() {
 
       toast({
         title: "Trabalho Iniciado",
-        description: `A sua sessão na ordem ${reference} foi iniciada`,
+        description: `Sessão em ${reference} iniciada como ${regimeLabel(regime)}`,
       });
 
+      setStartRegimeOrder(null);
       await fetchAssignedOrders();
       await fetchStats();
     } catch (error) {
@@ -436,6 +462,8 @@ export default function EmployeeDashboard() {
         description: "Erro ao iniciar trabalho",
         variant: "destructive",
       });
+    } finally {
+      setStartingWork(false);
     }
   };
 
@@ -719,7 +747,7 @@ export default function EmployeeDashboard() {
                             </>
                           )}
                           {order.status !== "completed" && order.status !== "invoiced" && !order.active_time_entry_id && (
-                            <Button size="sm" onClick={() => handleStartWork(order.id, order.reference)}>
+                            <Button size="sm" onClick={() => openStartRegimeDialog(order.id, order.reference, order.has_been_started)}>
                               <Play className="h-4 w-4 mr-1" />
                               {order.has_been_started ? "Retomar" : "Iniciar"}
                             </Button>
@@ -841,6 +869,30 @@ export default function EmployeeDashboard() {
                             {order.client_name && (
                               <p className="text-xs text-muted-foreground">Cliente: {order.client_name}</p>
                             )}
+                            {order.active_time_entry_id && (() => {
+                              const currentRegime = entryRegime({ work_regime: order.active_time_entry_regime, start_time: order.active_time_entry_start });
+                              return (
+                                <div className="flex items-center gap-2 pt-1 flex-wrap">
+                                  <span className="text-xs text-muted-foreground">Regime desta sessão:</span>
+                                  <Button
+                                    size="sm"
+                                    variant={currentRegime === "labor" ? "default" : "outline"}
+                                    className="h-7 px-2 text-xs"
+                                    onClick={() => handleChangeActiveRegime(order, "labor")}
+                                  >
+                                    Laboral
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant={currentRegime === "after" ? "default" : "outline"}
+                                    className="h-7 px-2 text-xs"
+                                    onClick={() => handleChangeActiveRegime(order, "after")}
+                                  >
+                                    Pós-laboral
+                                  </Button>
+                                </div>
+                              );
+                            })()}
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
                             <Button size="sm" variant="outline" onClick={() => handlePauseClick(order.id, order.reference, order.active_time_entry_id!)}>
@@ -899,7 +951,7 @@ export default function EmployeeDashboard() {
                             )}
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <Button size="sm" onClick={() => handleStartWork(order.id, order.reference)}>
+                            <Button size="sm" onClick={() => openStartRegimeDialog(order.id, order.reference, order.has_been_started)}>
                               <Play className="h-3.5 w-3.5 mr-1" />
                               Retomar
                             </Button>
@@ -954,7 +1006,7 @@ export default function EmployeeDashboard() {
                             )}
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <Button size="sm" onClick={() => handleStartWork(order.id, order.reference)}>
+                            <Button size="sm" onClick={() => openStartRegimeDialog(order.id, order.reference, order.has_been_started)}>
                               <Play className="h-3.5 w-3.5 mr-1" />
                               Iniciar
                             </Button>
@@ -1042,6 +1094,46 @@ export default function EmployeeDashboard() {
           />
         </>
       )}
+
+      <Dialog open={!!startRegimeOrder} onOpenChange={(o) => !o && setStartRegimeOrder(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {startRegimeOrder?.resume ? "Retomar" : "Iniciar"} sessão — {startRegimeOrder?.reference}
+            </DialogTitle>
+            <DialogDescription>
+              Indique se estas horas são laborais ou pós-laborais. Pode alterar durante ou no fim do trabalho.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              type="button"
+              variant={startRegime === "labor" ? "default" : "outline"}
+              className="h-16"
+              onClick={() => setStartRegime("labor")}
+            >
+              Laboral
+            </Button>
+            <Button
+              type="button"
+              variant={startRegime === "after" ? "default" : "outline"}
+              className="h-16"
+              onClick={() => setStartRegime("after")}
+            >
+              Pós-laboral
+            </Button>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setStartRegimeOrder(null)}>Cancelar</Button>
+            <Button
+              disabled={startingWork}
+              onClick={() => startRegimeOrder && handleStartWork(startRegimeOrder.id, startRegimeOrder.reference, startRegime)}
+            >
+              {startingWork ? "A iniciar..." : startRegimeOrder?.resume ? "Retomar" : "Iniciar"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">

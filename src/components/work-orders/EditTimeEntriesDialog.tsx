@@ -15,12 +15,14 @@ import { WorkRegime, entryRegime, regimeLabel } from "@/lib/workRegime";
 
 interface TimeEntry {
   id: string;
+  user_id: string;
   start_time: string;
   end_time: string | null;
   duration_hours: number | null;
   note: string | null;
   pause_reason: string | null;
   work_regime: WorkRegime | null;
+  user_name?: string;
 }
 
 interface EditTimeEntriesDialogProps {
@@ -31,6 +33,8 @@ interface EditTimeEntriesDialogProps {
   onUpdate: () => void;
   /** Quando true, as horas só podem ser consultadas (OT concluída/faturada) */
   readOnly?: boolean;
+  /** Modo gerente: mostra e permite editar as sessões de todos os técnicos */
+  allUsers?: boolean;
 }
 
 export function EditTimeEntriesDialog({
@@ -40,6 +44,7 @@ export function EditTimeEntriesDialog({
   workOrderReference,
   onUpdate,
   readOnly = false,
+  allUsers = false,
 }: EditTimeEntriesDialogProps) {
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -60,19 +65,23 @@ export function EditTimeEntriesDialog({
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("time_entries")
-      .select("*")
-      .eq("work_order_id", workOrderId)
-      .eq("user_id", user.id)
-      .order("start_time", { ascending: false });
+      .select("*, profiles!time_entries_user_id_fkey (name)")
+      .eq("work_order_id", workOrderId);
+
+    if (!allUsers) query = query.eq("user_id", user.id);
+
+    const { data, error } = await query.order("start_time", { ascending: false });
 
     if (error) {
       console.error("Error fetching time entries:", error);
       return;
     }
 
-    setTimeEntries((data || []) as any);
+    setTimeEntries(
+      (data || []).map((e: any) => ({ ...e, user_name: e.profiles?.name })) as any
+    );
   };
 
   const totals = timeEntries.reduce(
@@ -272,6 +281,9 @@ export function EditTimeEntriesDialog({
                             {regimeLabel(regime)}
                           </span>
                         </div>
+                        {allUsers && entry.user_name && (
+                          <p className="text-xs font-medium">Técnico: {entry.user_name}</p>
+                        )}
                         {entry.duration_hours && (
                           <p className="text-sm text-muted-foreground">
                             Duração: {formatHours(entry.duration_hours)}

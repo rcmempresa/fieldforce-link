@@ -20,6 +20,7 @@ import { WorkOrderAttachments } from "@/components/work-orders/WorkOrderAttachme
 import { MaintenanceReportsList } from "@/components/work-orders/MaintenanceReportsList";
 import { EquipmentAttachments } from "@/components/equipments/EquipmentAttachments";
 import { WorkOrderMaterials } from "@/components/work-orders/WorkOrderMaterials";
+import { EditTimeEntriesDialog } from "@/components/work-orders/EditTimeEntriesDialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   AlertDialog,
@@ -107,6 +108,7 @@ export default function WorkOrderDetails() {
   
   // Individual hours per employee
   const [employeeHours, setEmployeeHours] = useState<EmployeeHours[]>([]);
+  const [manageHoursOpen, setManageHoursOpen] = useState(false);
 
   useEffect(() => {
     fetchWorkOrderDetails();
@@ -707,6 +709,18 @@ export default function WorkOrderDetails() {
                         ))}
                       </div>
                     )}
+
+                    {isManager && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-3"
+                        onClick={() => setManageHoursOpen(true)}
+                      >
+                        <Clock className="h-3.5 w-3.5 mr-1" />
+                        Gerir Horas (todos os técnicos)
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -881,6 +895,22 @@ export default function WorkOrderDetails() {
           currentUserId={user?.id}
         />
       </div>
+
+      {isManager && workOrder && (
+        <EditTimeEntriesDialog
+          open={manageHoursOpen}
+          onOpenChange={setManageHoursOpen}
+          workOrderId={id!}
+          workOrderReference={workOrder.reference || ""}
+          onUpdate={() => {
+            fetchWorkOrderDetails();
+            fetchEmployeeHours();
+          }}
+          allUsers
+        />
+      )}
+
+
 
       <AlertDialog
         open={overbookingConfirm !== null}
