@@ -16,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataPagination } from "@/components/ui/data-pagination";
 import { formatHours } from "@/lib/formatHours";
-import { classifyRegime } from "@/lib/workRegime";
+import { entryRegime } from "@/lib/workRegime";
 
 import {
   AlertDialog,
@@ -318,12 +318,11 @@ export default function Employees() {
           duration_hours,
           start_time,
           work_order_id,
+          work_regime,
           work_orders (
             reference,
             title,
-            scheduled_date,
-            is_labor_hours,
-            is_after_hours
+            scheduled_date
           )
         `)
         .eq('user_id', employeeId);
@@ -360,7 +359,7 @@ export default function Employees() {
         // do funcionário e cobrimos OTs sem scheduled_date.
         const workDate = entry.start_time ? new Date(entry.start_time) : null;
         const hours = Number(entry.duration_hours) || 0;
-        const regime = classifyRegime(entry.work_orders, entry.start_time);
+        const regime = entryRegime(entry);
 
         if (regime === 'labor') totalLabor += hours; else totalAfter += hours;
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { entryRegime } from "@/lib/workRegime";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -376,14 +377,17 @@ export default function EmployeeDashboard() {
         return;
       }
 
-      // Create time entry
+      // Create time entry (regime sugerido pela hora de início; o técnico pode alterar em "Gerir Horas")
+      const startedAt = new Date();
       const { error: timeEntryError } = await supabase
         .from("time_entries")
         .insert({
           work_order_id: workOrderId,
           user_id: user.id,
-          start_time: new Date().toISOString(),
-        });
+          start_time: startedAt.toISOString(),
+          work_regime: entryRegime({ start_time: startedAt }),
+        } as any);
+
 
       if (timeEntryError) throw timeEntryError;
 
