@@ -209,6 +209,7 @@ export function CompleteWorkOrderDialog({
           end_time: now.toISOString(),
           duration_hours: sessionDurationHours,
           note: note || null,
+          work_regime: endRegime,
         })
         .eq("id", activeTimeEntry.id);
 
