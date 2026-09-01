@@ -383,15 +383,17 @@ export default function Clients() {
       const workOrderHours: { [key: string]: { hours: number; reference: string; title: string } } = {};
       
       // Track hours by month (last 12 months)
-      const monthlyHoursMap: { [key: string]: number } = {};
+      const monthlyHoursMap: { [key: string]: { hours: number; labor: number; after: number } } = {};
       for (let i = 0; i < 12; i++) {
         const monthDate = subMonths(now, i);
         const key = format(monthDate, 'yyyy-MM');
-        monthlyHoursMap[key] = 0;
+        monthlyHoursMap[key] = { hours: 0, labor: 0, after: 0 };
       }
 
+      const woById: { [key: string]: any } = {};
       // Initialize workOrderHours with all work orders
       workOrders.forEach(wo => {
+        woById[wo.id] = wo;
         workOrderHours[wo.id] = {
           hours: 0,
           reference: wo.reference || 'N/A',
@@ -399,12 +401,13 @@ export default function Clients() {
         };
       });
 
+      let totalLabor = 0;
+      let totalAfter = 0;
+
       // Aggregate time entry hours per work order
-      const hoursPerWO: { [key: string]: number } = {};
       timeEntries?.forEach((entry: any) => {
         const hours = Number(entry.duration_hours) || 0;
         const woId = entry.work_order_id;
-        hoursPerWO[woId] = (hoursPerWO[woId] || 0) + hours;
         if (workOrderHours[woId]) {
           workOrderHours[woId].hours += hours;
         }
@@ -418,6 +421,8 @@ export default function Clients() {
         if (hours === 0 || !entry.start_time) return;
 
         const workDate = new Date(entry.start_time);
+        const regime = classifyRegime(woById[entry.work_order_id], entry.start_time);
+        if (regime === 'labor') totalLabor += hours; else totalAfter += hours;
 
         if (workDate >= todayStart && workDate <= todayEnd) {
           todayHours += hours;
@@ -431,18 +436,22 @@ export default function Clients() {
 
         const monthKey = format(workDate, 'yyyy-MM');
         if (monthlyHoursMap[monthKey] !== undefined) {
-          monthlyHoursMap[monthKey] += hours;
+          monthlyHoursMap[monthKey].hours += hours;
+          if (regime === 'labor') monthlyHoursMap[monthKey].labor += hours;
+          else monthlyHoursMap[monthKey].after += hours;
         }
       });
 
       // Convert monthly hours map to array
       const monthlyHistory: MonthlyHours[] = Object.entries(monthlyHoursMap)
-        .map(([key, hours]) => {
+        .map(([key, v]) => {
           const [year, month] = key.split('-');
           const monthDate = new Date(parseInt(year), parseInt(month) - 1, 1);
           return {
             month: monthDate,
-            hours,
+            hours: v.hours,
+            labor: v.labor,
+            after: v.after,
             label: format(monthDate, "MMMM 'de' yyyy", { locale: pt }),
           };
         })
@@ -462,7 +471,10 @@ export default function Clients() {
         thisMonth: monthHours,
         monthlyHistory,
         byWorkOrder: filteredWorkOrderHours,
+        totalLabor,
+        totalAfter,
       });
+
     } catch (error) {
       console.error('Error fetching client hours:', error);
       toast({
