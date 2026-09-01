@@ -20,7 +20,12 @@ interface WorkOrderData {
   total_hours: number | null;
   created_at: string;
   completed_at: string;
+  is_labor_hours?: boolean | null;
+  is_after_hours?: boolean | null;
+  labor_hours_worked?: number;
+  after_hours_worked?: number;
 }
+
 
 function formatDecimalHoursToTime(decimalHours: number): string {
   const totalMinutes = Math.round(decimalHours * 60);
