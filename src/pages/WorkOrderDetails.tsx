@@ -707,6 +707,18 @@ export default function WorkOrderDetails() {
                         ))}
                       </div>
                     )}
+
+                    {isManager && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-3"
+                        onClick={() => setManageHoursOpen(true)}
+                      >
+                        <Clock className="h-3.5 w-3.5 mr-1" />
+                        Gerir Horas (todos os técnicos)
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
