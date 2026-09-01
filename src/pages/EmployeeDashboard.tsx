@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { entryRegime } from "@/lib/workRegime";
+import { entryRegime, regimeLabel, WorkRegime } from "@/lib/workRegime";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
