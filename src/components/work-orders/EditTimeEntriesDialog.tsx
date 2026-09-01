@@ -181,8 +181,17 @@ export function EditTimeEntriesDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Gerenciar Horas - {workOrderReference}</DialogTitle>
+            <DialogTitle>
+              {readOnly ? "Horas Registadas" : "Gerenciar Horas"} - {workOrderReference}
+            </DialogTitle>
           </DialogHeader>
+
+          {readOnly && (
+            <p className="rounded-md border border-muted bg-muted/40 p-3 text-xs text-muted-foreground">
+              Esta ordem de trabalho está fechada. As horas já não podem ser alteradas — contacte o gerente se for necessário corrigir algum registo.
+            </p>
+          )}
+          
           
           {timeEntries.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
@@ -223,7 +232,7 @@ export function EditTimeEntriesDialog({
                       )}
                     </div>
                     <div className="flex items-center gap-1">
-                      {entry.end_time && (
+                      {entry.end_time && !readOnly && (
                         <>
                           <Button
                             size="sm"
