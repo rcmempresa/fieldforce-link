@@ -105,6 +105,17 @@ export async function generateWorkOrderPDF(
   doc.setFont("helvetica", "bold");
   doc.text(`Total: ${formatDecimalHoursToTime(totalHoursWorked)}`, 20, empY + 2);
   empY += 10;
+
+  doc.setFont("helvetica", "normal");
+  const laborWorked = workOrderData.labor_hours_worked ?? 0;
+  const afterWorked = workOrderData.after_hours_worked ?? 0;
+  if (laborWorked > 0 || afterWorked > 0) {
+    doc.text(`Horas laborais: ${formatDecimalHoursToTime(laborWorked)}`, 25, empY);
+    empY += 7;
+    doc.text(`Horas pós-laborais: ${formatDecimalHoursToTime(afterWorked)}`, 25, empY);
+    empY += 10;
+  }
+
   
   doc.setFont("helvetica", "normal");
   doc.text(`Data de conclusão: ${new Date(workOrderData.completed_at).toLocaleString("pt-BR")}`, 20, empY);
