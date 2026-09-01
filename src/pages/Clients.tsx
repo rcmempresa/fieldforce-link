@@ -67,6 +67,8 @@ interface WorkOrder {
 interface MonthlyHours {
   month: Date;
   hours: number;
+  labor: number;
+  after: number;
   label: string;
 }
 
@@ -76,7 +78,10 @@ interface HoursStats {
   thisMonth: number;
   monthlyHistory: MonthlyHours[];
   byWorkOrder: { [key: string]: { hours: number; reference: string; title: string } };
+  totalLabor: number;
+  totalAfter: number;
 }
+
 
 export default function Clients() {
   const [clients, setClients] = useState<Client[]>([]);
