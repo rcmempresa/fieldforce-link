@@ -609,6 +609,42 @@ export function CompleteWorkOrderDialog({
                 </p>
               </div>
 
+              {hasActiveSession && (
+                <div className="space-y-2">
+                  <Label>Regime da sua sessão *</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      variant={endRegime === "labor" ? "default" : "outline"}
+                      onClick={() => setEndRegime("labor")}
+                    >
+                      Laboral
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={endRegime === "after" ? "default" : "outline"}
+                      onClick={() => setEndRegime("after")}
+                    >
+                      Pós-laboral
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg border p-3 bg-success/5">
+                  <p className="text-xs text-muted-foreground">Horas laborais</p>
+                  <p className="text-base font-bold text-success">{formatHours(regimeTotals.labor)}</p>
+                </div>
+                <div className="rounded-lg border p-3 bg-warning/5">
+                  <p className="text-xs text-muted-foreground">Horas pós-laborais</p>
+                  <p className="text-base font-bold text-warning">{formatHours(regimeTotals.after)}</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Estes valores serão discriminados no relatório assinado pelo cliente ({regimeLabel(endRegime)} para a sua sessão atual).
+              </p>
+
               <div className="space-y-2">
                 <Label htmlFor="note-complete">Notas (opcional)</Label>
                 <Textarea
