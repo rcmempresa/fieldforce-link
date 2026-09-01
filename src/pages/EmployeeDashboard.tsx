@@ -609,6 +609,39 @@ export default function EmployeeDashboard() {
           </Card>
         </div>
 
+        {/* Regime Cards (mês do calendário) */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Horas Laborais — {format(calendarMonth, "MMMM yyyy", { locale: ptBR })}
+              </CardTitle>
+              <Clock className="h-4 w-4 text-success" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-success">
+                {formatHours(getRegimeForCalendarMonth().labor)}
+              </div>
+              <p className="text-xs text-muted-foreground">Regime laboral neste mês</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Horas Pós-laborais — {format(calendarMonth, "MMMM yyyy", { locale: ptBR })}
+              </CardTitle>
+              <Clock className="h-4 w-4 text-warning" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-warning">
+                {formatHours(getRegimeForCalendarMonth().after)}
+              </div>
+              <p className="text-xs text-muted-foreground">Regime pós-laboral neste mês</p>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Notifications */}
         <Notifications />
 
