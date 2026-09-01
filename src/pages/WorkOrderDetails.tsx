@@ -46,8 +46,6 @@ interface WorkOrderDetails {
   total_hours: number;
   notes: string;
   address: string | null;
-  is_labor_hours?: boolean | null;
-  is_after_hours?: boolean | null;
   profiles: {
     name: string;
     email: string;
