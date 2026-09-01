@@ -1095,6 +1095,46 @@ export default function EmployeeDashboard() {
         </>
       )}
 
+      <Dialog open={!!startRegimeOrder} onOpenChange={(o) => !o && setStartRegimeOrder(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {startRegimeOrder?.resume ? "Retomar" : "Iniciar"} sessão — {startRegimeOrder?.reference}
+            </DialogTitle>
+            <DialogDescription>
+              Indique se estas horas são laborais ou pós-laborais. Pode alterar durante ou no fim do trabalho.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              type="button"
+              variant={startRegime === "labor" ? "default" : "outline"}
+              className="h-16"
+              onClick={() => setStartRegime("labor")}
+            >
+              Laboral
+            </Button>
+            <Button
+              type="button"
+              variant={startRegime === "after" ? "default" : "outline"}
+              className="h-16"
+              onClick={() => setStartRegime("after")}
+            >
+              Pós-laboral
+            </Button>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setStartRegimeOrder(null)}>Cancelar</Button>
+            <Button
+              disabled={startingWork}
+              onClick={() => startRegimeOrder && handleStartWork(startRegimeOrder.id, startRegimeOrder.reference, startRegime)}
+            >
+              {startingWork ? "A iniciar..." : startRegimeOrder?.resume ? "Retomar" : "Iniciar"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           {reportWorkOrder && reportType === "generator" && (
