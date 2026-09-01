@@ -159,6 +159,7 @@ export default function EmployeeDashboard() {
             client_name: wo.profiles?.name || 'N/A',
             active_time_entry_id: activeEntry?.id,
             active_time_entry_start: activeEntry?.start_time,
+            active_time_entry_regime: activeEntry?.work_regime,
             has_been_started: startedWorkOrderIds.has(wo.id),
             total_hours_worked: hoursPerWorkOrder.get(wo.id) || 0,
           };
