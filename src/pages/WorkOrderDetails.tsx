@@ -894,6 +894,22 @@ export default function WorkOrderDetails() {
         />
       </div>
 
+      {isManager && workOrder && (
+        <EditTimeEntriesDialog
+          open={manageHoursOpen}
+          onOpenChange={setManageHoursOpen}
+          workOrderId={id!}
+          workOrderReference={workOrder.reference || ""}
+          onUpdate={() => {
+            fetchWorkOrderDetails();
+            fetchEmployeeHours();
+          }}
+          allUsers
+        />
+      )}
+
+
+
       <AlertDialog
         open={overbookingConfirm !== null}
         onOpenChange={(o) => !o && setOverbookingConfirm(null)}
