@@ -319,10 +319,13 @@ export default function Employees() {
           work_orders (
             reference,
             title,
-            scheduled_date
+            scheduled_date,
+            is_labor_hours,
+            is_after_hours
           )
         `)
         .eq('user_id', employeeId);
+
 
       if (error) throw error;
 
