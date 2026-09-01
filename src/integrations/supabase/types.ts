@@ -526,6 +526,7 @@ export type Database = {
           updated_at: string
           user_id: string
           work_order_id: string
+          work_regime: Database["public"]["Enums"]["work_regime"]
         }
         Insert: {
           created_at?: string
@@ -538,6 +539,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           work_order_id: string
+          work_regime?: Database["public"]["Enums"]["work_regime"]
         }
         Update: {
           created_at?: string
@@ -550,6 +552,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           work_order_id?: string
+          work_regime?: Database["public"]["Enums"]["work_regime"]
         }
         Relationships: [
           {
@@ -846,6 +849,7 @@ export type Database = {
         | "cancelled"
         | "awaiting_approval"
         | "invoiced"
+      work_regime: "labor" | "after"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -999,6 +1003,7 @@ export const Constants = {
         "awaiting_approval",
         "invoiced",
       ],
+      work_regime: ["labor", "after"],
     },
   },
 } as const
