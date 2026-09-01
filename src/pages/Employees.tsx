@@ -16,6 +16,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataPagination } from "@/components/ui/data-pagination";
 import { formatHours } from "@/lib/formatHours";
+import { classifyRegime } from "@/lib/workRegime";
+
 import {
   AlertDialog,
   AlertDialogAction,
