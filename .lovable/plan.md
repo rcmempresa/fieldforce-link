@@ -1,4 +1,4 @@
-# Adicionar campos laboral / pós-laboral na criação de OT pelo cliente
+# Adicionar campos laboral / pós-laboral: cliente + Gerenciar Horas
 
 ## Contexto
 Os checkboxes "Trabalho laboral" e "Trabalho pós-laboral" já existem na criação e edição de OT pelo gerente (`CreateWorkOrderDialog` e `EditWorkOrderDialog`) e são guardados nas colunas `is_labor_hours` e `is_after_hours` da tabela `work_orders`. No entanto, o diálogo de criação de OT pelo **cliente** (`CreateClientWorkOrderDialog`) não tem estes campos — o cliente não consegue indicar se o trabalho é laboral ou pós-laboral.
