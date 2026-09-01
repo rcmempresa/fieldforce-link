@@ -1,17 +1,37 @@
-# Verificação: bloqueio de edição de horas em OTs concluídas
+# Adicionar campos laboral / pós-laboral na criação de OT pelo cliente
+
+## Contexto
+Os checkboxes "Trabalho laboral" e "Trabalho pós-laboral" já existem na criação e edição de OT pelo gerente (`CreateWorkOrderDialog` e `EditWorkOrderDialog`) e são guardados nas colunas `is_labor_hours` e `is_after_hours` da tabela `work_orders`. No entanto, o diálogo de criação de OT pelo **cliente** (`CreateClientWorkOrderDialog`) não tem estes campos — o cliente não consegue indicar se o trabalho é laboral ou pós-laboral.
 
 ## Objetivo
-Confirmar que os técnicos não conseguem alterar horas depois de a OT ser concluída (estado `completed`) ou faturada (`invoiced`).
+Permitir que o cliente, ao criar uma solicitação de OT, selecione se o trabalho é laboral e/ou pós-laboral, para que o gerente e os técnicos vejam essa informação ao aprovar.
 
-## O que já está implementado
-- **RLS em `time_entries`**: funcionários bloqueados em INSERT/UPDATE/DELETE quando a OT está `completed` ou `invoiced`; gerente mantém acesso total.
-- **UI (`EmployeeDashboard` + `EditTimeEntriesDialog`)**: em OTs concluídas, o diálogo abre em modo leitura (`readOnly`), sem botões de editar/remover, com aviso a indicar que deve contactar o gerente.
+## Alterações
+1. **`src/components/work-orders/CreateClientWorkOrderDialog.tsx`**
+   - Adicionar `is_labor_hours` e `is_after_hours` ao `formData` (ambos `false` por defeito).
+   - Adicionar a UI dos dois checkboxes (igual ao `CreateWorkOrderDialog`):
+     ```tsx
+     <div className="space-y-2">
+       <Label>Regime de Trabalho</Label>
+       <div className="flex flex-col gap-2">
+         <label className="flex items-center gap-2 cursor-pointer">
+           <input type="checkbox" checked={formData.is_labor_hours}
+             onChange={(e) => setFormData({ ...formData, is_labor_hours: e.target.checked })} />
+           <span className="text-sm">Trabalho laboral</span>
+         </label>
+         <label className="flex items-center gap-2 cursor-pointer">
+           <input type="checkbox" checked={formData.is_after_hours}
+             onChange={(e) => setFormData({ ...formData, is_after_hours: e.target.checked })} />
+           <span className="text-sm">Trabalho pós-laboral</span>
+         </label>
+       </div>
+     </div>
+     ```
+   - Incluir `is_labor_hours` e `is_after_hours` no `insert` em `work_orders`.
+   - Limpar os campos no reset do formulário após submeter.
 
-## Passos de verificação
-1. Abrir o código e confirmar que o modo `readOnly` é ativado apenas para funcionários (o gerente deve continuar a conseguir editar).
-2. Testar no preview com um funcionário: abrir uma OT concluída e verificar que não há botões de edição.
-3. Simular um UPDATE direto via API com sessão de funcionário numa OT concluída e confirmar que a base de dados recusa (proteção real, não só visual).
-4. Confirmar que o gerente continua a conseguir corrigir horas em OTs concluídas.
+2. **Sem alterações à base de dados** — as colunas já existem e aceitam `null`/`boolean`.
 
-## Correções (se necessário)
-Se algum passo falhar, ajustar a policy RLS ou a condição de `readOnly` no dashboard do funcionário.
+## Verificação
+- Abrir o diálogo "Nova Solicitação de Serviço" como cliente e confirmar que os checkboxes aparecem.
+- Submeter uma OT com um dos checkboxes marcado e verificar no `WorkOrderDetails` que o badge correspondente aparece.
