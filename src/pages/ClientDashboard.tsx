@@ -16,6 +16,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format, isSameDay, startOfMonth, endOfMonth, isSameMonth, startOfWeek, endOfWeek, startOfYear, endOfYear } from "date-fns";
 import { pt } from "date-fns/locale";
 import { formatHours } from "@/lib/formatHours";
+import { entryRegime, regimeLabel } from "@/lib/workRegime";
 import { ClientExtraEmails } from "@/components/clients/ClientExtraEmails";
 
 interface WorkOrder {
@@ -37,6 +38,7 @@ interface WorkOrderWithDetails extends WorkOrder {
   time_entries: {
     duration_hours: number | null;
     start_time: string;
+    work_regime?: string | null;
   }[];
 }
 
@@ -119,7 +121,7 @@ export default function ClientDashboard() {
           user_id,
           profiles!work_order_assignments_user_id_fkey(name)
         ),
-        time_entries(duration_hours, start_time)
+        time_entries(duration_hours, start_time, work_regime)
       `)
       .eq("client_id", user.id)
       .order("scheduled_date", { ascending: true });
@@ -294,9 +296,21 @@ export default function ClientDashboard() {
         .map(te => ({
           date: new Date(te.start_time),
           hours: Number(te.duration_hours) || 0,
+          regime: entryRegime(te),
         }))
     );
   }, [allWorkOrders]);
+
+  // Labor vs post-labor hours for the calendar month
+  const regimeHoursForMonth = useMemo(() => {
+    const monthStart = startOfMonth(calendarMonth);
+    const monthEnd = endOfMonth(calendarMonth);
+    const entries = timeEntryHoursByStartDate.filter(e => e.date >= monthStart && e.date <= monthEnd);
+    return {
+      labor: entries.filter(e => e.regime === "labor").reduce((s, e) => s + e.hours, 0),
+      after: entries.filter(e => e.regime === "after").reduce((s, e) => s + e.hours, 0),
+    };
+  }, [timeEntryHoursByStartDate, calendarMonth]);
 
   // Calculate total hours for the calendar month (based on the real work date)
   const totalHoursForMonth = useMemo(() => {
@@ -432,6 +446,31 @@ export default function ClientDashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{formatHours(totalHoursThisYear)}</div>
               <p className="text-xs text-muted-foreground">{new Date().getFullYear()}</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Labor vs Post-labor Hours (calendar month) */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Horas Laborais</CardTitle>
+              <Clock className="h-4 w-4 text-emerald-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-emerald-500">{formatHours(regimeHoursForMonth.labor)}</div>
+              <p className="text-xs text-muted-foreground">{format(calendarMonth, "MMMM", { locale: pt })}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Horas Pós-laborais</CardTitle>
+              <Clock className="h-4 w-4 text-amber-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-amber-500">{formatHours(regimeHoursForMonth.after)}</div>
+              <p className="text-xs text-muted-foreground">{format(calendarMonth, "MMMM", { locale: pt })}</p>
             </CardContent>
           </Card>
         </div>
