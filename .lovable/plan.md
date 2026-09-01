@@ -32,6 +32,14 @@ Permitir que o cliente, ao criar uma solicitação de OT, selecione se o trabalh
 
 2. **Sem alterações à base de dados** — as colunas já existem e aceitam `null`/`boolean`.
 
+3. **`src/components/work-orders/EditTimeEntriesDialog.tsx`** (Gerenciar Horas)
+   - Buscar o regime da OT: ao abrir o diálogo, fazer `select is_labor_hours, is_after_hours from work_orders where id = workOrderId` e guardar num estado `woRegime`.
+   - Mostrar badges junto ao título (igual ao `WorkOrderDetails`):
+     - "Laboral" (verde) quando `is_labor_hours`
+     - "Pós-laboral" (âmbar) quando `is_after_hours`
+   - Assim o gerente e o técnico vêem o regime ao gerir/registar horas.
+
 ## Verificação
 - Abrir o diálogo "Nova Solicitação de Serviço" como cliente e confirmar que os checkboxes aparecem.
 - Submeter uma OT com um dos checkboxes marcado e verificar no `WorkOrderDetails` que o badge correspondente aparece.
+- Abrir "Gerenciar Horas" numa OT e confirmar que os badges Laboral/Pós-laboral aparecem junto à referência.
