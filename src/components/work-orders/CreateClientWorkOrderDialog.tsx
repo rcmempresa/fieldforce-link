@@ -49,6 +49,8 @@ export function CreateClientWorkOrderDialog({
     address: "",
     scheduled_date: "",
     needs_scheduling: false,
+    is_labor_hours: false,
+    is_after_hours: false,
   });
   const { toast } = useToast();
 
