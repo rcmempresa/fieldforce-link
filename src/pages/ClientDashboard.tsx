@@ -37,6 +37,7 @@ interface WorkOrderWithDetails extends WorkOrder {
   time_entries: {
     duration_hours: number | null;
     start_time: string;
+    work_regime?: string | null;
   }[];
 }
 
@@ -119,7 +120,7 @@ export default function ClientDashboard() {
           user_id,
           profiles!work_order_assignments_user_id_fkey(name)
         ),
-        time_entries(duration_hours, start_time)
+        time_entries(duration_hours, start_time, work_regime)
       `)
       .eq("client_id", user.id)
       .order("scheduled_date", { ascending: true });
@@ -294,9 +295,21 @@ export default function ClientDashboard() {
         .map(te => ({
           date: new Date(te.start_time),
           hours: Number(te.duration_hours) || 0,
+          regime: entryRegime(te),
         }))
     );
   }, [allWorkOrders]);
+
+  // Labor vs post-labor hours for the calendar month
+  const regimeHoursForMonth = useMemo(() => {
+    const monthStart = startOfMonth(calendarMonth);
+    const monthEnd = endOfMonth(calendarMonth);
+    const entries = timeEntryHoursByStartDate.filter(e => e.date >= monthStart && e.date <= monthEnd);
+    return {
+      labor: entries.filter(e => e.regime === "labor").reduce((s, e) => s + e.hours, 0),
+      after: entries.filter(e => e.regime === "after").reduce((s, e) => s + e.hours, 0),
+    };
+  }, [timeEntryHoursByStartDate, calendarMonth]);
 
   // Calculate total hours for the calendar month (based on the real work date)
   const totalHoursForMonth = useMemo(() => {
