@@ -538,6 +538,28 @@ export function CompleteWorkOrderDialog({
               </div>
             )}
 
+            {hasActiveSession && (
+              <div className="space-y-2">
+                <Label>Regime desta sessão *</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant={endRegime === "labor" ? "default" : "outline"}
+                    onClick={() => setEndRegime("labor")}
+                  >
+                    Laboral
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={endRegime === "after" ? "default" : "outline"}
+                    onClick={() => setEndRegime("after")}
+                  >
+                    Pós-laboral
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="note-session">Notas (opcional)</Label>
               <Textarea
