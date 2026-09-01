@@ -114,12 +114,12 @@ export default function EmployeeDashboard() {
       // Get active time entries for in_progress orders
       const { data: activeTimeEntries } = await supabase
         .from("time_entries")
-        .select("id, work_order_id, start_time")
+        .select("id, work_order_id, start_time, work_regime")
         .eq("user_id", user.id)
         .is("end_time", null);
 
       const activeTimeEntriesMap = new Map(
-        activeTimeEntries?.map(entry => [entry.work_order_id, { id: entry.id, start_time: entry.start_time }]) || []
+        activeTimeEntries?.map(entry => [entry.work_order_id, { id: entry.id, start_time: entry.start_time, work_regime: (entry as any).work_regime }]) || []
       );
 
       // Get all work order IDs that have been started at least once (have any time entries)
