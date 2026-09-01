@@ -1,29 +1,17 @@
+# Verificação: bloqueio de edição de horas em OTs concluídas
 
-## Problema
+## Objetivo
+Confirmar que os técnicos não conseguem alterar horas depois de a OT ser concluída (estado `completed`) ou faturada (`invoiced`).
 
-Nas estatísticas de horas de um funcionário (página **Funcionários** → botão do calendário/relógio de um funcionário) só existem três cartões: **Hoje**, **Esta Semana** e **Este Mês**. Não há nenhum sítio onde apareçam as horas dos meses anteriores, por isso o trabalho feito em Junho/Maio/Abril fica "invisível" nas estatísticas, mesmo estando registado na base de dados.
+## O que já está implementado
+- **RLS em `time_entries`**: funcionários bloqueados em INSERT/UPDATE/DELETE quando a OT está `completed` ou `invoiced`; gerente mantém acesso total.
+- **UI (`EmployeeDashboard` + `EditTimeEntriesDialog`)**: em OTs concluídas, o diálogo abre em modo leitura (`readOnly`), sem botões de editar/remover, com aviso a indicar que deve contactar o gerente.
 
-Confirmei na BD que existem registos de tempo em todos os meses (Jan → Jul 2026). Os dados estão lá; o ecrã é que não os mostra.
+## Passos de verificação
+1. Abrir o código e confirmar que o modo `readOnly` é ativado apenas para funcionários (o gerente deve continuar a conseguir editar).
+2. Testar no preview com um funcionário: abrir uma OT concluída e verificar que não há botões de edição.
+3. Simular um UPDATE direto via API com sessão de funcionário numa OT concluída e confirmar que a base de dados recusa (proteção real, não só visual).
+4. Confirmar que o gerente continua a conseguir corrigir horas em OTs concluídas.
 
-Na página **Clientes** já existe um separador "Mensal" com os últimos 12 meses — vou replicar essa mesma lógica na página **Funcionários**.
-
-## O que vai mudar
-
-Na página `/employees`, no diálogo de cada funcionário:
-
-1. Passa a haver um novo separador **"Mensal"** ao lado de "Resumo" e "Por OT".
-2. Esse separador lista as horas trabalhadas pelo funcionário nos **últimos 12 meses**, um mês por linha (ex.: "junho de 2026 — 40h"), ordenados do mais recente para o mais antigo, escondendo meses sem horas.
-3. No separador "Resumo" adiciona-se ainda um cartão **"Total (últimos 12 meses)"** para ter a soma acumulada visível.
-
-O agrupamento continua a usar a data real de execução (`start_time` do registo de tempo), consistente com o resto da app.
-
-## Alterações técnicas
-
-- `src/pages/Employees.tsx`
-  - Estender o tipo `HoursStats` com `monthlyHistory: { month: Date; hours: number; label: string }[]`.
-  - Em `fetchEmployeeHours`, após o loop existente, construir um mapa dos últimos 12 meses (`subMonths(now, i)` com `i` de 0 a 11) e acumular `duration_hours` por `format(start_time, 'yyyy-MM')`.
-  - Guardar o array ordenado desc no `hoursStats`.
-  - No JSX: mudar `TabsList` para `grid-cols-3`, adicionar `TabsTrigger value="monthly"` e `TabsContent` correspondente (mesmo estilo do que existe em `src/pages/Clients.tsx` linhas 898-923).
-  - Adicionar o cartão "Total (últimos 12 meses)" no separador "Resumo".
-
-Nenhuma alteração à base de dados, RLS, ou a outras páginas.
+## Correções (se necessário)
+Se algum passo falhar, ajustar a policy RLS ou a condição de `readOnly` no dashboard do funcionário.
