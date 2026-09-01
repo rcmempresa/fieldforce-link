@@ -81,7 +81,7 @@ export async function generateWorkOrderPDF(
 
   
   // Client Information
-  let sectionY = descEndY + 30;
+  let sectionY = descEndY + 38;
   doc.setFont("helvetica", "bold");
   doc.text("Informações do Cliente:", 20, sectionY);
   
