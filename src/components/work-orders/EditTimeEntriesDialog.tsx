@@ -49,6 +49,7 @@ export function EditTimeEntriesDialog({
   const [deleteEntryId, setDeleteEntryId] = useState<string | null>(null);
   const [editHours, setEditHours] = useState("");
   const [editNote, setEditNote] = useState("");
+  const [woRegime, setWoRegime] = useState<WoRegime | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
