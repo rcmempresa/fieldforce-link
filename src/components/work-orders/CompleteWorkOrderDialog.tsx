@@ -7,7 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import SignatureCanvas from "react-signature-canvas";
 import { generateWorkOrderPDF, uploadWorkOrderPDF } from "@/lib/generateWorkOrderPDF";
-import { entryRegime } from "@/lib/workRegime";
+import { entryRegime, regimeLabel, WorkRegime } from "@/lib/workRegime";
+import { formatHours } from "@/lib/formatHours";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, UserCheck, CheckCircle, Package } from "lucide-react";
