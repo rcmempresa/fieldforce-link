@@ -4,6 +4,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Calendar, User, Clock, FileText, Users, Plus, X, Wrench, Package, MapPin, Play, Pause, Circle } from "lucide-react";
+import { entryRegime } from "@/lib/workRegime";
 import { formatHoursDetailed } from "@/lib/formatHours";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -74,6 +75,8 @@ interface EmployeeHours {
   user_id: string;
   name: string;
   hours: number;
+  laborHours: number;
+  afterHours: number;
   status: "active" | "paused" | "new";
 }
 
@@ -142,6 +145,8 @@ export default function WorkOrderDetails() {
         user_id,
         duration_hours,
         end_time,
+        start_time,
+        work_regime,
         profiles!time_entries_user_id_fkey (
           name
         )
@@ -164,7 +169,7 @@ export default function WorkOrderDetails() {
 
     if (timeEntries || assignments) {
       // Group hours by employee and determine status
-      const employeeMap = new Map<string, { name: string; hours: number; hasActiveSession: boolean; hasWorked: boolean }>();
+      const employeeMap = new Map<string, { name: string; hours: number; labor: number; after: number; hasActiveSession: boolean; hasWorked: boolean }>();
 
       // Initialize with all assigned employees
       assignments?.forEach((assignment: any) => {
@@ -172,6 +177,8 @@ export default function WorkOrderDetails() {
           employeeMap.set(assignment.user_id, {
             name: assignment.profiles?.name || "N/A",
             hours: 0,
+            labor: 0,
+            after: 0,
             hasActiveSession: false,
             hasWorked: false,
           });
@@ -188,6 +195,8 @@ export default function WorkOrderDetails() {
           employeeMap.set(userId, {
             name: entry.profiles?.name || "N/A",
             hours: 0,
+            labor: 0,
+            after: 0,
             hasActiveSession: false,
             hasWorked: false,
           });
@@ -195,6 +204,8 @@ export default function WorkOrderDetails() {
 
         const existing = employeeMap.get(userId)!;
         existing.hours += hours;
+        if (entryRegime(entry) === "labor") existing.labor += hours;
+        else existing.after += hours;
         existing.hasWorked = true;
         if (isActive) {
           existing.hasActiveSession = true;
@@ -206,6 +217,8 @@ export default function WorkOrderDetails() {
           user_id,
           name: data.name,
           hours: data.hours,
+          laborHours: data.labor,
+          afterHours: data.after,
           status: data.hasActiveSession ? "active" : data.hasWorked ? "paused" : "new",
         })
       );
@@ -573,16 +586,6 @@ export default function WorkOrderDetails() {
                 >
                   {getPriorityLabel(workOrder.priority)}
                 </span>
-                {workOrder.is_labor_hours && (
-                  <span className="rounded-full px-3 py-1 text-sm font-medium bg-primary/10 text-primary">
-                    Laboral
-                  </span>
-                )}
-                {workOrder.is_after_hours && (
-                  <span className="rounded-full px-3 py-1 text-sm font-medium bg-amber-500/15 text-amber-600">
-                    Pós-laboral
-                  </span>
-                )}
               </div>
             </div>
           </CardHeader>
@@ -691,7 +694,17 @@ export default function WorkOrderDetails() {
                                 {emp.status === "active" ? "Ativo" : emp.status === "paused" ? "Pausado" : "Novo"}
                               </span>
                             </div>
-                            <span className="font-medium">{formatHoursDetailed(emp.hours)}</span>
+                            <div className="text-right">
+                              <span className="font-medium">{formatHoursDetailed(emp.hours)}</span>
+                              <div className="flex justify-end gap-1 mt-0.5">
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-success/10 text-success">
+                                  Lab: {formatHoursDetailed(emp.laborHours)}
+                                </span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-warning/10 text-warning">
+                                  Pós: {formatHoursDetailed(emp.afterHours)}
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         ))}
                       </div>
