@@ -64,6 +64,8 @@ export function EditWorkOrderDialog({
     scheduled_date: "",
     notes: "",
     address: "",
+    is_labor_hours: false,
+    is_after_hours: false,
   });
   const { toast } = useToast();
 
@@ -146,6 +148,8 @@ export function EditWorkOrderDialog({
           : "",
         notes: data.notes || "",
         address: data.address || "",
+        is_labor_hours: data.is_labor_hours ?? false,
+        is_after_hours: data.is_after_hours ?? false,
       });
     }
   };
@@ -179,6 +183,8 @@ export function EditWorkOrderDialog({
         needs_scheduling: formData.scheduled_date ? false : undefined,
         notes: formData.notes,
         address: formData.address || null,
+        is_labor_hours: formData.is_labor_hours,
+        is_after_hours: formData.is_after_hours,
       })
       .eq("id", workOrder.id);
 
