@@ -27,6 +27,8 @@ import { format, isSameDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, st
 import { pt } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { formatHours } from "@/lib/formatHours";
+import { classifyRegime } from "@/lib/workRegime";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataPagination } from "@/components/ui/data-pagination";
