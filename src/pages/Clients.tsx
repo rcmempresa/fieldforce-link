@@ -366,7 +366,7 @@ export default function Clients() {
       // Get all time entries for those work orders
       const { data: timeEntries, error: teError } = await supabase
         .from('time_entries')
-        .select('id, duration_hours, work_order_id, start_time')
+        .select('id, duration_hours, work_order_id, start_time, work_regime')
         .in('work_order_id', workOrderIds);
 
       if (teError) throw teError;
