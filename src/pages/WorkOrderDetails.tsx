@@ -45,6 +45,8 @@ interface WorkOrderDetails {
   total_hours: number;
   notes: string;
   address: string | null;
+  is_labor_hours?: boolean | null;
+  is_after_hours?: boolean | null;
   profiles: {
     name: string;
     email: string;
@@ -571,6 +573,16 @@ export default function WorkOrderDetails() {
                 >
                   {getPriorityLabel(workOrder.priority)}
                 </span>
+                {workOrder.is_labor_hours && (
+                  <span className="rounded-full px-3 py-1 text-sm font-medium bg-primary/10 text-primary">
+                    Laboral
+                  </span>
+                )}
+                {workOrder.is_after_hours && (
+                  <span className="rounded-full px-3 py-1 text-sm font-medium bg-amber-500/15 text-amber-600">
+                    Pós-laboral
+                  </span>
+                )}
               </div>
             </div>
           </CardHeader>
