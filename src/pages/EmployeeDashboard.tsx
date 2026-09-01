@@ -65,6 +65,7 @@ export default function EmployeeDashboard() {
   const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
   const [pauseDialogOpen, setPauseDialogOpen] = useState(false);
   const [editTimeEntriesDialogOpen, setEditTimeEntriesDialogOpen] = useState(false);
+  const [timeEntriesReadOnly, setTimeEntriesReadOnly] = useState(false);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<{ 
     id: string; 
     reference: string;
@@ -439,8 +440,9 @@ export default function EmployeeDashboard() {
     fetchStats();
   };
 
-  const handleEditTimeEntriesClick = (workOrderId: string, reference: string) => {
+  const handleEditTimeEntriesClick = (workOrderId: string, reference: string, readOnly = false) => {
     setSelectedWorkOrder({ id: workOrderId, reference });
+    setTimeEntriesReadOnly(readOnly);
     setEditTimeEntriesDialogOpen(true);
   };
 
@@ -939,7 +941,7 @@ export default function EmployeeDashboard() {
                             )}
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <Button size="sm" variant="outline" onClick={() => handleEditTimeEntriesClick(order.id, order.reference)}>
+                            <Button size="sm" variant="outline" onClick={() => handleEditTimeEntriesClick(order.id, order.reference, true)}>
                               <Clock className="h-3.5 w-3.5 mr-1" />
                               Ver Horas
                             </Button>
@@ -984,6 +986,7 @@ export default function EmployeeDashboard() {
             workOrderId={selectedWorkOrder.id}
             workOrderReference={selectedWorkOrder.reference}
             onUpdate={handleEditTimeEntriesUpdate}
+            readOnly={timeEntriesReadOnly}
           />
         </>
       )}

@@ -64,6 +64,8 @@ export function EditWorkOrderDialog({
     scheduled_date: "",
     notes: "",
     address: "",
+    is_labor_hours: false,
+    is_after_hours: false,
   });
   const { toast } = useToast();
 
@@ -146,6 +148,8 @@ export function EditWorkOrderDialog({
           : "",
         notes: data.notes || "",
         address: data.address || "",
+        is_labor_hours: data.is_labor_hours ?? false,
+        is_after_hours: data.is_after_hours ?? false,
       });
     }
   };
@@ -179,6 +183,8 @@ export function EditWorkOrderDialog({
         needs_scheduling: formData.scheduled_date ? false : undefined,
         notes: formData.notes,
         address: formData.address || null,
+        is_labor_hours: formData.is_labor_hours,
+        is_after_hours: formData.is_after_hours,
       })
       .eq("id", workOrder.id);
 
@@ -420,6 +426,34 @@ export function EditWorkOrderDialog({
                   <SelectItem value="high">Alta</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Regime de Trabalho</Label>
+            <div className="flex flex-wrap gap-4 rounded-lg border p-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={formData.is_labor_hours}
+                  onChange={(e) =>
+                    setFormData({ ...formData, is_labor_hours: e.target.checked })
+                  }
+                />
+                <span className="text-sm">Trabalho laboral</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={formData.is_after_hours}
+                  onChange={(e) =>
+                    setFormData({ ...formData, is_after_hours: e.target.checked })
+                  }
+                />
+                <span className="text-sm">Trabalho pós-laboral</span>
+              </label>
             </div>
           </div>
 
