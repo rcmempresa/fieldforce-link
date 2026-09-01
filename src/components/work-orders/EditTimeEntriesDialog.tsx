@@ -281,6 +281,9 @@ export function EditTimeEntriesDialog({
                             {regimeLabel(regime)}
                           </span>
                         </div>
+                        {allUsers && entry.user_name && (
+                          <p className="text-xs font-medium">Técnico: {entry.user_name}</p>
+                        )}
                         {entry.duration_hours && (
                           <p className="text-sm text-muted-foreground">
                             Duração: {formatHours(entry.duration_hours)}
