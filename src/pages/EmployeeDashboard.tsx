@@ -34,6 +34,7 @@ interface WorkOrder {
   client_name?: string;
   active_time_entry_id?: string;
   active_time_entry_start?: string;
+  active_time_entry_regime?: string | null;
   has_been_started?: boolean;
   total_hours_worked?: number;
 }
