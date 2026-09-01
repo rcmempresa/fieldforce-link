@@ -55,6 +55,7 @@ export function EditTimeEntriesDialog({
   useEffect(() => {
     if (open) {
       fetchTimeEntries();
+      fetchWoRegime();
     }
   }, [open, workOrderId]);
 
