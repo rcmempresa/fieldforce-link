@@ -10,6 +10,8 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Edit2, Trash2, Clock } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { formatHours } from "@/lib/formatHours";
+import { WorkRegime, entryRegime, regimeLabel } from "@/lib/workRegime";
 
 interface TimeEntry {
   id: string;
@@ -18,11 +20,7 @@ interface TimeEntry {
   duration_hours: number | null;
   note: string | null;
   pause_reason: string | null;
-}
-
-interface WoRegime {
-  is_labor_hours: boolean | null;
-  is_after_hours: boolean | null;
+  work_regime: WorkRegime | null;
 }
 
 interface EditTimeEntriesDialogProps {
@@ -49,13 +47,12 @@ export function EditTimeEntriesDialog({
   const [deleteEntryId, setDeleteEntryId] = useState<string | null>(null);
   const [editHours, setEditHours] = useState("");
   const [editNote, setEditNote] = useState("");
-  const [woRegime, setWoRegime] = useState<WoRegime | null>(null);
+  const [editRegime, setEditRegime] = useState<WorkRegime>("labor");
   const { toast } = useToast();
 
   useEffect(() => {
     if (open) {
       fetchTimeEntries();
-      fetchWoRegime();
     }
   }, [open, workOrderId]);
 
@@ -75,18 +72,39 @@ export function EditTimeEntriesDialog({
       return;
     }
 
-    setTimeEntries(data || []);
+    setTimeEntries((data || []) as any);
   };
 
-  const fetchWoRegime = async () => {
-    const { data, error } = await supabase
-      .from("work_orders")
-      .select("is_labor_hours, is_after_hours")
-      .eq("id", workOrderId)
-      .single();
+  const totals = timeEntries.reduce(
+    (acc, e) => {
+      const h = Number(e.duration_hours) || 0;
+      if (entryRegime(e) === "labor") acc.labor += h;
+      else acc.after += h;
+      return acc;
+    },
+    { labor: 0, after: 0 }
+  );
 
-    if (!error && data) {
-      setWoRegime(data);
+  const handleRegimeChange = async (entry: TimeEntry, regime: WorkRegime) => {
+    if (readOnly || entryRegime(entry) === regime) return;
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from("time_entries")
+        .update({ work_regime: regime } as any)
+        .eq("id", entry.id);
+      if (error) throw error;
+      await fetchTimeEntries();
+      onUpdate();
+    } catch (error) {
+      console.error("Error updating regime:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível alterar o regime desta sessão",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -94,6 +112,7 @@ export function EditTimeEntriesDialog({
     setEditingEntry(entry);
     setEditHours(entry.duration_hours?.toString() || "");
     setEditNote(entry.note || "");
+    setEditRegime(entryRegime(entry));
   };
 
   const handleSaveEdit = async () => {
@@ -121,7 +140,8 @@ export function EditTimeEntriesDialog({
           duration_hours: hours,
           end_time: endTime.toISOString(),
           note: editNote || null,
-        })
+          work_regime: editRegime,
+        } as any)
         .eq("id", editingEntry.id);
 
       if (error) throw error;
@@ -183,7 +203,7 @@ export function EditTimeEntriesDialog({
 
   const getPauseReasonLabel = (reason: string | null) => {
     if (!reason) return null;
-    
+
     const labels: Record<string, string> = {
       falta_material: "Falta de Material",
       enviado_oficina: "Enviado para a oficina",
@@ -191,7 +211,7 @@ export function EditTimeEntriesDialog({
       assinatura_gerente: "Assinatura do Gerente",
       saida_temporaria: "Vou sair, mas irei voltar",
     };
-    
+
     return labels[reason] || reason;
   };
 
@@ -201,19 +221,7 @@ export function EditTimeEntriesDialog({
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span>{readOnly ? "Horas Registadas" : "Gerenciar Horas"} - {workOrderReference}</span>
-                {woRegime?.is_labor_hours && (
-                  <span className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-medium">
-                    Laboral
-                  </span>
-                )}
-                {woRegime?.is_after_hours && (
-                  <span className="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-medium">
-                    Pós-laboral
-                  </span>
-                )}
-              </div>
+              {readOnly ? "Horas Registadas" : "Gerenciar Horas"} - {workOrderReference}
             </DialogTitle>
           </DialogHeader>
 
@@ -222,69 +230,113 @@ export function EditTimeEntriesDialog({
               Esta ordem de trabalho está fechada. As horas já não podem ser alteradas — contacte o gerente se for necessário corrigir algum registo.
             </p>
           )}
-          
-          
+
+          {timeEntries.length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border p-3 bg-success/5">
+                <p className="text-xs text-muted-foreground">Horas laborais</p>
+                <p className="text-lg font-bold text-success">{formatHours(totals.labor)}</p>
+              </div>
+              <div className="rounded-lg border p-3 bg-warning/5">
+                <p className="text-xs text-muted-foreground">Horas pós-laborais</p>
+                <p className="text-lg font-bold text-warning">{formatHours(totals.after)}</p>
+              </div>
+            </div>
+          )}
+
           {timeEntries.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
               Nenhuma entrada de tempo registrada
             </p>
           ) : (
             <div className="space-y-3">
-              {timeEntries.map((entry) => (
-                <div key={entry.id} className="rounded-lg border p-4 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm font-medium">
-                          {format(new Date(entry.start_time), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                          {entry.end_time && ` - ${format(new Date(entry.end_time), "HH:mm", { locale: ptBR })}`}
-                        </span>
+              {timeEntries.map((entry) => {
+                const regime = entryRegime(entry);
+                return (
+                  <div key={entry.id} className="rounded-lg border p-4 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">
+                            {format(new Date(entry.start_time), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                            {entry.end_time && ` - ${format(new Date(entry.end_time), "HH:mm", { locale: ptBR })}`}
+                          </span>
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                              regime === "labor"
+                                ? "bg-success/10 text-success"
+                                : "bg-warning/10 text-warning"
+                            }`}
+                          >
+                            {regimeLabel(regime)}
+                          </span>
+                        </div>
+                        {entry.duration_hours && (
+                          <p className="text-sm text-muted-foreground">
+                            Duração: {formatHours(entry.duration_hours)}
+                          </p>
+                        )}
+                        {!entry.end_time && (
+                          <p className="text-sm text-primary font-medium">
+                            Em andamento
+                          </p>
+                        )}
+                        {entry.pause_reason && (
+                          <p className="text-xs text-warning">
+                            Pausado: {getPauseReasonLabel(entry.pause_reason)}
+                          </p>
+                        )}
+                        {entry.note && (
+                          <p className="text-xs text-muted-foreground">
+                            Nota: {entry.note}
+                          </p>
+                        )}
+                        {!readOnly && (
+                          <div className="flex items-center gap-2 pt-1">
+                            <Button
+                              size="sm"
+                              variant={regime === "labor" ? "default" : "outline"}
+                              disabled={loading}
+                              onClick={() => handleRegimeChange(entry, "labor")}
+                            >
+                              Laboral
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={regime === "after" ? "default" : "outline"}
+                              disabled={loading}
+                              onClick={() => handleRegimeChange(entry, "after")}
+                            >
+                              Pós-laboral
+                            </Button>
+                          </div>
+                        )}
                       </div>
-                      {entry.duration_hours && (
-                        <p className="text-sm text-muted-foreground">
-                          Duração: {entry.duration_hours.toFixed(2)}h
-                        </p>
-                      )}
-                      {!entry.end_time && (
-                        <p className="text-sm text-primary font-medium">
-                          Em andamento
-                        </p>
-                      )}
-                      {entry.pause_reason && (
-                        <p className="text-xs text-warning">
-                          Pausado: {getPauseReasonLabel(entry.pause_reason)}
-                        </p>
-                      )}
-                      {entry.note && (
-                        <p className="text-xs text-muted-foreground">
-                          Nota: {entry.note}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {entry.end_time && !readOnly && (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEditClick(entry)}
-                          >
-                            <Edit2 className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setDeleteEntryId(entry.id)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {entry.end_time && !readOnly && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEditClick(entry)}
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setDeleteEntryId(entry.id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </DialogContent>
@@ -308,6 +360,25 @@ export function EditTimeEntriesDialog({
                 value={editHours}
                 onChange={(e) => setEditHours(e.target.value)}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Regime de trabalho *</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={editRegime === "labor" ? "default" : "outline"}
+                  onClick={() => setEditRegime("labor")}
+                >
+                  Laboral
+                </Button>
+                <Button
+                  type="button"
+                  variant={editRegime === "after" ? "default" : "outline"}
+                  onClick={() => setEditRegime("after")}
+                >
+                  Pós-laboral
+                </Button>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-note">Notas</Label>
