@@ -323,6 +323,15 @@ export function CompleteWorkOrderDialog({
       // Generate signature image
       const signatureDataUrl = signatureRef.current!.toDataURL();
 
+      // Split hours by work regime (laboral / pós-laboral)
+      let laborHours = 0;
+      let afterHours = 0;
+      for (const entry of allTimeEntries || []) {
+        const h = (entry as any).duration_hours || 0;
+        if (classifyRegime(workOrder, (entry as any).start_time) === "labor") laborHours += h;
+        else afterHours += h;
+      }
+
       // Generate PDF with work order details
       const pdfBlob = await generateWorkOrderPDF(
         {
@@ -339,7 +348,12 @@ export function CompleteWorkOrderDialog({
           total_hours: workOrder.total_hours,
           created_at: workOrder.created_at,
           completed_at: now.toISOString(),
+          is_labor_hours: (workOrder as any).is_labor_hours ?? null,
+          is_after_hours: (workOrder as any).is_after_hours ?? null,
+          labor_hours_worked: laborHours,
+          after_hours_worked: afterHours,
         },
+
         signatureDataUrl,
         employeeHoursList,
         totalHoursWorked,
