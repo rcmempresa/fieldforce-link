@@ -104,6 +104,8 @@ export function CreateClientWorkOrderDialog({
         address: formData.address || null,
         scheduled_date: formData.needs_scheduling ? null : (formData.scheduled_date || null),
         needs_scheduling: formData.needs_scheduling,
+        is_labor_hours: formData.is_labor_hours,
+        is_after_hours: formData.is_after_hours,
         created_by: user.id,
         status: "awaiting_approval" as const,
       })
