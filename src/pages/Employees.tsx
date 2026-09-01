@@ -343,11 +343,14 @@ export default function Employees() {
       const workOrderHours: { [key: string]: { hours: number; reference: string; title: string } } = {};
 
       // Últimos 12 meses (inclui atual)
-      const monthlyHoursMap: { [key: string]: number } = {};
+      const monthlyHoursMap: { [key: string]: { hours: number; labor: number; after: number } } = {};
       for (let i = 0; i < 12; i++) {
         const md = subMonths(now, i);
-        monthlyHoursMap[format(md, 'yyyy-MM')] = 0;
+        monthlyHoursMap[format(md, 'yyyy-MM')] = { hours: 0, labor: 0, after: 0 };
       }
+
+      let totalLabor = 0;
+      let totalAfter = 0;
 
       data?.forEach((entry: any) => {
         // Agrupa pelas horas REAIS de execução (start_time da entrada),
@@ -355,6 +358,9 @@ export default function Employees() {
         // do funcionário e cobrimos OTs sem scheduled_date.
         const workDate = entry.start_time ? new Date(entry.start_time) : null;
         const hours = Number(entry.duration_hours) || 0;
+        const regime = classifyRegime(entry.work_orders, entry.start_time);
+
+        if (regime === 'labor') totalLabor += hours; else totalAfter += hours;
 
         if (workDate) {
           if (workDate >= todayStart && workDate <= todayEnd) {
@@ -368,7 +374,9 @@ export default function Employees() {
           }
           const mKey = format(workDate, 'yyyy-MM');
           if (monthlyHoursMap[mKey] !== undefined) {
-            monthlyHoursMap[mKey] += hours;
+            monthlyHoursMap[mKey].hours += hours;
+            if (regime === 'labor') monthlyHoursMap[mKey].labor += hours;
+            else monthlyHoursMap[mKey].after += hours;
           }
         }
 
@@ -384,10 +392,10 @@ export default function Employees() {
       });
 
       const monthlyHistory = Object.entries(monthlyHoursMap)
-        .map(([key, hours]) => {
+        .map(([key, v]) => {
           const [y, m] = key.split('-');
           const md = new Date(parseInt(y), parseInt(m) - 1, 1);
-          return { month: md, hours, label: format(md, "MMMM 'de' yyyy", { locale: pt }) };
+          return { month: md, hours: v.hours, labor: v.labor, after: v.after, label: format(md, "MMMM 'de' yyyy", { locale: pt }) };
         })
         .sort((a, b) => b.month.getTime() - a.month.getTime());
 
@@ -397,7 +405,10 @@ export default function Employees() {
         thisMonth: monthHours,
         byWorkOrder: workOrderHours,
         monthlyHistory,
+        totalLabor,
+        totalAfter,
       });
+
     } catch (error) {
       console.error('Error fetching employee hours:', error);
       toast({
