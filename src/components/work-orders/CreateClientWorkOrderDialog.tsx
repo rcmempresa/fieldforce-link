@@ -302,6 +302,30 @@ export function CreateClientWorkOrderDialog({
             </label>
           </div>
 
+          <div className="space-y-2">
+            <Label>Regime de Trabalho</Label>
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.is_labor_hours}
+                  onChange={(e) => setFormData({ ...formData, is_labor_hours: e.target.checked })}
+                  className="h-4 w-4"
+                />
+                <span className="text-sm">Trabalho laboral</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.is_after_hours}
+                  onChange={(e) => setFormData({ ...formData, is_after_hours: e.target.checked })}
+                  className="h-4 w-4"
+                />
+                <span className="text-sm">Trabalho pós-laboral</span>
+              </label>
+            </div>
+          </div>
+
           {equipments.length > 0 && (
             <div className="space-y-2">
               <Label>Equipamentos Relacionados</Label>
