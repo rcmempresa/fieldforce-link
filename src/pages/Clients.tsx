@@ -27,6 +27,8 @@ import { format, isSameDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, st
 import { pt } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { formatHours } from "@/lib/formatHours";
+import { classifyRegime } from "@/lib/workRegime";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataPagination } from "@/components/ui/data-pagination";
@@ -67,6 +69,8 @@ interface WorkOrder {
 interface MonthlyHours {
   month: Date;
   hours: number;
+  labor: number;
+  after: number;
   label: string;
 }
 
@@ -76,7 +80,10 @@ interface HoursStats {
   thisMonth: number;
   monthlyHistory: MonthlyHours[];
   byWorkOrder: { [key: string]: { hours: number; reference: string; title: string } };
+  totalLabor: number;
+  totalAfter: number;
 }
+
 
 export default function Clients() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -334,7 +341,7 @@ export default function Clients() {
       // Get all work orders for this client with scheduled_date
       const { data: workOrders, error: woError } = await supabase
         .from('work_orders')
-        .select('id, reference, title, scheduled_date, total_hours')
+        .select('id, reference, title, scheduled_date, total_hours, is_labor_hours, is_after_hours')
         .eq('client_id', clientId);
 
       if (woError) throw woError;
@@ -346,6 +353,9 @@ export default function Clients() {
           thisMonth: 0,
           monthlyHistory: [],
           byWorkOrder: {},
+          totalLabor: 0,
+          totalAfter: 0,
+
         });
         setLoadingHours(false);
         return;
@@ -375,15 +385,17 @@ export default function Clients() {
       const workOrderHours: { [key: string]: { hours: number; reference: string; title: string } } = {};
       
       // Track hours by month (last 12 months)
-      const monthlyHoursMap: { [key: string]: number } = {};
+      const monthlyHoursMap: { [key: string]: { hours: number; labor: number; after: number } } = {};
       for (let i = 0; i < 12; i++) {
         const monthDate = subMonths(now, i);
         const key = format(monthDate, 'yyyy-MM');
-        monthlyHoursMap[key] = 0;
+        monthlyHoursMap[key] = { hours: 0, labor: 0, after: 0 };
       }
 
+      const woById: { [key: string]: any } = {};
       // Initialize workOrderHours with all work orders
       workOrders.forEach(wo => {
+        woById[wo.id] = wo;
         workOrderHours[wo.id] = {
           hours: 0,
           reference: wo.reference || 'N/A',
@@ -391,12 +403,13 @@ export default function Clients() {
         };
       });
 
+      let totalLabor = 0;
+      let totalAfter = 0;
+
       // Aggregate time entry hours per work order
-      const hoursPerWO: { [key: string]: number } = {};
       timeEntries?.forEach((entry: any) => {
         const hours = Number(entry.duration_hours) || 0;
         const woId = entry.work_order_id;
-        hoursPerWO[woId] = (hoursPerWO[woId] || 0) + hours;
         if (workOrderHours[woId]) {
           workOrderHours[woId].hours += hours;
         }
@@ -410,6 +423,8 @@ export default function Clients() {
         if (hours === 0 || !entry.start_time) return;
 
         const workDate = new Date(entry.start_time);
+        const regime = classifyRegime(woById[entry.work_order_id], entry.start_time);
+        if (regime === 'labor') totalLabor += hours; else totalAfter += hours;
 
         if (workDate >= todayStart && workDate <= todayEnd) {
           todayHours += hours;
@@ -423,18 +438,22 @@ export default function Clients() {
 
         const monthKey = format(workDate, 'yyyy-MM');
         if (monthlyHoursMap[monthKey] !== undefined) {
-          monthlyHoursMap[monthKey] += hours;
+          monthlyHoursMap[monthKey].hours += hours;
+          if (regime === 'labor') monthlyHoursMap[monthKey].labor += hours;
+          else monthlyHoursMap[monthKey].after += hours;
         }
       });
 
       // Convert monthly hours map to array
       const monthlyHistory: MonthlyHours[] = Object.entries(monthlyHoursMap)
-        .map(([key, hours]) => {
+        .map(([key, v]) => {
           const [year, month] = key.split('-');
           const monthDate = new Date(parseInt(year), parseInt(month) - 1, 1);
           return {
             month: monthDate,
-            hours,
+            hours: v.hours,
+            labor: v.labor,
+            after: v.after,
             label: format(monthDate, "MMMM 'de' yyyy", { locale: pt }),
           };
         })
@@ -454,7 +473,10 @@ export default function Clients() {
         thisMonth: monthHours,
         monthlyHistory,
         byWorkOrder: filteredWorkOrderHours,
+        totalLabor,
+        totalAfter,
       });
+
     } catch (error) {
       console.error('Error fetching client hours:', error);
       toast({
@@ -872,6 +894,29 @@ export default function Clients() {
                           )?.hours || 0).toFixed(1)}h
                         </p>
                       </div>
+
+                      {/* Laboral vs Pós-laboral */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="rounded-lg border p-4 bg-success/5">
+                          <p className="text-sm text-muted-foreground mb-1">Horas laborais</p>
+                          <p className="text-2xl font-bold text-success">
+                            {formatHours(hoursStats.monthlyHistory.find(m => isSameMonth(m.month, calendarMonth))?.labor || 0)}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Total 12 meses: {formatHours(hoursStats.totalLabor ?? 0)}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border p-4 bg-warning/5">
+                          <p className="text-sm text-muted-foreground mb-1">Horas pós-laborais</p>
+                          <p className="text-2xl font-bold text-warning">
+                            {formatHours(hoursStats.monthlyHistory.find(m => isSameMonth(m.month, calendarMonth))?.after || 0)}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Total 12 meses: {formatHours(hoursStats.totalAfter ?? 0)}
+                          </p>
+                        </div>
+                      </div>
+
 
                       {/* Quick stats for current period */}
                       {isSameMonth(calendarMonth, new Date()) && (

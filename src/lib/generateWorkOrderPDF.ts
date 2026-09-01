@@ -20,7 +20,12 @@ interface WorkOrderData {
   total_hours: number | null;
   created_at: string;
   completed_at: string;
+  is_labor_hours?: boolean | null;
+  is_after_hours?: boolean | null;
+  labor_hours_worked?: number;
+  after_hours_worked?: number;
 }
+
 
 function formatDecimalHoursToTime(decimalHours: number): string {
   const totalMinutes = Math.round(decimalHours * 60);
@@ -69,9 +74,14 @@ export async function generateWorkOrderPDF(
   doc.text(`Tipo de Serviço: ${workOrderData.service_type}`, 20, descEndY + 2);
   doc.text(`Prioridade: ${workOrderData.priority}`, 20, descEndY + 10);
   doc.text(`Status: Concluída`, 20, descEndY + 18);
+  const regimeLabels: string[] = [];
+  if (workOrderData.is_labor_hours) regimeLabels.push("Laboral");
+  if (workOrderData.is_after_hours) regimeLabels.push("Pós-laboral");
+  doc.text(`Regime: ${regimeLabels.length ? regimeLabels.join(" + ") : "Não definido"}`, 20, descEndY + 26);
+
   
   // Client Information
-  let sectionY = descEndY + 30;
+  let sectionY = descEndY + 38;
   doc.setFont("helvetica", "bold");
   doc.text("Informações do Cliente:", 20, sectionY);
   
@@ -95,6 +105,17 @@ export async function generateWorkOrderPDF(
   doc.setFont("helvetica", "bold");
   doc.text(`Total: ${formatDecimalHoursToTime(totalHoursWorked)}`, 20, empY + 2);
   empY += 10;
+
+  doc.setFont("helvetica", "normal");
+  const laborWorked = workOrderData.labor_hours_worked ?? 0;
+  const afterWorked = workOrderData.after_hours_worked ?? 0;
+  if (laborWorked > 0 || afterWorked > 0) {
+    doc.text(`Horas laborais: ${formatDecimalHoursToTime(laborWorked)}`, 25, empY);
+    empY += 7;
+    doc.text(`Horas pós-laborais: ${formatDecimalHoursToTime(afterWorked)}`, 25, empY);
+    empY += 10;
+  }
+
   
   doc.setFont("helvetica", "normal");
   doc.text(`Data de conclusão: ${new Date(workOrderData.completed_at).toLocaleString("pt-BR")}`, 20, empY);
