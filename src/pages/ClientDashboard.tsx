@@ -16,6 +16,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format, isSameDay, startOfMonth, endOfMonth, isSameMonth, startOfWeek, endOfWeek, startOfYear, endOfYear } from "date-fns";
 import { pt } from "date-fns/locale";
 import { formatHours } from "@/lib/formatHours";
+import { entryRegime, regimeLabel } from "@/lib/workRegime";
 import { ClientExtraEmails } from "@/components/clients/ClientExtraEmails";
 
 interface WorkOrder {
