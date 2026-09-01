@@ -65,19 +65,23 @@ export function EditTimeEntriesDialog({
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("time_entries")
-      .select("*")
-      .eq("work_order_id", workOrderId)
-      .eq("user_id", user.id)
-      .order("start_time", { ascending: false });
+      .select("*, profiles!time_entries_user_id_fkey (name)")
+      .eq("work_order_id", workOrderId);
+
+    if (!allUsers) query = query.eq("user_id", user.id);
+
+    const { data, error } = await query.order("start_time", { ascending: false });
 
     if (error) {
       console.error("Error fetching time entries:", error);
       return;
     }
 
-    setTimeEntries((data || []) as any);
+    setTimeEntries(
+      (data || []).map((e: any) => ({ ...e, user_name: e.profiles?.name })) as any
+    );
   };
 
   const totals = timeEntries.reduce(
