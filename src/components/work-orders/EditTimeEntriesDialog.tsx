@@ -20,6 +20,11 @@ interface TimeEntry {
   pause_reason: string | null;
 }
 
+interface WoRegime {
+  is_labor_hours: boolean | null;
+  is_after_hours: boolean | null;
+}
+
 interface EditTimeEntriesDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
