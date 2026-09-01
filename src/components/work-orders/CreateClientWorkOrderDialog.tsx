@@ -49,8 +49,6 @@ export function CreateClientWorkOrderDialog({
     address: "",
     scheduled_date: "",
     needs_scheduling: false,
-    is_labor_hours: false,
-    is_after_hours: false,
   });
   const { toast } = useToast();
 
@@ -104,8 +102,6 @@ export function CreateClientWorkOrderDialog({
         address: formData.address || null,
         scheduled_date: formData.needs_scheduling ? null : (formData.scheduled_date || null),
         needs_scheduling: formData.needs_scheduling,
-        is_labor_hours: formData.is_labor_hours,
-        is_after_hours: formData.is_after_hours,
         created_by: user.id,
         status: "awaiting_approval" as const,
       })
@@ -188,8 +184,6 @@ export function CreateClientWorkOrderDialog({
       address: "",
       scheduled_date: "",
       needs_scheduling: false,
-      is_labor_hours: false,
-      is_after_hours: false,
     });
     onOpenChange(false);
     onSuccess();
@@ -302,29 +296,6 @@ export function CreateClientWorkOrderDialog({
             </label>
           </div>
 
-          <div className="space-y-2">
-            <Label>Regime de Trabalho</Label>
-            <div className="flex flex-col gap-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.is_labor_hours}
-                  onChange={(e) => setFormData({ ...formData, is_labor_hours: e.target.checked })}
-                  className="h-4 w-4"
-                />
-                <span className="text-sm">Trabalho laboral</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.is_after_hours}
-                  onChange={(e) => setFormData({ ...formData, is_after_hours: e.target.checked })}
-                  className="h-4 w-4"
-                />
-                <span className="text-sm">Trabalho pós-laboral</span>
-              </label>
-            </div>
-          </div>
 
           {equipments.length > 0 && (
             <div className="space-y-2">
