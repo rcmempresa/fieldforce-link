@@ -20,6 +20,7 @@ import { WorkOrderAttachments } from "@/components/work-orders/WorkOrderAttachme
 import { MaintenanceReportsList } from "@/components/work-orders/MaintenanceReportsList";
 import { EquipmentAttachments } from "@/components/equipments/EquipmentAttachments";
 import { WorkOrderMaterials } from "@/components/work-orders/WorkOrderMaterials";
+import { EditTimeEntriesDialog } from "@/components/work-orders/EditTimeEntriesDialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   AlertDialog,
