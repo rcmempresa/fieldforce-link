@@ -926,6 +926,20 @@ export default function WorkOrderDetails() {
         />
       )}
 
+      {workOrder && (
+        <CompleteWorkOrderDialog
+          open={completeOpen}
+          onOpenChange={setCompleteOpen}
+          workOrderId={id!}
+          workOrderReference={workOrder.reference || ""}
+          onComplete={() => {
+            setCompleteOpen(false);
+            fetchWorkOrderDetails();
+            fetchEmployeeHours();
+          }}
+        />
+      )}
+
 
 
       <AlertDialog
