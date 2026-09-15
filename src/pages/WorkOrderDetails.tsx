@@ -21,6 +21,8 @@ import { MaintenanceReportsList } from "@/components/work-orders/MaintenanceRepo
 import { EquipmentAttachments } from "@/components/equipments/EquipmentAttachments";
 import { WorkOrderMaterials } from "@/components/work-orders/WorkOrderMaterials";
 import { EditTimeEntriesDialog } from "@/components/work-orders/EditTimeEntriesDialog";
+import { CompleteWorkOrderDialog } from "@/components/work-orders/CompleteWorkOrderDialog";
+import { CheckCircle } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   AlertDialog,
@@ -109,6 +111,11 @@ export default function WorkOrderDetails() {
   // Individual hours per employee
   const [employeeHours, setEmployeeHours] = useState<EmployeeHours[]>([]);
   const [manageHoursOpen, setManageHoursOpen] = useState(false);
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const canComplete =
+    (isManager || roles.includes("employee")) &&
+    !!workOrder &&
+    !["completed", "invoiced", "cancelled"].includes(workOrder.status);
 
   useEffect(() => {
     fetchWorkOrderDetails();
@@ -559,10 +566,19 @@ export default function WorkOrderDetails() {
   return (
     <DashboardLayout title="Detalhes da Ordem">
       <div className="space-y-6">
-        <Button variant="ghost" onClick={() => navigate("/work-orders")}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Voltar
-        </Button>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Button variant="ghost" onClick={() => navigate("/work-orders")}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Voltar
+          </Button>
+          {canComplete && (
+            <Button onClick={() => setCompleteOpen(true)}>
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Concluir OT
+            </Button>
+          )}
+        </div>
+
 
         <Card>
           <CardHeader>
@@ -907,6 +923,20 @@ export default function WorkOrderDetails() {
             fetchEmployeeHours();
           }}
           allUsers
+        />
+      )}
+
+      {workOrder && (
+        <CompleteWorkOrderDialog
+          open={completeOpen}
+          onOpenChange={setCompleteOpen}
+          workOrderId={id!}
+          workOrderReference={workOrder.reference || ""}
+          onComplete={() => {
+            setCompleteOpen(false);
+            fetchWorkOrderDetails();
+            fetchEmployeeHours();
+          }}
         />
       )}
 
