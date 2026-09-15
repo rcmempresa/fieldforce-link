@@ -566,10 +566,19 @@ export default function WorkOrderDetails() {
   return (
     <DashboardLayout title="Detalhes da Ordem">
       <div className="space-y-6">
-        <Button variant="ghost" onClick={() => navigate("/work-orders")}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Voltar
-        </Button>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Button variant="ghost" onClick={() => navigate("/work-orders")}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Voltar
+          </Button>
+          {canComplete && (
+            <Button onClick={() => setCompleteOpen(true)}>
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Concluir OT
+            </Button>
+          )}
+        </div>
+
 
         <Card>
           <CardHeader>
