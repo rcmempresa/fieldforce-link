@@ -21,6 +21,8 @@ import { MaintenanceReportsList } from "@/components/work-orders/MaintenanceRepo
 import { EquipmentAttachments } from "@/components/equipments/EquipmentAttachments";
 import { WorkOrderMaterials } from "@/components/work-orders/WorkOrderMaterials";
 import { EditTimeEntriesDialog } from "@/components/work-orders/EditTimeEntriesDialog";
+import { CompleteWorkOrderDialog } from "@/components/work-orders/CompleteWorkOrderDialog";
+import { CheckCircle } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   AlertDialog,
@@ -109,6 +111,11 @@ export default function WorkOrderDetails() {
   // Individual hours per employee
   const [employeeHours, setEmployeeHours] = useState<EmployeeHours[]>([]);
   const [manageHoursOpen, setManageHoursOpen] = useState(false);
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const canComplete =
+    (isManager || roles.includes("employee")) &&
+    !!workOrder &&
+    !["completed", "invoiced", "cancelled"].includes(workOrder.status);
 
   useEffect(() => {
     fetchWorkOrderDetails();
