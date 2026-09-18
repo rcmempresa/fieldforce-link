@@ -19,7 +19,7 @@ export type Database = {
           filename: string
           id: string
           uploaded_at: string
-          uploaded_by: string
+          uploaded_by: string | null
           url: string
           work_order_id: string
         }
@@ -27,7 +27,7 @@ export type Database = {
           filename: string
           id?: string
           uploaded_at?: string
-          uploaded_by: string
+          uploaded_by?: string | null
           url: string
           work_order_id: string
         }
@@ -35,7 +35,7 @@ export type Database = {
           filename?: string
           id?: string
           uploaded_at?: string
-          uploaded_by?: string
+          uploaded_by?: string | null
           url?: string
           work_order_id?: string
         }
@@ -178,7 +178,7 @@ export type Database = {
           filename: string
           id: string
           uploaded_at: string
-          uploaded_by: string
+          uploaded_by: string | null
           url: string
         }
         Insert: {
@@ -186,7 +186,7 @@ export type Database = {
           filename: string
           id?: string
           uploaded_at?: string
-          uploaded_by: string
+          uploaded_by?: string | null
           url: string
         }
         Update: {
@@ -194,7 +194,7 @@ export type Database = {
           filename?: string
           id?: string
           uploaded_at?: string
-          uploaded_by?: string
+          uploaded_by?: string | null
           url?: string
         }
         Relationships: [
@@ -296,7 +296,7 @@ export type Database = {
           building: string | null
           checklist_items: Json | null
           created_at: string | null
-          created_by: string
+          created_by: string | null
           designation: string | null
           designation_serial: string | null
           end_time: string | null
@@ -329,7 +329,7 @@ export type Database = {
           building?: string | null
           checklist_items?: Json | null
           created_at?: string | null
-          created_by: string
+          created_by?: string | null
           designation?: string | null
           designation_serial?: string | null
           end_time?: string | null
@@ -362,7 +362,7 @@ export type Database = {
           building?: string | null
           checklist_items?: Json | null
           created_at?: string | null
-          created_by?: string
+          created_by?: string | null
           designation?: string | null
           designation_serial?: string | null
           end_time?: string | null
@@ -604,21 +604,21 @@ export type Database = {
       work_order_assignments: {
         Row: {
           assigned_at: string
-          assigned_by: string
+          assigned_by: string | null
           id: string
           user_id: string
           work_order_id: string
         }
         Insert: {
           assigned_at?: string
-          assigned_by: string
+          assigned_by?: string | null
           id?: string
           user_id: string
           work_order_id: string
         }
         Update: {
           assigned_at?: string
-          assigned_by?: string
+          assigned_by?: string | null
           id?: string
           user_id?: string
           work_order_id?: string
@@ -686,7 +686,7 @@ export type Database = {
       work_order_materials: {
         Row: {
           created_at: string
-          created_by: string
+          created_by: string | null
           description: string
           id: string
           quantity: number
@@ -695,7 +695,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          created_by: string
+          created_by?: string | null
           description: string
           id?: string
           quantity?: number
@@ -704,7 +704,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           description?: string
           id?: string
           quantity?: number
@@ -733,7 +733,7 @@ export type Database = {
           address: string | null
           client_id: string
           created_at: string
-          created_by: string
+          created_by: string | null
           description: string | null
           id: string
           is_after_hours: boolean
@@ -753,7 +753,7 @@ export type Database = {
           address?: string | null
           client_id: string
           created_at?: string
-          created_by: string
+          created_by?: string | null
           description?: string | null
           id?: string
           is_after_hours?: boolean
@@ -773,7 +773,7 @@ export type Database = {
           address?: string | null
           client_id?: string
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           is_after_hours?: boolean
