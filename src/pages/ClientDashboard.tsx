@@ -8,6 +8,7 @@ import { ClipboardList, Wrench, CheckCircle, Plus, Pencil, Trash2, Clock, User, 
 import { supabase } from "@/integrations/supabase/client";
 import { CreateEquipmentDialog } from "@/components/equipments/CreateEquipmentDialog";
 import { EditEquipmentDialog } from "@/components/equipments/EditEquipmentDialog";
+import { EquipmentHistory } from "@/components/equipments/EquipmentHistory";
 import { CreateClientWorkOrderDialog } from "@/components/work-orders/CreateClientWorkOrderDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
