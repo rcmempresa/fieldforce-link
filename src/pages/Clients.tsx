@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Mail, Phone, Trash2, Edit, Building2, MapPin, Package, ChevronDown, ChevronUp, Plus, CalendarIcon, Briefcase, ArrowLeft, Clock, ChevronLeft, ChevronRight } from "lucide-react";
 import { EquipmentAttachments } from "@/components/equipments/EquipmentAttachments";
+import { EquipmentHistory } from "@/components/equipments/EquipmentHistory";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CreateEmployeeDialog } from "@/components/employees/CreateEmployeeDialog";
@@ -803,6 +804,9 @@ export default function Clients() {
                                         <Trash2 className="h-4 w-4 text-destructive" />
                                       </Button>
                                      </div>
+                                   </div>
+                                   <div className="mt-4">
+                                     <EquipmentHistory equipmentId={equipment.id} />
                                    </div>
                                    {currentUserId && (
                                      <div className="mt-4">
