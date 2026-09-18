@@ -804,6 +804,9 @@ export default function Clients() {
                                       </Button>
                                      </div>
                                    </div>
+                                   <div className="mt-4">
+                                     <EquipmentHistory equipmentId={equipment.id} />
+                                   </div>
                                    {currentUserId && (
                                      <div className="mt-4">
                             <EquipmentAttachments 
