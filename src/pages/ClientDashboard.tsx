@@ -774,6 +774,9 @@ export default function ClientDashboard() {
                             Eliminar
                           </Button>
                         </div>
+                        <div className="pt-2">
+                          <EquipmentHistory equipmentId={equipment.id} />
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
