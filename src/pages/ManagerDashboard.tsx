@@ -20,6 +20,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Notifications } from "@/components/Notifications";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
 import { SlotDateTimePicker } from "@/components/work-orders/SlotDateTimePicker";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -103,6 +116,8 @@ export default function ManagerDashboard() {
   const [recentOrders, setRecentOrders] = useState<WorkOrder[]>([]);
   const [calendarOrders, setCalendarOrders] = useState<WorkOrder[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [clientHours, setClientHours] = useState<{ name: string; hours: number }[]>([]);
+  const [serviceCounts, setServiceCounts] = useState<{ name: string; count: number }[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
