@@ -1229,6 +1229,7 @@ export default function ManagerDashboard() {
         </div>
 
         {/* Quick Actions */}
+        <h3 className="text-lg font-semibold tracking-tight">Acesso Rápido</h3>
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="hover:shadow-md transition-all duration-300 cursor-pointer" onClick={() => navigate("/work-orders")}>
             <CardHeader className="pb-3">
