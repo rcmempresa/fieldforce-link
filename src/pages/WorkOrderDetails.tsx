@@ -1,3 +1,4 @@
+import { formatDate, formatDateTime } from "@/lib/formatDate";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -652,7 +653,7 @@ export default function WorkOrderDetails() {
                   <div>
                     <p className="text-sm font-medium">Data Criada</p>
                     <p className="text-sm text-muted-foreground">
-                      {new Date(workOrder.created_at).toLocaleString()}
+                      {formatDateTime(workOrder.created_at)}
                     </p>
                   </div>
                 </div>
@@ -663,7 +664,7 @@ export default function WorkOrderDetails() {
                     <div>
                       <p className="text-sm font-medium">Data Agendada</p>
                       <p className="text-sm text-muted-foreground">
-                        {new Date(workOrder.scheduled_date).toLocaleString()}
+                        {formatDateTime(workOrder.scheduled_date)}
                       </p>
                     </div>
                   </div>
@@ -828,7 +829,7 @@ export default function WorkOrderDetails() {
                       <div>
                         <p className="font-medium text-sm">{assignment.profiles?.name || 'N/A'}</p>
                         <p className="text-xs text-muted-foreground">
-                          Atribuído em: {new Date(assignment.assigned_at).toLocaleString()}
+                          Atribuído em: {formatDateTime(assignment.assigned_at)}
                         </p>
                       </div>
                       <Button

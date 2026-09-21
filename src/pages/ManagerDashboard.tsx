@@ -1,3 +1,4 @@
+import { formatDate, formatDateTime } from "@/lib/formatDate";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -1069,7 +1070,7 @@ export default function ManagerDashboard() {
         <Notifications />
 
         {/* KPI Strip — most important glance metrics */}
-        <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-7">
           <Card className="bg-gradient-to-br from-orange-500/10 to-background border-orange-500/30 hover:shadow-md transition-all">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-1">
@@ -1124,7 +1125,7 @@ export default function ManagerDashboard() {
               <div className="text-2xl font-bold text-accent">{stats.completed}</div>
             </CardContent>
           </Card>
-          <Card className="hover:shadow-md transition-all">
+          <Card className="hover:shadow-md transition-all cursor-pointer" onClick={() => navigate("/employees")}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-medium text-muted-foreground">Equipa / Clientes</span>
@@ -1229,62 +1230,25 @@ export default function ManagerDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <h3 className="text-lg font-semibold tracking-tight">Acesso Rápido</h3>
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="hover:shadow-md transition-all duration-300 cursor-pointer" onClick={() => navigate("/work-orders")}>
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <ClipboardList className="h-5 w-5 text-primary" />
-                </div>
-                <CardTitle className="text-base">Ordens de Trabalho</CardTitle>
-              </div>
-            </CardHeader>
-          </Card>
-          
-          <Card className="hover:shadow-md transition-all duration-300 cursor-pointer" onClick={() => navigate("/employees")}>
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Users className="h-5 w-5 text-primary" />
-                </div>
-                <CardTitle className="text-base">Funcionários</CardTitle>
-              </div>
-            </CardHeader>
-          </Card>
-          
-          <Card className="hover:shadow-md transition-all duration-300 cursor-pointer" onClick={() => navigate("/clients")}>
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center">
-                  <Users className="h-5 w-5 text-accent" />
-                </div>
-                <CardTitle className="text-base">Clientes</CardTitle>
-              </div>
-            </CardHeader>
-          </Card>
-
-          <Card className="hover:shadow-md transition-all duration-300 cursor-pointer" onClick={() => navigate("/email-logs")}>
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-orange-500/10 flex items-center justify-center">
-                  <Mail className="h-5 w-5 text-orange-500" />
-                </div>
-                <CardTitle className="text-base">Histórico de Emails</CardTitle>
-              </div>
-            </CardHeader>
-          </Card>
-
-          <Card className="hover:shadow-md transition-all duration-300 cursor-pointer" onClick={() => navigate("/material-catalog")}>
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Package className="h-5 w-5 text-primary" />
-                </div>
-                <CardTitle className="text-base">Catálogo de Materiais</CardTitle>
-              </div>
-            </CardHeader>
-          </Card>
+        <div className="space-y-3">
+          <h3 className="text-lg font-semibold tracking-tight">Acesso Rápido</h3>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate("/work-orders")}>
+              <ClipboardList className="mr-2 h-4 w-4" /> Ordens de Trabalho
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate("/clients")}>
+              <Users className="mr-2 h-4 w-4" /> Clientes
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate("/employees")}>
+              <Users className="mr-2 h-4 w-4" /> Funcionários
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate("/material-catalog")}>
+              <Package className="mr-2 h-4 w-4" /> Catálogo de Materiais
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate("/email-logs")}>
+              <Mail className="mr-2 h-4 w-4" /> Histórico de Emails
+            </Button>
+          </div>
         </div>
 
         {/* Pending Users */}
@@ -1304,7 +1268,7 @@ export default function ManagerDashboard() {
                       <p className="font-medium">{user.name}</p>
                       <p className="text-sm text-muted-foreground">{user.email}</p>
                       <p className="text-xs text-muted-foreground">
-                        Registado em: {new Date(user.created_at).toLocaleDateString()}
+                        Registado em: {formatDate(user.created_at)}
                       </p>
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -1385,7 +1349,7 @@ export default function ManagerDashboard() {
                           </span>
                         )}
                         {request.created_at && (
-                          <span>Criado: {new Date(request.created_at).toLocaleString()}</span>
+                          <span>Criado: {formatDateTime(request.created_at)}</span>
                         )}
                       </div>
                     </div>

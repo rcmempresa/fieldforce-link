@@ -1,3 +1,4 @@
+import { formatDate, formatDateTime } from "@/lib/formatDate";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -219,7 +220,7 @@ export function EquipmentAttachments({ equipmentId, currentUserId, canEdit }: Eq
                       {attachment.filename}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {new Date(attachment.uploaded_at).toLocaleDateString("pt-BR")}
+                      {formatDate(attachment.uploaded_at)}
                     </span>
                   </div>
                 </div>

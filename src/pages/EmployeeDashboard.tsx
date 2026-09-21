@@ -1,3 +1,4 @@
+import { formatDate, formatDateTime } from "@/lib/formatDate";
 import { useState, useEffect, useMemo } from "react";
 import { entryRegime, regimeLabel, WorkRegime } from "@/lib/workRegime";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -940,7 +941,7 @@ export default function EmployeeDashboard() {
                             )}
                             {order.scheduled_date && (
                               <p className="text-xs text-muted-foreground">
-                                Agendado: {new Date(order.scheduled_date).toLocaleString("pt-BR")}
+                                Agendado: {formatDateTime(order.scheduled_date)}
                               </p>
                             )}
                             {order.total_hours_worked !== undefined && order.total_hours_worked > 0 && (
@@ -1001,7 +1002,7 @@ export default function EmployeeDashboard() {
                             )}
                             {order.scheduled_date && (
                               <p className="text-xs text-muted-foreground">
-                                Agendado: {new Date(order.scheduled_date).toLocaleString("pt-BR")}
+                                Agendado: {formatDateTime(order.scheduled_date)}
                               </p>
                             )}
                           </div>

@@ -1,3 +1,4 @@
+import { formatDate, formatDateTime } from "@/lib/formatDate";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -307,7 +308,7 @@ export default function WorkOrders() {
                       <p className="text-xs text-muted-foreground">
                         Cliente: {order.profiles.name}
                         {order.scheduled_date && (
-                          <> • Agendado: {new Date(order.scheduled_date).toLocaleString()}</>
+                          <> • Agendado: {formatDateTime(order.scheduled_date)}</>
                         )}
                       </p>
                     </div>

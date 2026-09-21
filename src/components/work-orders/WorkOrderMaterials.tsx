@@ -1,3 +1,4 @@
+import { formatDate, formatDateTime } from "@/lib/formatDate";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -275,7 +276,7 @@ export function WorkOrderMaterials({ workOrderId, canEdit, currentUserId, isMana
                   <p className="text-xs text-muted-foreground">
                     {material.quantity} {getUnitLabel(material.unit)} • Adicionado por{" "}
                     {material.profiles?.name || "N/A"} •{" "}
-                    {new Date(material.created_at).toLocaleDateString()}
+                    {formatDate(material.created_at)}
                   </p>
                 </div>
                 {canEdit && (

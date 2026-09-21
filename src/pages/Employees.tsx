@@ -1,3 +1,4 @@
+import { formatDate, formatDateTime } from "@/lib/formatDate";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -532,7 +533,7 @@ export default function Employees() {
                           <span>{employee.workOrdersCount || 0} OT atribuídas</span>
                         </div>
                        <p className="text-xs text-muted-foreground">
-                        Registado: {new Date(employee.created_at).toLocaleDateString()}
+                        Registado: {formatDate(employee.created_at)}
                       </p>
                     </div>
                     <div className="flex gap-2 justify-end sm:justify-start">
