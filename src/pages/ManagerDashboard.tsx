@@ -1070,7 +1070,7 @@ export default function ManagerDashboard() {
         <Notifications />
 
         {/* KPI Strip — most important glance metrics */}
-        <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-7">
           <Card className="bg-gradient-to-br from-orange-500/10 to-background border-orange-500/30 hover:shadow-md transition-all">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-1">
@@ -1125,7 +1125,7 @@ export default function ManagerDashboard() {
               <div className="text-2xl font-bold text-accent">{stats.completed}</div>
             </CardContent>
           </Card>
-          <Card className="hover:shadow-md transition-all">
+          <Card className="hover:shadow-md transition-all cursor-pointer" onClick={() => navigate("/employees")}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-medium text-muted-foreground">Equipa / Clientes</span>
