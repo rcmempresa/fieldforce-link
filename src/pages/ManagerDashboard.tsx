@@ -129,7 +129,55 @@ export default function ManagerDashboard() {
     fetchRecentOrders();
     fetchCalendarOrders();
     fetchEmployees();
+    fetchChartData();
   }, []);
+
+  const fetchChartData = async () => {
+    try {
+      const [{ data: wos }, { data: tes }] = await Promise.all([
+        supabase
+          .from("work_orders")
+          .select("id, client_id, service_type, profiles!work_orders_client_id_fkey(company_name, name)"),
+        supabase.from("time_entries").select("work_order_id, duration_hours"),
+      ]);
+
+      const woMap = new Map((wos || []).map((w) => [w.id, w]));
+      const hoursByClient = new Map<string, { name: string; hours: number }>();
+      (tes || []).forEach((te) => {
+        const wo = woMap.get(te.work_order_id);
+        if (!wo) return;
+        const name = wo.profiles?.company_name || wo.profiles?.name || "Desconhecido";
+        const cur = hoursByClient.get(wo.client_id) || { name, hours: 0 };
+        cur.hours += Number(te.duration_hours) || 0;
+        hoursByClient.set(wo.client_id, cur);
+      });
+      setClientHours(
+        [...hoursByClient.values()]
+          .sort((a, b) => b.hours - a.hours)
+          .slice(0, 8)
+          .map((c) => ({ name: c.name, hours: Math.round(c.hours * 100) / 100 }))
+      );
+
+      const svcLabels: Record<string, string> = {
+        repair: "Reparação",
+        maintenance: "Manutenção",
+        installation: "Instalação",
+        warranty: "Garantia",
+      };
+      const counts: Record<string, number> = {};
+      (wos || []).forEach((w) => {
+        const label = svcLabels[w.service_type as string] || (w.service_type as string) || "Outro";
+        counts[label] = (counts[label] || 0) + 1;
+      });
+      setServiceCounts(
+        Object.entries(counts)
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => b.count - a.count)
+      );
+    } catch (e) {
+      console.error("Erro ao carregar gráficos:", e);
+    }
+  };
 
   const fetchEmployees = async () => {
     try {
