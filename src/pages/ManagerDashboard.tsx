@@ -1138,6 +1138,96 @@ export default function ManagerDashboard() {
           </Card>
         </div>
 
+        {/* Estatísticas — gráficos */}
+        <div className="space-y-3">
+          <h3 className="text-lg font-semibold tracking-tight">Estatísticas</h3>
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Melhores Clientes (horas trabalhadas)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {clientHours.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-8 text-center">Sem dados de horas ainda.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={clientHours} margin={{ top: 5, right: 10, left: -10, bottom: 40 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis
+                        dataKey="name"
+                        tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                        angle={-25}
+                        textAnchor="end"
+                        interval={0}
+                      />
+                      <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                      <Tooltip
+                        formatter={(value: number) => [formatHours(value), "Horas"]}
+                        contentStyle={{
+                          backgroundColor: "hsl(var(--popover))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px",
+                          color: "hsl(var(--popover-foreground))",
+                        }}
+                      />
+                      <Bar dataKey="hours" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Serviços Mais Solicitados</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {serviceCounts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-8 text-center">Sem ordens de trabalho ainda.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <PieChart>
+                      <Pie
+                        data={serviceCounts}
+                        dataKey="count"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={90}
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        labelLine={false}
+                      >
+                        {serviceCounts.map((_, i) => (
+                          <Cell
+                            key={i}
+                            fill={[
+                              "hsl(var(--primary))",
+                              "hsl(var(--accent))",
+                              "hsl(var(--warning))",
+                              "hsl(var(--destructive))",
+                              "hsl(var(--muted-foreground))",
+                            ][i % 5]}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value: number, name: string) => [`${value} OTs`, name]}
+                        contentStyle={{
+                          backgroundColor: "hsl(var(--popover))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px",
+                          color: "hsl(var(--popover-foreground))",
+                        }}
+                      />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
         {/* Quick Actions */}
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="hover:shadow-md transition-all duration-300 cursor-pointer" onClick={() => navigate("/work-orders")}>
