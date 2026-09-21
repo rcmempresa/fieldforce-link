@@ -1,3 +1,4 @@
+import { formatDate, formatDateTime } from "@/lib/formatDate";
 import { useState, useEffect, useMemo } from "react";
 import { entryRegime, regimeLabel, WorkRegime } from "@/lib/workRegime";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -23,7 +24,6 @@ import { ptBR } from "date-fns/locale";
 import { Notifications } from "@/components/Notifications";
 import { MaintenanceReportForm } from "@/components/work-orders/MaintenanceReportForm";
 import { GeneratorReportForm } from "@/components/work-orders/GeneratorReportForm";
-import { formatDate, formatDateTime } from "@/lib/formatDate";
 
 interface WorkOrder {
   id: string;

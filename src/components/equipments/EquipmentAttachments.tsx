@@ -1,10 +1,10 @@
+import { formatDate, formatDateTime } from "@/lib/formatDate";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { FileText, Upload, Download, Trash2, Image, File } from "lucide-react";
-import { formatDate, formatDateTime } from "@/lib/formatDate";
 
 interface Attachment {
   id: string;

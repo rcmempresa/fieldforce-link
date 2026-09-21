@@ -1,3 +1,4 @@
+import { formatDate, formatDateTime } from "@/lib/formatDate";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -36,7 +37,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { getBusyEmployeeIds, getSlot, getSlotLabel, MAX_PER_SLOT } from "@/lib/employeeAvailability";
-import { formatDate, formatDateTime } from "@/lib/formatDate";
 
 interface WorkOrderDetails {
   id: string;
