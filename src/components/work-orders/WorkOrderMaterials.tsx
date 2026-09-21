@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Package, Plus, Trash2 } from "lucide-react";
 import {
+import { formatDate, formatDateTime } from "@/lib/formatDate";
   Select,
   SelectContent,
   SelectItem,
@@ -275,7 +276,7 @@ export function WorkOrderMaterials({ workOrderId, canEdit, currentUserId, isMana
                   <p className="text-xs text-muted-foreground">
                     {material.quantity} {getUnitLabel(material.unit)} • Adicionado por{" "}
                     {material.profiles?.name || "N/A"} •{" "}
-                    {new Date(material.created_at).toLocaleDateString()}
+                    {formatDate(material.created_at)}
                   </p>
                 </div>
                 {canEdit && (

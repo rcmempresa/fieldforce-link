@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useNavigate } from "react-router-dom";
+import { formatDate, formatDateTime } from "@/lib/formatDate";
 
 interface WorkOrder {
   id: string;
@@ -307,7 +308,7 @@ export default function WorkOrders() {
                       <p className="text-xs text-muted-foreground">
                         Cliente: {order.profiles.name}
                         {order.scheduled_date && (
-                          <> • Agendado: {new Date(order.scheduled_date).toLocaleString()}</>
+                          <> • Agendado: {formatDateTime(order.scheduled_date)}</>
                         )}
                       </p>
                     </div>

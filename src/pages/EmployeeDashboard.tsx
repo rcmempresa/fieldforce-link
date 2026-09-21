@@ -23,6 +23,7 @@ import { ptBR } from "date-fns/locale";
 import { Notifications } from "@/components/Notifications";
 import { MaintenanceReportForm } from "@/components/work-orders/MaintenanceReportForm";
 import { GeneratorReportForm } from "@/components/work-orders/GeneratorReportForm";
+import { formatDate, formatDateTime } from "@/lib/formatDate";
 
 interface WorkOrder {
   id: string;
@@ -940,7 +941,7 @@ export default function EmployeeDashboard() {
                             )}
                             {order.scheduled_date && (
                               <p className="text-xs text-muted-foreground">
-                                Agendado: {new Date(order.scheduled_date).toLocaleString("pt-BR")}
+                                Agendado: {formatDateTime(order.scheduled_date)}
                               </p>
                             )}
                             {order.total_hours_worked !== undefined && order.total_hours_worked > 0 && (
@@ -1001,7 +1002,7 @@ export default function EmployeeDashboard() {
                             )}
                             {order.scheduled_date && (
                               <p className="text-xs text-muted-foreground">
-                                Agendado: {new Date(order.scheduled_date).toLocaleString("pt-BR")}
+                                Agendado: {formatDateTime(order.scheduled_date)}
                               </p>
                             )}
                           </div>

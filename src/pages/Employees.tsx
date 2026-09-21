@@ -19,6 +19,7 @@ import { formatHours } from "@/lib/formatHours";
 import { entryRegime } from "@/lib/workRegime";
 
 import {
+import { formatDate, formatDateTime } from "@/lib/formatDate";
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -532,7 +533,7 @@ export default function Employees() {
                           <span>{employee.workOrdersCount || 0} OT atribuídas</span>
                         </div>
                        <p className="text-xs text-muted-foreground">
-                        Registado: {new Date(employee.created_at).toLocaleDateString()}
+                        Registado: {formatDate(employee.created_at)}
                       </p>
                     </div>
                     <div className="flex gap-2 justify-end sm:justify-start">

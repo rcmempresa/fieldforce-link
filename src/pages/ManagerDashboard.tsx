@@ -46,6 +46,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+import { formatDate, formatDateTime } from "@/lib/formatDate";
   getBusyEmployeeIds,
   getSlot,
   getSlotLabel,
@@ -1304,7 +1305,7 @@ export default function ManagerDashboard() {
                       <p className="font-medium">{user.name}</p>
                       <p className="text-sm text-muted-foreground">{user.email}</p>
                       <p className="text-xs text-muted-foreground">
-                        Registado em: {new Date(user.created_at).toLocaleDateString()}
+                        Registado em: {formatDate(user.created_at)}
                       </p>
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -1385,7 +1386,7 @@ export default function ManagerDashboard() {
                           </span>
                         )}
                         {request.created_at && (
-                          <span>Criado: {new Date(request.created_at).toLocaleString()}</span>
+                          <span>Criado: {formatDateTime(request.created_at)}</span>
                         )}
                       </div>
                     </div>

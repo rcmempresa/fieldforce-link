@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { FileText, Upload, Download, Trash2, Image, File } from "lucide-react";
+import { formatDate, formatDateTime } from "@/lib/formatDate";
 
 interface Attachment {
   id: string;
@@ -219,7 +220,7 @@ export function EquipmentAttachments({ equipmentId, currentUserId, canEdit }: Eq
                       {attachment.filename}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {new Date(attachment.uploaded_at).toLocaleDateString("pt-BR")}
+                      {formatDate(attachment.uploaded_at)}
                     </span>
                   </div>
                 </div>

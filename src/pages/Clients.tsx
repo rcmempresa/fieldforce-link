@@ -33,6 +33,7 @@ import { entryRegime } from "@/lib/workRegime";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataPagination } from "@/components/ui/data-pagination";
+import { formatDate, formatDateTime } from "@/lib/formatDate";
 
 interface Equipment {
   id: string;
@@ -656,7 +657,7 @@ export default function Clients() {
                             )}
                           </div>
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-muted-foreground pt-2 border-t">
-                            <span>Registado: {new Date(client.created_at).toLocaleDateString()}</span>
+                            <span>Registado: {formatDate(client.created_at)}</span>
                             {client.equipments && client.equipments.length > 0 && (
                               <div className="flex items-center gap-1">
                                 <Package className="h-3 w-3" />
