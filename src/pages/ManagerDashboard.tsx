@@ -20,6 +20,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Notifications } from "@/components/Notifications";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
 import { SlotDateTimePicker } from "@/components/work-orders/SlotDateTimePicker";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -103,6 +116,8 @@ export default function ManagerDashboard() {
   const [recentOrders, setRecentOrders] = useState<WorkOrder[]>([]);
   const [calendarOrders, setCalendarOrders] = useState<WorkOrder[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [clientHours, setClientHours] = useState<{ name: string; hours: number }[]>([]);
+  const [serviceCounts, setServiceCounts] = useState<{ name: string; count: number }[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -114,7 +129,55 @@ export default function ManagerDashboard() {
     fetchRecentOrders();
     fetchCalendarOrders();
     fetchEmployees();
+    fetchChartData();
   }, []);
+
+  const fetchChartData = async () => {
+    try {
+      const [{ data: wos }, { data: tes }] = await Promise.all([
+        supabase
+          .from("work_orders")
+          .select("id, client_id, service_type, profiles!work_orders_client_id_fkey(company_name, name)"),
+        supabase.from("time_entries").select("work_order_id, duration_hours"),
+      ]);
+
+      const woMap = new Map((wos || []).map((w) => [w.id, w]));
+      const hoursByClient = new Map<string, { name: string; hours: number }>();
+      (tes || []).forEach((te) => {
+        const wo = woMap.get(te.work_order_id);
+        if (!wo) return;
+        const name = wo.profiles?.company_name || wo.profiles?.name || "Desconhecido";
+        const cur = hoursByClient.get(wo.client_id) || { name, hours: 0 };
+        cur.hours += Number(te.duration_hours) || 0;
+        hoursByClient.set(wo.client_id, cur);
+      });
+      setClientHours(
+        [...hoursByClient.values()]
+          .sort((a, b) => b.hours - a.hours)
+          .slice(0, 8)
+          .map((c) => ({ name: c.name, hours: Math.round(c.hours * 100) / 100 }))
+      );
+
+      const svcLabels: Record<string, string> = {
+        repair: "Reparação",
+        maintenance: "Manutenção",
+        installation: "Instalação",
+        warranty: "Garantia",
+      };
+      const counts: Record<string, number> = {};
+      (wos || []).forEach((w) => {
+        const label = svcLabels[w.service_type as string] || (w.service_type as string) || "Outro";
+        counts[label] = (counts[label] || 0) + 1;
+      });
+      setServiceCounts(
+        Object.entries(counts)
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => b.count - a.count)
+      );
+    } catch (e) {
+      console.error("Erro ao carregar gráficos:", e);
+    }
+  };
 
   const fetchEmployees = async () => {
     try {
@@ -1075,7 +1138,98 @@ export default function ManagerDashboard() {
           </Card>
         </div>
 
+        {/* Estatísticas — gráficos */}
+        <div className="space-y-3">
+          <h3 className="text-lg font-semibold tracking-tight">Estatísticas</h3>
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Melhores Clientes (horas trabalhadas)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {clientHours.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-8 text-center">Sem dados de horas ainda.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={clientHours} margin={{ top: 5, right: 10, left: -10, bottom: 40 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis
+                        dataKey="name"
+                        tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                        angle={-25}
+                        textAnchor="end"
+                        interval={0}
+                      />
+                      <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                      <Tooltip
+                        formatter={(value: number) => [formatHours(value), "Horas"]}
+                        contentStyle={{
+                          backgroundColor: "hsl(var(--popover))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px",
+                          color: "hsl(var(--popover-foreground))",
+                        }}
+                      />
+                      <Bar dataKey="hours" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Serviços Mais Solicitados</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {serviceCounts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-8 text-center">Sem ordens de trabalho ainda.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <PieChart>
+                      <Pie
+                        data={serviceCounts}
+                        dataKey="count"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={90}
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        labelLine={false}
+                      >
+                        {serviceCounts.map((_, i) => (
+                          <Cell
+                            key={i}
+                            fill={[
+                              "hsl(var(--primary))",
+                              "hsl(var(--accent))",
+                              "hsl(var(--warning))",
+                              "hsl(var(--destructive))",
+                              "hsl(var(--muted-foreground))",
+                            ][i % 5]}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value: number, name: string) => [`${value} OTs`, name]}
+                        contentStyle={{
+                          backgroundColor: "hsl(var(--popover))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px",
+                          color: "hsl(var(--popover-foreground))",
+                        }}
+                      />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
         {/* Quick Actions */}
+        <h3 className="text-lg font-semibold tracking-tight">Acesso Rápido</h3>
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="hover:shadow-md transition-all duration-300 cursor-pointer" onClick={() => navigate("/work-orders")}>
             <CardHeader className="pb-3">
