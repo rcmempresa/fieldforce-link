@@ -709,14 +709,37 @@ export default function ClientDashboard() {
                 Adicionar Equipamento
               </Button>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {equipments.length > 3 && (
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Pesquisar por nome, marca, nº de série ou localização..."
+                    value={equipmentSearch}
+                    onChange={(e) => setEquipmentSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              )}
               {equipments.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">
                   Nenhum equipamento encontrado
                 </p>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {equipments.map((equipment) => (
+                  {equipments
+                    .filter((equipment) => {
+                      const term = equipmentSearch.toLowerCase().trim();
+                      if (!term) return true;
+                      return (
+                        equipment.name.toLowerCase().includes(term) ||
+                        (equipment.brand || "").toLowerCase().includes(term) ||
+                        (equipment.model || "").toLowerCase().includes(term) ||
+                        (equipment.serial_number || "").toLowerCase().includes(term) ||
+                        (equipment.location || "").toLowerCase().includes(term)
+                      );
+                    })
+                    .map((equipment) => (
                     <Card key={equipment.id} className="shadow-sm">
                       <CardHeader className="pb-3">
                         <CardTitle className="text-base">{equipment.name}</CardTitle>
