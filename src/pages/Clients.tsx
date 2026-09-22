@@ -908,7 +908,21 @@ export default function Clients() {
         </Card>
 
         {selectedCalendarClient && (
-          <div className="space-y-6">
+          <div ref={calendarSectionRef} className="space-y-6 scroll-mt-20">
+            <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-4 py-3">
+              <h3 className="font-semibold flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                Calendário e horas — {selectedCalendarClient.company_name || selectedCalendarClient.name}
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedCalendarClient(null)}
+              >
+                <X className="h-4 w-4 mr-1" />
+                Fechar
+              </Button>
+            </div>
             {/* Hours Statistics Card */}
             <Card>
               <CardHeader>
