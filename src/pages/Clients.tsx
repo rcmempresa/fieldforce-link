@@ -1,10 +1,10 @@
 import { formatDate, formatDateTime } from "@/lib/formatDate";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Mail, Phone, Trash2, Edit, Building2, MapPin, Package, ChevronDown, ChevronUp, Plus, CalendarIcon, Briefcase, ArrowLeft, Clock, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Mail, Phone, Trash2, Edit, Building2, MapPin, Package, ChevronDown, ChevronUp, Plus, CalendarIcon, Briefcase, ArrowLeft, Clock, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { EquipmentAttachments } from "@/components/equipments/EquipmentAttachments";
 import { EquipmentHistory } from "@/components/equipments/EquipmentHistory";
 import { supabase } from "@/integrations/supabase/client";
@@ -111,13 +111,24 @@ export default function Clients() {
   const [isManager, setIsManager] = useState(false);
   const [hoursStats, setHoursStats] = useState<HoursStats | null>(null);
   const [loadingHours, setLoadingHours] = useState(false);
+  const [equipmentSearch, setEquipmentSearch] = useState<Record<string, string>>({});
   const { toast } = useToast();
   const navigate = useNavigate();
+  const calendarSectionRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     fetchClients();
     fetchCurrentUser();
   }, []);
+
+  // Quando o calendário de um cliente é aberto, subir até à secção
+  useEffect(() => {
+    if (selectedCalendarClient) {
+      setTimeout(() => {
+        calendarSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [selectedCalendarClient]);
 
   const fetchCurrentUser = async () => {
     try {
@@ -734,15 +745,49 @@ export default function Clients() {
 
                       <CollapsibleContent>
                         <div className="border-t bg-muted/30 p-4">
-                          <div className="mb-4">
+                          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                             <h4 className="font-semibold flex items-center gap-2">
                               <Package className="h-4 w-4" />
                               Equipamentos
+                              <span className="text-sm font-normal text-muted-foreground">
+                                ({client.equipments?.length || 0})
+                              </span>
                             </h4>
+                            {client.equipments && client.equipments.length > 2 && (
+                              <div className="relative sm:w-64">
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                  placeholder="Pesquisar equipamento..."
+                                  value={equipmentSearch[client.id] || ""}
+                                  onChange={(e) =>
+                                    setEquipmentSearch((prev) => ({ ...prev, [client.id]: e.target.value }))
+                                  }
+                                  className="pl-9 h-8"
+                                />
+                              </div>
+                            )}
                           </div>
                           {client.equipments && client.equipments.length > 0 ? (
-                            <div className="space-y-3">
-                              {client.equipments.map((equipment) => (
+                            (() => {
+                              const term = (equipmentSearch[client.id] || "").toLowerCase().trim();
+                              const visibleEquipments = client.equipments.filter((eq) =>
+                                !term ||
+                                eq.name.toLowerCase().includes(term) ||
+                                (eq.brand || "").toLowerCase().includes(term) ||
+                                (eq.model || "").toLowerCase().includes(term) ||
+                                (eq.serial_number || "").toLowerCase().includes(term) ||
+                                (eq.location || "").toLowerCase().includes(term)
+                              );
+                              if (visibleEquipments.length === 0) {
+                                return (
+                                  <p className="text-sm text-muted-foreground text-center py-4">
+                                    Nenhum equipamento corresponde à pesquisa
+                                  </p>
+                                );
+                              }
+                              return (
+                            <div className="grid gap-3 md:grid-cols-2">
+                              {visibleEquipments.map((equipment) => (
                                 <div
                                   key={equipment.id}
                                   className="rounded-lg bg-background p-3 shadow-sm"
@@ -819,8 +864,10 @@ export default function Clients() {
                                      </div>
                                    )}
                                  </div>
-                               ))}
-                             </div>
+                                ))}
+                            </div>
+                              );
+                            })()
                           ) : (
                             <p className="text-sm text-muted-foreground text-center py-4">
                               Nenhum equipamento registado
@@ -861,7 +908,21 @@ export default function Clients() {
         </Card>
 
         {selectedCalendarClient && (
-          <div className="space-y-6">
+          <div ref={calendarSectionRef} className="space-y-6 scroll-mt-20">
+            <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-4 py-3">
+              <h3 className="font-semibold flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                Calendário e horas — {selectedCalendarClient.company_name || selectedCalendarClient.name}
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedCalendarClient(null)}
+              >
+                <X className="h-4 w-4 mr-1" />
+                Fechar
+              </Button>
+            </div>
             {/* Hours Statistics Card */}
             <Card>
               <CardHeader>
