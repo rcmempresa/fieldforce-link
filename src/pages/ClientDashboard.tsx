@@ -14,6 +14,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { Notifications } from "@/components/Notifications";
 import { Calendar } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 import { format, isSameDay, startOfMonth, endOfMonth, isSameMonth, startOfWeek, endOfWeek, startOfYear, endOfYear } from "date-fns";
 import { pt } from "date-fns/locale";
 import { formatHours } from "@/lib/formatHours";
@@ -75,6 +77,7 @@ export default function ClientDashboard() {
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [contractedHours, setContractedHours] = useState<number | null>(null);
+  const [equipmentSearch, setEquipmentSearch] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
