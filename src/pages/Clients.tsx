@@ -745,15 +745,49 @@ export default function Clients() {
 
                       <CollapsibleContent>
                         <div className="border-t bg-muted/30 p-4">
-                          <div className="mb-4">
+                          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                             <h4 className="font-semibold flex items-center gap-2">
                               <Package className="h-4 w-4" />
                               Equipamentos
+                              <span className="text-sm font-normal text-muted-foreground">
+                                ({client.equipments?.length || 0})
+                              </span>
                             </h4>
+                            {client.equipments && client.equipments.length > 2 && (
+                              <div className="relative sm:w-64">
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                  placeholder="Pesquisar equipamento..."
+                                  value={equipmentSearch[client.id] || ""}
+                                  onChange={(e) =>
+                                    setEquipmentSearch((prev) => ({ ...prev, [client.id]: e.target.value }))
+                                  }
+                                  className="pl-9 h-8"
+                                />
+                              </div>
+                            )}
                           </div>
                           {client.equipments && client.equipments.length > 0 ? (
-                            <div className="space-y-3">
-                              {client.equipments.map((equipment) => (
+                            (() => {
+                              const term = (equipmentSearch[client.id] || "").toLowerCase().trim();
+                              const visibleEquipments = client.equipments.filter((eq) =>
+                                !term ||
+                                eq.name.toLowerCase().includes(term) ||
+                                (eq.brand || "").toLowerCase().includes(term) ||
+                                (eq.model || "").toLowerCase().includes(term) ||
+                                (eq.serial_number || "").toLowerCase().includes(term) ||
+                                (eq.location || "").toLowerCase().includes(term)
+                              );
+                              if (visibleEquipments.length === 0) {
+                                return (
+                                  <p className="text-sm text-muted-foreground text-center py-4">
+                                    Nenhum equipamento corresponde à pesquisa
+                                  </p>
+                                );
+                              }
+                              return (
+                            <div className="grid gap-3 md:grid-cols-2">
+                              {visibleEquipments.map((equipment) => (
                                 <div
                                   key={equipment.id}
                                   className="rounded-lg bg-background p-3 shadow-sm"
