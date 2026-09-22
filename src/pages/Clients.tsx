@@ -1,10 +1,10 @@
 import { formatDate, formatDateTime } from "@/lib/formatDate";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Mail, Phone, Trash2, Edit, Building2, MapPin, Package, ChevronDown, ChevronUp, Plus, CalendarIcon, Briefcase, ArrowLeft, Clock, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Mail, Phone, Trash2, Edit, Building2, MapPin, Package, ChevronDown, ChevronUp, Plus, CalendarIcon, Briefcase, ArrowLeft, Clock, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { EquipmentAttachments } from "@/components/equipments/EquipmentAttachments";
 import { EquipmentHistory } from "@/components/equipments/EquipmentHistory";
 import { supabase } from "@/integrations/supabase/client";
@@ -111,13 +111,24 @@ export default function Clients() {
   const [isManager, setIsManager] = useState(false);
   const [hoursStats, setHoursStats] = useState<HoursStats | null>(null);
   const [loadingHours, setLoadingHours] = useState(false);
+  const [equipmentSearch, setEquipmentSearch] = useState<Record<string, string>>({});
   const { toast } = useToast();
   const navigate = useNavigate();
+  const calendarSectionRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     fetchClients();
     fetchCurrentUser();
   }, []);
+
+  // Quando o calendário de um cliente é aberto, subir até à secção
+  useEffect(() => {
+    if (selectedCalendarClient) {
+      setTimeout(() => {
+        calendarSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [selectedCalendarClient]);
 
   const fetchCurrentUser = async () => {
     try {
