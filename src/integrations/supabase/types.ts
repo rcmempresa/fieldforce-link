@@ -89,6 +89,8 @@ export type Database = {
           contracted_hours: number
           created_at: string
           id: string
+          lock_when_exhausted: boolean
+          manually_unlocked: boolean
           updated_at: string
           year: number
         }
@@ -97,6 +99,8 @@ export type Database = {
           contracted_hours?: number
           created_at?: string
           id?: string
+          lock_when_exhausted?: boolean
+          manually_unlocked?: boolean
           updated_at?: string
           year: number
         }
@@ -105,6 +109,8 @@ export type Database = {
           contracted_hours?: number
           created_at?: string
           id?: string
+          lock_when_exhausted?: boolean
+          manually_unlocked?: boolean
           updated_at?: string
           year?: number
         }
@@ -811,6 +817,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_client_hours_used: {
+        Args: { _client_id: string; _year: number }
+        Returns: number
+      }
       get_user_roles: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]
@@ -823,6 +833,7 @@ export type Database = {
         Returns: boolean
       }
       is_approved: { Args: { _user_id: string }; Returns: boolean }
+      is_client_hours_locked: { Args: { _client_id: string }; Returns: boolean }
       is_first_user: { Args: never; Returns: boolean }
     }
     Enums: {
