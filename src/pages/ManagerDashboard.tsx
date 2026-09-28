@@ -36,6 +36,7 @@ import {
 } from "recharts";
 import { SlotDateTimePicker } from "@/components/work-orders/SlotDateTimePicker";
 import { Badge } from "@/components/ui/badge";
+import { ClientHourContracts } from "@/components/clients/ClientHourContracts";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1138,6 +1139,8 @@ export default function ManagerDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        <ClientHourContracts />
 
         {/* Estatísticas — gráficos */}
         <div className="space-y-3">

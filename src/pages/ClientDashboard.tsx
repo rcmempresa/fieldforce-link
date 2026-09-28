@@ -77,6 +77,7 @@ export default function ClientDashboard() {
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [contractedHours, setContractedHours] = useState<number | null>(null);
+  const [hoursLocked, setHoursLocked] = useState(false);
   const [equipmentSearch, setEquipmentSearch] = useState("");
   const { toast } = useToast();
 
@@ -182,6 +183,8 @@ export default function ClientDashboard() {
     if (data) {
       setContractedHours(Number(data.contracted_hours));
     }
+    const { data: locked } = await supabase.rpc("is_client_hours_locked" as any, { _client_id: user.id });
+    setHoursLocked(!!locked);
   };
 
   const getStatusColor = (status: string) => {
@@ -508,6 +511,11 @@ export default function ClientDashboard() {
               <p className="text-xs text-muted-foreground text-right">
                 {((totalHoursThisYear / contractedHours) * 100).toFixed(1)}% utilizado
               </p>
+              {hoursLocked && (
+                <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                  As horas contratadas estão esgotadas. Novos pedidos ficam bloqueados até o gerente desbloquear.
+                </p>
+              )}
             </CardContent>
           </Card>
         )}

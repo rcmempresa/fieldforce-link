@@ -110,9 +110,12 @@ export function CreateClientWorkOrderDialog({
 
     if (workOrderError) {
       setLoading(false);
+      const exhausted = workOrderError.message?.includes("CLIENT_HOURS_EXHAUSTED");
       toast({
-        title: "Erro",
-        description: "Erro ao criar solicitação",
+        title: exhausted ? "Horas do contrato esgotadas" : "Erro",
+        description: exhausted
+          ? "Já utilizou todas as horas contratadas este ano. Contacte o gerente para desbloquear."
+          : "Erro ao criar solicitação",
         variant: "destructive",
       });
       return;
