@@ -1,0 +1,1 @@
+- [x] Criar relatório de intervenção editável com geração de PDF.
