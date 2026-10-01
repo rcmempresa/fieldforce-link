@@ -40,7 +40,7 @@ export function CompleteWorkOrderDialog({
 }: CompleteWorkOrderDialogProps) {
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"end_session" | "complete_order">("end_session");
+  const [activeTab, setActiveTab] = useState<"end_session" | "complete_order">("complete_order");
   const [hasActiveSession, setHasActiveSession] = useState(false);
   const [otherActiveEmployees, setOtherActiveEmployees] = useState<{ name: string }[]>([]);
   const [hasMaterials, setHasMaterials] = useState<boolean | null>(null);
@@ -502,23 +502,23 @@ export function CompleteWorkOrderDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-[calc(100%-2rem)] max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Terminar Trabalho</DialogTitle>
+          <DialogTitle>Concluir OT</DialogTitle>
           <DialogDescription>
-            Escolha se quer apenas terminar a sua sessão ou concluir a ordem de trabalho completamente.
+            Conclua a ordem de trabalho ou termine apenas a sua sessão.
           </DialogDescription>
         </DialogHeader>
         
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="end_session" className="flex items-center gap-1.5 text-xs">
-              <UserCheck className="h-4 w-4" />
-              Terminar Sessão
+            <TabsTrigger value="end_session" className="flex items-center gap-1 text-xs min-w-0 px-1">
+              <UserCheck className="h-4 w-4 shrink-0" />
+              <span className="truncate">Terminar sessão</span>
             </TabsTrigger>
-            <TabsTrigger value="complete_order" className="flex items-center gap-1.5 text-xs">
-              <CheckCircle className="h-4 w-4" />
-              Concluir OT
+            <TabsTrigger value="complete_order" className="flex items-center gap-1 text-xs min-w-0 px-1">
+              <CheckCircle className="h-4 w-4 shrink-0" />
+              <span className="truncate">Concluir OT</span>
             </TabsTrigger>
           </TabsList>
 
