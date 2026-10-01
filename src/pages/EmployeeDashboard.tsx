@@ -720,8 +720,8 @@ export default function EmployeeDashboard() {
                 <div className="space-y-3">
                   {ordersForSelectedDate.map((order) => (
                     <div key={order.id} className="rounded-lg border p-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-2 min-w-0">
                           <p className="font-medium text-sm">{order.reference}</p>
                           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
                             {getStatusLabel(order.status)}
@@ -730,27 +730,27 @@ export default function EmployeeDashboard() {
                             <TimeTracker startTime={order.active_time_entry_start} className="text-xs" />
                           )}
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex flex-wrap items-center gap-1">
                           {order.status !== "completed" && order.status !== "invoiced" && order.active_time_entry_id && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handlePauseClick(order.id, order.reference, order.active_time_entry_id!)}
-                              >
-                                <Pause className="h-4 w-4 mr-1" />
-                                Pausar
-                              </Button>
-                              <Button size="sm" onClick={() => handleCompleteClick(order.id, order.reference)}>
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                Concluir
-                              </Button>
-                            </>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handlePauseClick(order.id, order.reference, order.active_time_entry_id)}
+                            >
+                              <Pause className="h-4 w-4 mr-1" />
+                              Pausar
+                            </Button>
                           )}
-                          {order.status !== "completed" && order.status !== "invoiced" && !order.active_time_entry_id && (
+                          {! ["completed", "invoiced", "cancelled"].includes(order.status) && !order.active_time_entry_id && (
                             <Button size="sm" onClick={() => openStartRegimeDialog(order.id, order.reference, order.has_been_started)}>
                               <Play className="h-4 w-4 mr-1" />
                               {order.has_been_started ? "Retomar" : "Iniciar"}
+                            </Button>
+                          )}
+                          {! ["completed", "invoiced", "cancelled"].includes(order.status) && (
+                            <Button size="sm" onClick={() => handleCompleteClick(order.id, order.reference)}>
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Concluir OT
                             </Button>
                           )}
                         </div>
@@ -902,7 +902,7 @@ export default function EmployeeDashboard() {
                             </Button>
                             <Button size="sm" onClick={() => handleCompleteClick(order.id, order.reference)}>
                               <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                              Concluir
+                              Concluir OT
                             </Button>
                             {renderReportButton(order.id, order.reference)}
                             <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
@@ -958,7 +958,7 @@ export default function EmployeeDashboard() {
                             </Button>
                             <Button size="sm" variant="secondary" onClick={() => handleCompleteClick(order.id, order.reference)}>
                               <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                              Concluir
+                              Concluir OT
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => handleEditTimeEntriesClick(order.id, order.reference)}>
                               <Clock className="h-3.5 w-3.5 mr-1" />
@@ -1011,6 +1011,12 @@ export default function EmployeeDashboard() {
                               <Play className="h-3.5 w-3.5 mr-1" />
                               Iniciar
                             </Button>
+                            {! ["completed", "invoiced", "cancelled"].includes(order.status) && (
+                              <Button size="sm" variant="secondary" onClick={() => handleCompleteClick(order.id, order.reference)}>
+                                <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                                Concluir OT
+                              </Button>
+                            )}
                             {renderReportButton(order.id, order.reference)}
                             <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
                               Detalhes
