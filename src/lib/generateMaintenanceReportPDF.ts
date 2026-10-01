@@ -265,7 +265,7 @@ export async function uploadMaintenanceReportPDF(
   reference: string,
   userId: string
 ): Promise<string> {
-  const typeMap: Record<string, string> = { electricity: "eletricidade", hvac: "climatizacao", cctv: "cctv", generator: "gerador" };
+  const typeMap: Record<string, string> = { electricity: "eletricidade", hvac: "climatizacao", cctv: "cctv", generator: "gerador", intervention: "intervencao" };
   const typeLabel2 = typeMap[reportType] || reportType;
   const fileName = `${reference}_relatorio_${typeLabel2}_${Date.now()}.pdf`;
   const filePath = `${workOrderId}/${fileName}`;

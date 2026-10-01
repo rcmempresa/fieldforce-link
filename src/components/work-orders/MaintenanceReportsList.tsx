@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Plus, Zap, Wind, Eye, Trash2, Download, Cog, Camera } from "lucide-react";
+import { FileText, Plus, Zap, Wind, Eye, Trash2, Download, Cog, Camera, FilePenLine } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MaintenanceReportForm } from "./MaintenanceReportForm";
 import { GeneratorReportForm } from "./GeneratorReportForm";
+import { InterventionReportForm } from "./InterventionReportForm";
 
 interface MaintenanceReport {
   id: string;
@@ -100,6 +101,17 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
   };
 
   if (showForm) {
+    if (newReportType === "intervention") {
+      return (
+        <InterventionReportForm
+          workOrderId={workOrderId}
+          reportId={editReportId}
+          canEdit={canEdit}
+          onClose={closeForm}
+        />
+      );
+    }
+
     if (newReportType === "generator") {
       return (
         <GeneratorReportForm
@@ -155,6 +167,10 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
                   <Camera className="h-4 w-4 mr-2 text-purple-500" />
                   CCTV
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleCreateReport("intervention")}>
+                  <FilePenLine className="h-4 w-4 mr-2 text-primary" />
+                  Intervenção
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -183,12 +199,14 @@ export function MaintenanceReportsList({ workOrderId, canEdit }: Props) {
                     <Cog className="h-5 w-5 text-emerald-600" />
                   ) : report.report_type === "cctv" ? (
                     <Camera className="h-5 w-5 text-purple-500" />
+                  ) : report.report_type === "intervention" ? (
+                    <FilePenLine className="h-5 w-5 text-primary" />
                   ) : (
                     <Wind className="h-5 w-5 text-blue-500" />
                   )}
                   <div>
                     <p className="font-medium text-sm">
-                      {report.report_type === "electricity" ? "Eletricidade" : report.report_type === "generator" ? "Grupo Gerador" : report.report_type === "cctv" ? "CCTV" : "Climatização"}
+                      {report.report_type === "electricity" ? "Eletricidade" : report.report_type === "generator" ? "Grupo Gerador" : report.report_type === "cctv" ? "CCTV" : report.report_type === "intervention" ? "Intervenção" : "Climatização"}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {report.report_date
