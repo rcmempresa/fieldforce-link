@@ -100,9 +100,11 @@ export function generateInterventionReportPDF(data: InterventionReportData): Blo
     const drawHeader = () => {
       ensureSpace(8);
       let x = margin;
-      doc.setFillColor(229, 231, 235);
       headers.forEach((header, index) => {
+        doc.setFillColor(229, 231, 235);
+        doc.setDrawColor(120, 120, 120);
         doc.rect(x, y, columnWidths[index], 8, "FD");
+        doc.setTextColor(0, 0, 0);
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.text(header, x + 1.5, y + 5, { maxWidth: columnWidths[index] - 3 });
