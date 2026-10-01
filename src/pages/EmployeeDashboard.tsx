@@ -1011,6 +1011,12 @@ export default function EmployeeDashboard() {
                               <Play className="h-3.5 w-3.5 mr-1" />
                               Iniciar
                             </Button>
+                            {! ["completed", "invoiced", "cancelled"].includes(order.status) && (
+                              <Button size="sm" variant="secondary" onClick={() => handleCompleteClick(order.id, order.reference)}>
+                                <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                                Concluir OT
+                              </Button>
+                            )}
                             {renderReportButton(order.id, order.reference)}
                             <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
                               Detalhes

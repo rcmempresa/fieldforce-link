@@ -1,2 +1,2 @@
 - [x] Criar relatório de intervenção editável com geração de PDF.
-- [ ] Tornar visível e utilizável a conclusão de OT no telemóvel.
+- [x] Tornar visível e utilizável a conclusão de OT no telemóvel.
