@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import SignatureCanvas from "react-signature-canvas";
 import { ArrowLeft, FileDown, FilePenLine, Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ReportLogoPicker } from "./ReportLogoPicker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ interface Props {
 }
 
 interface StoredInterventionData {
+  logo?: string | null;
   client?: string;
   installation?: string;
   cc?: string;
@@ -68,6 +70,7 @@ export function InterventionReportForm({ workOrderId, reportId, canEdit, onClose
   const [technicianName, setTechnicianName] = useState("");
   const [clientSignature, setClientSignature] = useState<string | null>(null);
   const [technicianSignature, setTechnicianSignature] = useState<string | null>(null);
+  const [logo, setLogo] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -107,6 +110,7 @@ export function InterventionReportForm({ workOrderId, reportId, canEdit, onClose
           const { data: report, error } = await supabase.from("maintenance_reports").select("*").eq("id", reportId).single();
           if (error) throw error;
           const stored = (report.checklist_items || {}) as unknown as StoredInterventionData;
+          setLogo(stored.logo || null);
           setReportDate(report.report_date || "");
           setClient(stored.client || clientProfile?.company_name || clientProfile?.name || "");
           setInstallation(stored.installation || report.specific_location || workOrder.address || "");
@@ -156,7 +160,7 @@ export function InterventionReportForm({ workOrderId, reportId, canEdit, onClose
       technician_signature: signatures.technician,
       supervisor_signature: signatures.client,
       materials,
-      checklist_items: { client, installation, cc, proposal, contract, equipments, serviceDescription, emmUsed, emmCode, executions, clientName },
+      checklist_items: { logo, client, installation, cc, proposal, contract, equipments, serviceDescription, emmUsed, emmCode, executions, clientName },
       status: newStatus,
       created_by: user.id,
     };
@@ -211,6 +215,7 @@ export function InterventionReportForm({ workOrderId, reportId, canEdit, onClose
         technicianName,
         clientSignature: signatures.client,
         technicianSignature: signatures.technician,
+        logo,
       });
       const path = await uploadMaintenanceReportPDF(workOrderId, blob, "intervention", workOrderReference, user.id);
       const { error } = await supabase.from("maintenance_reports").update({ pdf_url: path, status: "completed" }).eq("id", id);
@@ -242,6 +247,7 @@ export function InterventionReportForm({ workOrderId, reportId, canEdit, onClose
           <CardTitle className="flex items-center gap-2"><FilePenLine className="h-5 w-5 text-primary" />Relatório de Intervenção</CardTitle>
         </CardHeader>
         <CardContent className="space-y-8">
+          <ReportLogoPicker value={logo} onChange={setLogo} disabled={isReadOnly} onError={(message) => toast({ title: "Imagem inválida", description: message, variant: "destructive" })} />
           <section className="space-y-4">
             <h3 className="border-b pb-2 text-sm font-semibold text-primary">Identificação</h3>
             <div className="grid gap-4 md:grid-cols-2">

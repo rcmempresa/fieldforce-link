@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ReportLogoPicker } from "./ReportLogoPicker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -69,6 +70,8 @@ export function GeneratorReportForm({ workOrderId, reportId, canEdit, onClose }:
   const [supSignature, setSupSignature] = useState<string | null>(null);
   const [status, setStatus] = useState("draft");
   const [woReference, setWoReference] = useState("");
+  const [savedReportId, setSavedReportId] = useState(reportId);
+  const [logo, setLogo] = useState<string | null>(null);
 
   useEffect(() => {
     fetchWoReference();
@@ -134,6 +137,7 @@ export function GeneratorReportForm({ workOrderId, reportId, canEdit, onClose }:
 
     // Generator data is stored in checklist_items JSON alongside checklists
     const storedData = data.checklist_items as any;
+    setLogo(storedData?.logo || null);
     if (storedData?.generatorData) {
       setGeneratorData(storedData.generatorData);
     }
@@ -190,6 +194,7 @@ export function GeneratorReportForm({ workOrderId, reportId, canEdit, onClose }:
     designation_serial: null,
     checklist_items: {
       generatorData,
+      logo,
       motorChecklist,
       electricalChecklist,
     },
@@ -207,7 +212,7 @@ export function GeneratorReportForm({ workOrderId, reportId, canEdit, onClose }:
     supervisor_signature: supSignature || (supSigRef.current && !supSigRef.current.isEmpty() ? supSigRef.current.toDataURL() : null),
   });
 
-  const handleSave = async (newStatus?: string) => {
+  const handleSave = async (newStatus?: string): Promise<string | null> => {
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -216,18 +221,22 @@ export function GeneratorReportForm({ workOrderId, reportId, canEdit, onClose }:
       const formData = getFormData();
       const saveData = { ...formData, status: newStatus || status, created_by: user.id };
 
-      if (reportId) {
-        const { error } = await supabase.from("maintenance_reports").update(saveData as any).eq("id", reportId);
+      let id = savedReportId;
+      if (id) {
+        const { error } = await supabase.from("maintenance_reports").update(saveData as any).eq("id", id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("maintenance_reports").insert(saveData as any);
+        const { data, error } = await supabase.from("maintenance_reports").insert(saveData as any).select("id").single();
         if (error) throw error;
+        id = data.id;
+        setSavedReportId(id);
       }
 
-      toast({ title: "Sucesso", description: "Relatorio guardado" });
-      if (newStatus === "completed") onClose();
+      if (!newStatus) toast({ title: "Sucesso", description: "Relatorio guardado" });
+      return id;
     } catch (error: any) {
       toast({ title: "Erro", description: error.message || "Erro ao guardar", variant: "destructive" });
+      return null;
     } finally {
       setSaving(false);
     }
@@ -239,7 +248,8 @@ export function GeneratorReportForm({ workOrderId, reportId, canEdit, onClose }:
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Nao autenticado");
 
-      await handleSave("completed");
+      const id = await handleSave("completed");
+      if (!id) return;
 
       const formData = getFormData();
       const pdfBlob = generateGeneratorReportPDF({
@@ -251,16 +261,18 @@ export function GeneratorReportForm({ workOrderId, reportId, canEdit, onClose }:
         motorMeasurements,
         electricalMeasurements,
         materials,
+        logo,
       } as any);
 
       const pdfPath = await uploadMaintenanceReportPDF(
         workOrderId, pdfBlob, "generator", woReference, user.id
       );
 
-      if (reportId) {
-        await supabase.from("maintenance_reports")
+      {
+        const { error } = await supabase.from("maintenance_reports")
           .update({ pdf_url: pdfPath, status: "completed" } as any)
-          .eq("id", reportId);
+          .eq("id", id);
+        if (error) throw error;
       }
 
       toast({ title: "Sucesso", description: "PDF gerado e anexado!" });
@@ -321,6 +333,7 @@ export function GeneratorReportForm({ workOrderId, reportId, canEdit, onClose }:
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-8">
+          <ReportLogoPicker value={logo} onChange={setLogo} disabled={isReadOnly} onError={(message) => toast({ title: "Imagem inválida", description: message, variant: "destructive" })} />
           {/* Identification */}
           <section className="space-y-4">
             <h3 className="text-sm font-semibold text-primary border-b pb-2">Identificacao do Relatorio</h3>

@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { drawReportLogo } from "./reportLogo";
 
 export interface InterventionEquipment {
   model: string;
@@ -24,6 +25,7 @@ export interface InterventionExecution {
 }
 
 export interface InterventionReportData {
+  logo?: string | null;
   workOrderReference: string;
   reportDate: string;
   client: string;
@@ -136,10 +138,11 @@ export function generateInterventionReportPDF(data: InterventionReportData): Blo
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(17);
-  doc.text("NR TECH SOLUTION", margin, y + 4);
-  doc.setFontSize(14);
-  doc.text("RELATORIO DE INTERVENCAO", pageWidth - margin, y + 4, { align: "right" });
-  y += 10;
+  doc.text("NR TECH SOLUTION", data.logo ? margin + 38 : margin, y + 4);
+  drawReportLogo(doc, data.logo, margin, y, 33, 16);
+  doc.setFontSize(data.logo ? 11 : 14);
+  doc.text("RELATORIO DE INTERVENCAO", pageWidth - margin, y + (data.logo ? 13 : 4), { align: "right" });
+  y += data.logo ? 17 : 10;
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   doc.text(`ORIGINAL N. ${text(data.workOrderReference)}`, pageWidth - margin, y, { align: "right" });

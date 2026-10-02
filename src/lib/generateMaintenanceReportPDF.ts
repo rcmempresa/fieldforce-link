@@ -1,8 +1,10 @@
 import { jsPDF } from "jspdf";
+import { drawReportLogo } from "./reportLogo";
 import { supabase } from "@/integrations/supabase/client";
 import type { ChecklistItem, Measurement, Material } from "./maintenanceReportDefaults";
 
 interface ReportData {
+  logo?: string | null;
   report_type: string;
   report_date: string | null;
   technician_name: string | null;
@@ -77,12 +79,13 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
   const title = `Folha de Manutencao - ${typeLabel}`;
-  doc.text(title, pageWidth / 2, y, { align: "center" });
+  doc.text(title, data.logo ? pageWidth - margin : pageWidth / 2, y, { align: data.logo ? "right" : "center" });
+  drawReportLogo(doc, data.logo, margin, 10, 35, 18);
   y += 6;
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(100, 100, 100);
-  doc.text(`OT: ${data.work_order_reference}`, pageWidth / 2, y, { align: "center" });
+  doc.text(`OT: ${data.work_order_reference}`, data.logo ? pageWidth - margin : pageWidth / 2, y, { align: data.logo ? "right" : "center" });
   doc.setTextColor(0, 0, 0);
   y += 10;
 
