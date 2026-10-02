@@ -1,2 +1,3 @@
 - [x] Criar relatório de intervenção editável com geração de PDF.
 - [x] Tornar visível e utilizável a conclusão de OT no telemóvel.
+- [ ] Permitir escolher e guardar um logótipo por relatório e mostrá-lo no PDF.
