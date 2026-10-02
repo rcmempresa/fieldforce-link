@@ -80,7 +80,11 @@ export function generateGeneratorReportPDF(data: GeneratorReportData): Blob {
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.text(`Grupo Gerador: ${data.generatorData.brand || ""} ${data.generatorData.model || ""}`, data.logo ? margin + 39 : margin, 19);
-  drawReportLogo(doc, data.logo, margin, 4, 34, 20);
+  if (data.logo) {
+    doc.setFillColor(255, 255, 255);
+    doc.rect(margin, 4, 34, 20, "F");
+    drawReportLogo(doc, data.logo, margin, 4, 34, 20);
+  }
   // Badge
   doc.setFillColor(200, 50, 50);
   doc.roundedRect(pageWidth - 45, 6, 30, 8, 2, 2, "F");
