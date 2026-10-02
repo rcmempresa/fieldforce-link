@@ -36,12 +36,8 @@ export function ReportLogoPicker({ value, onChange, disabled, onError }: Props) 
         canvas.height = Math.max(1, Math.round(image.height * scale));
         const context = canvas.getContext('2d');
         if (!context) throw new Error('canvas');
-        if (file.type !== 'image/png') {
-          context.fillStyle = '#ffffff';
-          context.fillRect(0, 0, canvas.width, canvas.height);
-        }
         context.drawImage(image, 0, 0, canvas.width, canvas.height);
-        onChange(canvas.toDataURL(file.type === 'image/png' ? 'image/png' : 'image/jpeg', 0.82));
+        onChange(canvas.toDataURL(file.type === 'image/jpeg' ? 'image/jpeg' : 'image/png', 0.82));
       } finally {
         URL.revokeObjectURL(source);
       }

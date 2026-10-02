@@ -68,6 +68,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
   const [supSignature, setSupSignature] = useState<string | null>(null);
   const [status, setStatus] = useState("draft");
   const [woReference, setWoReference] = useState("");
+  const [savedReportId, setSavedReportId] = useState(reportId);
   const [logo, setLogo] = useState<string | null>(null);
 
   useEffect(() => {
@@ -182,7 +183,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
     supervisor_signature: supSignature || (supSigRef.current && !supSigRef.current.isEmpty() ? supSigRef.current.toDataURL() : null),
   });
 
-  const handleSave = async (newStatus?: string) => {
+  const handleSave = async (newStatus?: string): Promise<string | null> => {
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -195,26 +196,28 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
         created_by: user.id,
       };
 
-      if (reportId) {
+      let id = savedReportId;
+      if (id) {
         const { error } = await supabase
           .from("maintenance_reports")
           .update(saveData as any)
-          .eq("id", reportId);
+          .eq("id", id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("maintenance_reports")
-          .insert(saveData as any);
+          .insert(saveData as any).select("id").single();
         if (error) throw error;
+        id = data.id;
+        setSavedReportId(id);
       }
 
-      toast({ title: "Sucesso", description: "Relatório guardado" });
-      if (newStatus === "completed") {
-        onClose();
-      }
+      if (!newStatus) toast({ title: "Sucesso", description: "Relatório guardado" });
+      return id;
     } catch (error: any) {
       console.error("Save error:", error);
       toast({ title: "Erro", description: error.message || "Erro ao guardar", variant: "destructive" });
+      return null;
     } finally {
       setSaving(false);
     }
@@ -227,7 +230,8 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
       if (!user) throw new Error("Não autenticado");
 
       // Save first
-      await handleSave("completed");
+      const id = await handleSave("completed");
+      if (!id) return;
 
       const formData = getFormData();
       const pdfBlob = generateMaintenanceReportPDF({
@@ -248,11 +252,12 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
       );
 
       // Update report with PDF URL
-      if (reportId) {
-        await supabase
+      {
+        const { error } = await supabase
           .from("maintenance_reports")
           .update({ pdf_url: pdfPath, status: "completed" } as any)
-          .eq("id", reportId);
+          .eq("id", id);
+        if (error) throw error;
       }
 
       toast({ title: "Sucesso", description: "PDF gerado e anexado à ordem de trabalho!" });
