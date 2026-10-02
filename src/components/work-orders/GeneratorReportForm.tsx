@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ReportLogoPicker } from "./ReportLogoPicker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -69,6 +70,7 @@ export function GeneratorReportForm({ workOrderId, reportId, canEdit, onClose }:
   const [supSignature, setSupSignature] = useState<string | null>(null);
   const [status, setStatus] = useState("draft");
   const [woReference, setWoReference] = useState("");
+  const [logo, setLogo] = useState<string | null>(null);
 
   useEffect(() => {
     fetchWoReference();
@@ -134,6 +136,7 @@ export function GeneratorReportForm({ workOrderId, reportId, canEdit, onClose }:
 
     // Generator data is stored in checklist_items JSON alongside checklists
     const storedData = data.checklist_items as any;
+    setLogo(storedData?.logo || null);
     if (storedData?.generatorData) {
       setGeneratorData(storedData.generatorData);
     }
@@ -190,6 +193,7 @@ export function GeneratorReportForm({ workOrderId, reportId, canEdit, onClose }:
     designation_serial: null,
     checklist_items: {
       generatorData,
+      logo,
       motorChecklist,
       electricalChecklist,
     },
@@ -251,6 +255,7 @@ export function GeneratorReportForm({ workOrderId, reportId, canEdit, onClose }:
         motorMeasurements,
         electricalMeasurements,
         materials,
+        logo,
       } as any);
 
       const pdfPath = await uploadMaintenanceReportPDF(
@@ -321,6 +326,7 @@ export function GeneratorReportForm({ workOrderId, reportId, canEdit, onClose }:
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-8">
+          <ReportLogoPicker value={logo} onChange={setLogo} disabled={isReadOnly} onError={(message) => toast({ title: "Imagem inválida", description: message, variant: "destructive" })} />
           {/* Identification */}
           <section className="space-y-4">
             <h3 className="text-sm font-semibold text-primary border-b pb-2">Identificacao do Relatorio</h3>

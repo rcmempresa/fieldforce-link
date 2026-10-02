@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ReportLogoPicker } from "./ReportLogoPicker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -67,6 +68,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
   const [supSignature, setSupSignature] = useState<string | null>(null);
   const [status, setStatus] = useState("draft");
   const [woReference, setWoReference] = useState("");
+  const [logo, setLogo] = useState<string | null>(null);
 
   useEffect(() => {
     fetchWoReference();
@@ -136,7 +138,9 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
     setEquipmentSerial(data.equipment_serial || "");
     setDesignation(data.designation || "");
     setDesignationSerial(data.designation_serial || "");
-    setChecklist((data.checklist_items as any) || []);
+    const storedChecklist = data.checklist_items as any;
+    setChecklist(Array.isArray(storedChecklist) ? storedChecklist : storedChecklist?.items || []);
+    setLogo(Array.isArray(storedChecklist) ? null : storedChecklist?.logo || null);
     setMeasurements((data.measurements as any) || []);
     setMaterials((data.materials as any) || []);
     setGeneralObservations(data.general_observations || "");
@@ -166,7 +170,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
     equipment_serial: equipmentSerial || null,
     designation: designation || null,
     designation_serial: designationSerial || null,
-    checklist_items: checklist,
+    checklist_items: { items: checklist, logo },
     measurements: measurements,
     materials: materials,
     general_observations: generalObservations || null,
@@ -232,6 +236,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
         checklist_items: checklist,
         measurements: measurements,
         materials: materials,
+        logo,
       } as any);
 
       const pdfPath = await uploadMaintenanceReportPDF(
@@ -316,6 +321,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-8">
+          <ReportLogoPicker value={logo} onChange={setLogo} disabled={isReadOnly} onError={(message) => toast({ title: "Imagem inválida", description: message, variant: "destructive" })} />
           {/* Identification */}
           <section className="space-y-4">
             <h3 className="text-sm font-semibold text-primary border-b pb-2">📋 Identificação do Relatório</h3>
