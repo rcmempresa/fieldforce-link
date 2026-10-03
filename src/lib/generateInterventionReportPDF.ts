@@ -137,8 +137,6 @@ export function generateInterventionReportPDF(data: InterventionReportData): Blo
   };
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(17);
-  doc.text("NR TECH SOLUTION", data.logo ? margin + 38 : margin, y + 4);
   drawReportLogo(doc, data.logo, margin, y, 33, 16);
   doc.setFontSize(data.logo ? 11 : 14);
   doc.text("RELATORIO DE INTERVENCAO", pageWidth - margin, y + (data.logo ? 13 : 4), { align: "right" });
