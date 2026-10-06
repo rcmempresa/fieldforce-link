@@ -97,7 +97,6 @@ export default function ManagerDashboard() {
   const [pendingRequests, setPendingRequests] = useState<WorkOrder[]>([]);
   const [pendingScheduling, setPendingScheduling] = useState<WorkOrder[]>([]);
   const [unassignedOrders, setUnassignedOrders] = useState<WorkOrder[]>([]);
-  const UNASSIGNED_PAGE_SIZE = 5;
   const [schedulingDates, setSchedulingDates] = useState<Record<string, string>>({});
   const [orderTechs, setOrderTechs] = useState<Record<string, string[]>>({});
   const [busyByOrder, setBusyByOrder] = useState<Record<string, Set<string>>>({});
