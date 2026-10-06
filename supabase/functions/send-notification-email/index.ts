@@ -672,35 +672,51 @@ const handler = async (req: Request): Promise<Response> => {
         throw new Error("Invalid notification type");
     }
 
-    // Handle PDF attachment for completed work orders
+    // Handle PDF attachments for completed work orders (OT sheet + maintenance reports)
     let attachments: any[] | undefined;
-    if (type === "work_order_completed" && data.pdfUrl) {
-      try {
-        console.log("Downloading PDF from storage:", data.pdfUrl);
-        
-        const urlParts = data.pdfUrl.split('/work-order-attachments/');
-        const filePath = urlParts[1];
-        
-        const { data: pdfData, error: downloadError } = await supabaseAdmin.storage
-          .from("work-order-attachments")
-          .download(filePath);
-
-        if (downloadError) {
-          console.error("Error downloading PDF:", downloadError);
-        } else if (pdfData) {
-          const buffer = await pdfData.arrayBuffer();
-          const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-          
-          attachments = [{
-            content: base64,
-            filename: `${data.workOrderReference}_concluido.pdf`,
-          }];
-          
-          console.log("PDF attached to email successfully");
+    if (type === "work_order_completed") {
+      const toBase64 = (buf: ArrayBuffer) => {
+        const bytes = new Uint8Array(buf);
+        let bin = "";
+        for (let i = 0; i < bytes.length; i += 0x8000) {
+          bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
         }
-      } catch (pdfError) {
-        console.error("Error processing PDF attachment:", pdfError);
+        return btoa(bin);
+      };
+      const toPath = (url: string) => {
+        const p = url.includes("/work-order-attachments/") ? url.split("/work-order-attachments/")[1] : url;
+        return decodeURIComponent(p.split("?")[0]);
+      };
+      const files: Array<{ path: string; filename: string }> = [];
+      if (data.pdfUrl) files.push({ path: toPath(data.pdfUrl), filename: `${data.workOrderReference}_concluido.pdf` });
+      if (workOrderId) {
+        const { data: reports } = await supabaseAdmin
+          .from("maintenance_reports")
+          .select("pdf_url")
+          .eq("work_order_id", workOrderId)
+          .not("pdf_url", "is", null);
+        (reports || []).forEach((r: any) => {
+          const path = toPath(r.pdf_url);
+          files.push({ path, filename: path.split("/").pop() || "relatorio.pdf" });
+        });
       }
+      attachments = [];
+      for (const f of files) {
+        try {
+          const { data: pdfData, error: downloadError } = await supabaseAdmin.storage
+            .from("work-order-attachments")
+            .download(f.path);
+          if (downloadError || !pdfData) {
+            console.error("Error downloading PDF:", f.path, downloadError);
+            continue;
+          }
+          attachments.push({ content: toBase64(await pdfData.arrayBuffer()), filename: f.filename });
+        } catch (pdfError) {
+          console.error("Error processing PDF attachment:", pdfError);
+        }
+      }
+      console.log(`Attached ${attachments.length} PDF(s)`);
+      if (!attachments.length) attachments = undefined;
     }
 
     // Build full recipient list: primary email + any extra emails registered
