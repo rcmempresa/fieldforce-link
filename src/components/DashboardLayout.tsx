@@ -92,7 +92,7 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   const homeRoute = navItems[0]?.to ?? "/";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen overflow-x-hidden bg-background">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center gap-3">
           {navItems.length > 1 && (
@@ -196,7 +196,7 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
         </div>
       </header>
 
-      <main className="container py-6">{children}</main>
+      <main className="container min-w-0 px-3 py-6 sm:px-8">{children}</main>
     </div>
   );
 }

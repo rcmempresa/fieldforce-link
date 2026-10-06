@@ -22,11 +22,11 @@ export function WorkOrderPagination({
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex items-center justify-between px-2 py-4 border-t">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-2 py-4 border-t">
       <div className="text-sm text-muted-foreground">
         A mostrar {startItem} a {endItem} de {totalItems} resultados
       </div>
-      <div className="flex items-center space-x-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           variant="outline"
           size="sm"
