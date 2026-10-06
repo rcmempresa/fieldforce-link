@@ -15,8 +15,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { EquipmentPicker, EQUIPMENT_SELECT, type PickerEquipment } from "@/components/equipments/EquipmentPicker";
 import { buildEquipmentTitle, type UnitPart } from "@/lib/equipmentLabel";
-import { EquipmentPicker, EQUIPMENT_SELECT, type PickerEquipment } from "@/components/equipments/EquipmentPicker";
-import { buildEquipmentTitle, type UnitPart } from "@/lib/equipmentLabel";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface CreateClientWorkOrderDialogProps {
