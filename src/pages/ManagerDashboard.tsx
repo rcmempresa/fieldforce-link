@@ -212,14 +212,13 @@ export default function ManagerDashboard() {
     recompute();
   }, [scheduledDates, pendingRequests, employees]);
 
-  // Disponibilidade para OTs pendentes (aguardam data) e OTs sem técnico
+  // Disponibilidade para OTs pendentes (aguardam data)
   useEffect(() => {
     const recompute = async () => {
       const next: Record<string, Set<string>> = {};
-      const entries: [string, string | undefined][] = [
-        ...pendingScheduling.map((o) => [o.id, schedulingDates[o.id]] as [string, string | undefined]),
-        ...unassignedOrders.map((o) => [o.id, unassignedDates[o.id]] as [string, string | undefined]),
-      ];
+      const entries: [string, string | undefined][] = pendingScheduling.map(
+        (o) => [o.id, schedulingDates[o.id]] as [string, string | undefined]
+      );
       for (const [orderId, v] of entries) {
         if (v && employees.length > 0) {
           next[orderId] = await getBusyEmployeeIds(
@@ -234,7 +233,7 @@ export default function ManagerDashboard() {
       setBusyByOrder(next);
     };
     recompute();
-  }, [schedulingDates, unassignedDates, pendingScheduling, unassignedOrders, employees]);
+  }, [schedulingDates, pendingScheduling, employees]);
 
   const toggleTech = (orderId: string, empId: string) => {
     setOrderTechs((prev) => {
