@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Eye, Pencil, Trash2, ArrowLeft } from "lucide-react";
+import { Plus, Eye, Pencil, Trash2, ArrowLeft, Wrench } from "lucide-react";
+import { equipmentLinkLabel } from "@/lib/equipmentLabel";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CreateWorkOrderDialog } from "@/components/work-orders/CreateWorkOrderDialog";
@@ -34,6 +35,10 @@ interface WorkOrder {
   profiles: {
     name: string;
   };
+  work_order_equipments?: Array<{
+    unit_part: string | null;
+    equipments: { id: string; name: string; equipment_type: string | null; serial_number: string | null; outdoor_serial_number: string | null } | null;
+  }>;
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -82,6 +87,10 @@ export default function WorkOrders() {
         client_id,
         profiles!work_orders_client_id_fkey (
           name
+        ),
+        work_order_equipments (
+          unit_part,
+          equipments ( id, name, equipment_type, serial_number, outdoor_serial_number )
         )
       `)
       .order("created_at", { ascending: false });
@@ -101,11 +110,14 @@ export default function WorkOrders() {
     let filtered = [...workOrders];
 
     if (searchTerm) {
-      filtered = filtered.filter(
-        (order) =>
-          order.reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          order.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          order.profiles.name.toLowerCase().includes(searchTerm.toLowerCase())
+      const t = searchTerm.toLowerCase();
+      filtered = filtered.filter((order) =>
+        [
+          order.reference,
+          order.title,
+          order.profiles?.name,
+          ...(order.work_order_equipments || []).flatMap((l) => [l.equipments?.name, l.equipments?.serial_number, l.equipments?.outdoor_serial_number]),
+        ].filter(Boolean).join(" ").toLowerCase().includes(t)
       );
     }
 
@@ -304,7 +316,23 @@ export default function WorkOrders() {
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">{order.title}</p>
+                      {order.work_order_equipments?.length ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {order.work_order_equipments.filter((l) => l.equipments).map((l, i) => (
+                            <span key={i} className="inline-flex items-center gap-1 rounded-md border bg-muted/40 px-2 py-0.5 text-sm">
+                              <Wrench className="h-3.5 w-3.5 text-muted-foreground" />
+                              {equipmentLinkLabel(l.equipments!, l.unit_part)}
+                              {(l.unit_part === "outdoor" ? l.equipments!.outdoor_serial_number : l.equipments!.serial_number) && (
+                                <span className="text-xs text-muted-foreground">
+                                  • S/N {l.unit_part === "outdoor" ? l.equipments!.outdoor_serial_number : l.equipments!.serial_number}
+                                </span>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">{order.title}</p>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         Cliente: {order.profiles.name}
                         {order.scheduled_date && (
