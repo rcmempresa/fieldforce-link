@@ -14,7 +14,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { Search } from "lucide-react";
+import { EquipmentPicker, EQUIPMENT_SELECT, type PickerEquipment } from "@/components/equipments/EquipmentPicker";
+import { buildEquipmentTitle, type UnitPart } from "@/lib/equipmentLabel";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -319,7 +320,7 @@ export function CreateWorkOrderDialog({
           data: {
             recipientName: clientProfile.name,
             workOrderReference: workOrder.reference || "",
-            workOrderTitle: formData.title,
+            workOrderTitle: generatedTitle,
             clientName: clientProfile.name,
           },
         },
@@ -357,7 +358,7 @@ export function CreateWorkOrderDialog({
               data: {
                 recipientName: managerProfile.name,
                 workOrderReference: workOrder.reference || "",
-                workOrderTitle: formData.title,
+                workOrderTitle: generatedTitle,
                 clientName: clientProfile?.name || "Cliente",
                 isManager: true,
               },
