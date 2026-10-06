@@ -14,7 +14,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { Search } from "lucide-react";
+import { EquipmentPicker, EQUIPMENT_SELECT, type PickerEquipment } from "@/components/equipments/EquipmentPicker";
+import { buildEquipmentTitle, type UnitPart } from "@/lib/equipmentLabel";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,14 +45,6 @@ interface Client {
   name: string;
 }
 
-interface Equipment {
-  id: string;
-  name: string;
-  model: string | null;
-  serial_number: string | null;
-  location: string | null;
-}
-
 interface EmployeeOption {
   id: string;
   name: string;
@@ -63,8 +56,8 @@ export function CreateWorkOrderDialog({
   onSuccess,
 }: CreateWorkOrderDialogProps) {
   const [clients, setClients] = useState<Client[]>([]);
-  const [equipments, setEquipments] = useState<Equipment[]>([]);
-  const [equipmentSearch, setEquipmentSearch] = useState("");
+  const [equipments, setEquipments] = useState<PickerEquipment[]>([]);
+  const [equipmentParts, setEquipmentParts] = useState<Record<string, UnitPart>>({});
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [busyEmployeeIds, setBusyEmployeeIds] = useState<Set<string>>(new Set());
   const [overbookingConfirm, setOverbookingConfirm] = useState(false);
@@ -96,7 +89,7 @@ export function CreateWorkOrderDialog({
       setEquipments([]);
       setFormData(prev => ({ ...prev, equipment_ids: [] }));
     }
-    setEquipmentSearch("");
+    setEquipmentParts({});
   }, [formData.client_id]);
 
   // Recompute busy employees when scheduled_date changes
@@ -188,11 +181,12 @@ export function CreateWorkOrderDialog({
   const fetchEquipments = async (clientId: string) => {
     const { data } = await supabase
       .from("equipments")
-      .select("id, name, model, serial_number, location")
-      .eq("client_id", clientId);
+      .select(EQUIPMENT_SELECT)
+      .eq("client_id", clientId)
+      .order("name");
 
     if (data) {
-      setEquipments(data);
+      setEquipments(data as PickerEquipment[]);
     }
   };
 
@@ -205,8 +199,21 @@ export function CreateWorkOrderDialog({
     }));
   };
 
+  const generatedTitle = buildEquipmentTitle(
+    formData.equipment_ids
+      .map((id) => equipments.find((e) => e.id === id))
+      .filter(Boolean)
+      .map((eq) => ({ eq: eq!, part: equipmentParts[eq!.id] || "both" })),
+    formData.title,
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!generatedTitle.trim()) {
+      toast({ title: "Falta o equipamento", description: "Selecione um equipamento ou indique o assunto.", variant: "destructive" });
+      return;
+    }
 
     // Overbooking check before creating
     if (
@@ -230,7 +237,7 @@ export function CreateWorkOrderDialog({
     const { data: workOrder, error: workOrderError } = await supabase
       .from("work_orders")
       .insert({
-        title: formData.title,
+        title: generatedTitle,
         description: formData.description,
         client_id: formData.client_id,
         service_type: formData.service_type as "repair" | "maintenance" | "installation" | "warranty",
@@ -258,6 +265,7 @@ export function CreateWorkOrderDialog({
       const equipmentLinks = formData.equipment_ids.map(equipmentId => ({
         work_order_id: workOrder.id,
         equipment_id: equipmentId,
+        unit_part: equipments.find((e) => e.id === equipmentId)?.equipment_type === "ac" ? (equipmentParts[equipmentId] || "both") : "both",
       }));
 
       const { error: equipmentError } = await supabase
@@ -311,7 +319,7 @@ export function CreateWorkOrderDialog({
           data: {
             recipientName: clientProfile.name,
             workOrderReference: workOrder.reference || "",
-            workOrderTitle: formData.title,
+            workOrderTitle: generatedTitle,
             clientName: clientProfile.name,
           },
         },
@@ -349,7 +357,7 @@ export function CreateWorkOrderDialog({
               data: {
                 recipientName: managerProfile.name,
                 workOrderReference: workOrder.reference || "",
-                workOrderTitle: formData.title,
+                workOrderTitle: generatedTitle,
                 clientName: clientProfile?.name || "Cliente",
                 isManager: true,
               },
@@ -366,6 +374,7 @@ export function CreateWorkOrderDialog({
       description: "Ordem de trabalho criada com sucesso",
     });
     
+    setEquipmentParts({});
     setFormData({
       title: "",
       description: "",
@@ -389,26 +398,6 @@ export function CreateWorkOrderDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="title">Título *</Label>
-            <Input
-              id="title"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">Descrição</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={4}
-            />
-          </div>
-
-          <div className="space-y-2">
             <Label htmlFor="client">Cliente *</Label>
             <Select
               value={formData.client_id}
@@ -428,56 +417,38 @@ export function CreateWorkOrderDialog({
             </Select>
           </div>
 
-          {formData.client_id && equipments.length > 0 && (
+          {formData.client_id && (
+            <EquipmentPicker
+              equipments={equipments}
+              selected={formData.equipment_ids}
+              parts={equipmentParts}
+              onToggle={toggleEquipment}
+              onPartChange={(id, p) => setEquipmentParts((prev) => ({ ...prev, [id]: p }))}
+            />
+          )}
+
+          {formData.client_id && formData.equipment_ids.length === 0 && (
             <div className="space-y-2">
-              <Label>Equipamentos</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Pesquisar por nome ou morada..."
-                  value={equipmentSearch}
-                  onChange={(e) => setEquipmentSearch(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <div className="border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
-                {equipments
-                  .filter((eq) => {
-                    const term = equipmentSearch.toLowerCase();
-                    return (
-                      !term ||
-                      eq.name.toLowerCase().includes(term) ||
-                      (eq.location && eq.location.toLowerCase().includes(term))
-                    );
-                  })
-                  .map((equipment) => (
-                    <label
-                      key={equipment.id}
-                      className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.equipment_ids.includes(equipment.id)}
-                        onChange={() => toggleEquipment(equipment.id)}
-                        className="h-4 w-4"
-                      />
-                      <div className="flex-1">
-                        <div className="font-medium text-sm">{equipment.name}</div>
-                        {(equipment.model || equipment.serial_number || equipment.location) && (
-                          <div className="text-xs text-muted-foreground">
-                            {equipment.model && `Modelo: ${equipment.model}`}
-                            {equipment.model && (equipment.serial_number || equipment.location) && " • "}
-                            {equipment.serial_number && `S/N: ${equipment.serial_number}`}
-                            {equipment.serial_number && equipment.location && " • "}
-                            {equipment.location && `📍 ${equipment.location}`}
-                          </div>
-                        )}
-                      </div>
-                    </label>
-                  ))}
-              </div>
+              <Label htmlFor="title">Assunto * <span className="font-normal text-muted-foreground">(sem equipamento selecionado)</span></Label>
+              <Input
+                id="title"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="Ex: Verificação do quadro elétrico"
+                required
+              />
             </div>
           )}
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Descrição do problema</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={4}
+            />
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="service_type">Tipo de Serviço *</Label>

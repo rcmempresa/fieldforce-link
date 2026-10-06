@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Search } from "lucide-react";
+import { EquipmentPicker, EQUIPMENT_SELECT, type PickerEquipment } from "@/components/equipments/EquipmentPicker";
+import { buildEquipmentTitle, type UnitPart } from "@/lib/equipmentLabel";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface CreateClientWorkOrderDialogProps {
@@ -23,22 +24,14 @@ interface CreateClientWorkOrderDialogProps {
   clientId: string;
 }
 
-interface Equipment {
-  id: string;
-  name: string;
-  model: string | null;
-  serial_number: string | null;
-  location: string | null;
-}
-
 export function CreateClientWorkOrderDialog({
   open,
   onOpenChange,
   onSuccess,
   clientId,
 }: CreateClientWorkOrderDialogProps) {
-  const [equipments, setEquipments] = useState<Equipment[]>([]);
-  const [equipmentSearch, setEquipmentSearch] = useState("");
+  const [equipments, setEquipments] = useState<PickerEquipment[]>([]);
+  const [equipmentParts, setEquipmentParts] = useState<Record<string, UnitPart>>({});
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
@@ -55,19 +48,19 @@ export function CreateClientWorkOrderDialog({
   useEffect(() => {
     if (open && clientId) {
       fetchEquipments();
-      setEquipmentSearch("");
+      setEquipmentParts({});
     }
   }, [open, clientId]);
 
   const fetchEquipments = async () => {
     const { data } = await supabase
       .from("equipments")
-      .select("id, name, model, serial_number, location")
+      .select(EQUIPMENT_SELECT)
       .eq("client_id", clientId)
-      .order("created_at", { ascending: false });
+      .order("name");
 
     if (data) {
-      setEquipments(data);
+      setEquipments(data as PickerEquipment[]);
     }
   };
 
@@ -80,8 +73,20 @@ export function CreateClientWorkOrderDialog({
     }));
   };
 
+  const generatedTitle = buildEquipmentTitle(
+    formData.equipment_ids
+      .map((id) => equipments.find((e) => e.id === id))
+      .filter(Boolean)
+      .map((eq) => ({ eq: eq!, part: equipmentParts[eq!.id] || "both" })),
+    formData.title,
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!generatedTitle.trim()) {
+      toast({ title: "Falta o equipamento", description: "Selecione um equipamento ou indique o assunto.", variant: "destructive" });
+      return;
+    }
     setLoading(true);
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -94,7 +99,7 @@ export function CreateClientWorkOrderDialog({
     const { data: workOrder, error: workOrderError } = await supabase
       .from("work_orders")
       .insert({
-        title: formData.title,
+        title: generatedTitle,
         description: formData.description,
         client_id: user.id, // Use authenticated user ID to satisfy RLS policy
         service_type: formData.service_type as "repair" | "maintenance" | "installation" | "warranty",
@@ -126,6 +131,7 @@ export function CreateClientWorkOrderDialog({
       const equipmentLinks = formData.equipment_ids.map(equipmentId => ({
         work_order_id: workOrder.id,
         equipment_id: equipmentId,
+        unit_part: equipments.find((e) => e.id === equipmentId)?.equipment_type === "ac" ? (equipmentParts[equipmentId] || "both") : "both",
       }));
 
       const { error: equipmentError } = await supabase
@@ -152,7 +158,7 @@ export function CreateClientWorkOrderDialog({
         data: {
           workOrderId: workOrder.id,
           workOrderReference: workOrder.reference || "",
-          workOrderTitle: formData.title,
+          workOrderTitle: generatedTitle,
           clientName: clientProfile?.name || "Cliente",
         },
       },
@@ -166,7 +172,7 @@ export function CreateClientWorkOrderDialog({
         data: {
           recipientName: clientProfile?.name || "Cliente",
           workOrderReference: workOrder.reference || "",
-          workOrderTitle: formData.title,
+          workOrderTitle: generatedTitle,
         },
       },
     });
@@ -199,17 +205,27 @@ export function CreateClientWorkOrderDialog({
           <DialogTitle>Nova Solicitação de Serviço</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="title">Título *</Label>
-            <Input
-              id="title"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              placeholder="Ex: Ar condicionado não está a arrefecer"
-              required
-              maxLength={100}
-            />
-          </div>
+          <EquipmentPicker
+            equipments={equipments}
+            selected={formData.equipment_ids}
+            parts={equipmentParts}
+            onToggle={toggleEquipment}
+            onPartChange={(id, p) => setEquipmentParts((prev) => ({ ...prev, [id]: p }))}
+          />
+
+          {formData.equipment_ids.length === 0 && (
+            <div className="space-y-2">
+              <Label htmlFor="title">Assunto * <span className="font-normal text-muted-foreground">(sem equipamento selecionado)</span></Label>
+              <Input
+                id="title"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="Ex: Ar condicionado não está a arrefecer"
+                required
+                maxLength={100}
+              />
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="description">Descrição do Problema *</Label>
@@ -300,56 +316,6 @@ export function CreateClientWorkOrderDialog({
           </div>
 
 
-          {equipments.length > 0 && (
-            <div className="space-y-2">
-              <Label>Equipamentos Relacionados</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Pesquisar por nome ou morada..."
-                  value={equipmentSearch}
-                  onChange={(e) => setEquipmentSearch(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <div className="border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
-                {equipments
-                  .filter((eq) => {
-                    const term = equipmentSearch.toLowerCase();
-                    return (
-                      !term ||
-                      eq.name.toLowerCase().includes(term) ||
-                      (eq.location && eq.location.toLowerCase().includes(term))
-                    );
-                  })
-                  .map((equipment) => (
-                    <label
-                      key={equipment.id}
-                      className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.equipment_ids.includes(equipment.id)}
-                        onChange={() => toggleEquipment(equipment.id)}
-                        className="h-4 w-4"
-                      />
-                      <div className="flex-1">
-                        <div className="font-medium text-sm">{equipment.name}</div>
-                        {(equipment.model || equipment.serial_number || equipment.location) && (
-                          <div className="text-xs text-muted-foreground">
-                            {equipment.model && `Modelo: ${equipment.model}`}
-                            {equipment.model && (equipment.serial_number || equipment.location) && " • "}
-                            {equipment.serial_number && `S/N: ${equipment.serial_number}`}
-                            {equipment.serial_number && equipment.location && " • "}
-                            {equipment.location && `📍 ${equipment.location}`}
-                          </div>
-                        )}
-                      </div>
-                    </label>
-                  ))}
-              </div>
-            </div>
-          )}
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

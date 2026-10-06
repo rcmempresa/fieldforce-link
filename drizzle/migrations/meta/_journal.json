@@ -8,6 +8,13 @@
       "when": 1791033098713,
       "tag": "0000_allow_intervention_report_type",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791296508463,
+      "tag": "0001_equipment_indoor_outdoor_units",
+      "breakpoints": true
     }
   ]
 }
