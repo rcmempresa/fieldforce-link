@@ -345,45 +345,6 @@ export default function ManagerDashboard() {
     return true;
   };
 
-  const scheduleUnassigned = async (orderId: string) => {
-    const dateValue = unassignedDates[orderId];
-    const techs = orderTechs[orderId] ?? [];
-
-    if (!dateValue && techs.length === 0) {
-      toast({ title: "Erro", description: "Selecione uma data/hora ou pelo menos um técnico", variant: "destructive" });
-      return;
-    }
-
-    if (dateValue) {
-      const { error } = await supabase
-        .from("work_orders")
-        .update({
-          scheduled_date: new Date(dateValue).toISOString(),
-          needs_scheduling: false,
-        })
-        .eq("id", orderId);
-      if (error) {
-        toast({ title: "Erro", description: "Erro ao agendar OT", variant: "destructive" });
-        return;
-      }
-    }
-
-    const order = unassignedOrders.find((o) => o.id === orderId);
-    const ok = await assignTechnicians(orderId, order, dateValue || order?.scheduled_date || undefined);
-    if (!ok) return;
-
-    toast({ title: "Sucesso", description: "OT atualizada com sucesso" });
-    setOrderTechs((prev) => {
-      const next = { ...prev };
-      delete next[orderId];
-      return next;
-    });
-    fetchUnassignedOrders();
-    fetchPendingScheduling();
-    fetchCalendarOrders();
-    fetchRecentOrders();
-  };
-
   const fetchPendingUsers = async () => {
     try {
       // Call the secure edge function to list pending users
