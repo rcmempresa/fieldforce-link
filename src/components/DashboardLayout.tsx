@@ -20,6 +20,7 @@ import {
   User,
   Users,
   UserCog,
+  UserX,
   Mail,
   Package,
   HardDrive,
@@ -44,6 +45,7 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
   manager: [
     { label: "Painel", to: "/manager", icon: LayoutDashboard },
     { label: "Ordens de Trabalho", to: "/work-orders", icon: ClipboardList },
+    { label: "Sem Técnico", to: "/unassigned-work-orders", icon: UserX },
     { label: "Clientes", to: "/clients", icon: Users },
     { label: "Equipamentos", to: "/equipments", icon: HardDrive },
     { label: "Funcionários", to: "/employees", icon: UserCog },

@@ -19,6 +19,7 @@ import Clients from "./pages/Clients";
 import EmailLogs from "./pages/EmailLogs";
 import MaterialCatalog from "./pages/MaterialCatalog";
 import Equipments from "./pages/Equipments";
+import UnassignedWorkOrders from "./pages/UnassignedWorkOrders";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -112,6 +113,14 @@ const App = () => (
             element={
               <ProtectedRoute allowedRoles={["manager"]}>
                 <Equipments />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/unassigned-work-orders"
+            element={
+              <ProtectedRoute allowedRoles={["manager"]}>
+                <UnassignedWorkOrders />
               </ProtectedRoute>
             }
           />
