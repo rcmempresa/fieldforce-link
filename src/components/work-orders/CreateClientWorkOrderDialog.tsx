@@ -157,7 +157,7 @@ export function CreateClientWorkOrderDialog({
         data: {
           workOrderId: workOrder.id,
           workOrderReference: workOrder.reference || "",
-          workOrderTitle: formData.title,
+          workOrderTitle: generatedTitle,
           clientName: clientProfile?.name || "Cliente",
         },
       },
@@ -171,7 +171,7 @@ export function CreateClientWorkOrderDialog({
         data: {
           recipientName: clientProfile?.name || "Cliente",
           workOrderReference: workOrder.reference || "",
-          workOrderTitle: formData.title,
+          workOrderTitle: generatedTitle,
         },
       },
     });
