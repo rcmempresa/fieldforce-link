@@ -58,7 +58,6 @@ export function CreateWorkOrderDialog({
   const [clients, setClients] = useState<Client[]>([]);
   const [equipments, setEquipments] = useState<PickerEquipment[]>([]);
   const [equipmentParts, setEquipmentParts] = useState<Record<string, UnitPart>>({});
-  const setEquipmentSearch = (_: string) => {};
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [busyEmployeeIds, setBusyEmployeeIds] = useState<Set<string>>(new Set());
   const [overbookingConfirm, setOverbookingConfirm] = useState(false);
@@ -90,7 +89,7 @@ export function CreateWorkOrderDialog({
       setEquipments([]);
       setFormData(prev => ({ ...prev, equipment_ids: [] }));
     }
-    setEquipmentSearch("");
+    setEquipmentParts({});
   }, [formData.client_id]);
 
   // Recompute busy employees when scheduled_date changes
