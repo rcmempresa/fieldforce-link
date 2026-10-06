@@ -1,3 +1,4 @@
 - [x] Criar relatório de intervenção editável com geração de PDF.
 - [x] Tornar visível e utilizável a conclusão de OT no telemóvel.
 - [x] Permitir escolher e guardar um logótipo por relatório e mostrá-lo no PDF.
+- [x] Remover a secção de OTs sem técnico do painel principal (fica só na página dedicada /unassigned-work-orders).

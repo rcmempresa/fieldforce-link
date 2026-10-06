@@ -97,11 +97,7 @@ export default function ManagerDashboard() {
   const [pendingRequests, setPendingRequests] = useState<WorkOrder[]>([]);
   const [pendingScheduling, setPendingScheduling] = useState<WorkOrder[]>([]);
   const [unassignedOrders, setUnassignedOrders] = useState<WorkOrder[]>([]);
-  const [unassignedSearch, setUnassignedSearch] = useState("");
-  const [unassignedPage, setUnassignedPage] = useState(1);
-  const UNASSIGNED_PAGE_SIZE = 5;
   const [schedulingDates, setSchedulingDates] = useState<Record<string, string>>({});
-  const [unassignedDates, setUnassignedDates] = useState<Record<string, string>>({});
   const [orderTechs, setOrderTechs] = useState<Record<string, string[]>>({});
   const [busyByOrder, setBusyByOrder] = useState<Record<string, Set<string>>>({});
   const [schedSearch, setSchedSearch] = useState("");
@@ -216,14 +212,13 @@ export default function ManagerDashboard() {
     recompute();
   }, [scheduledDates, pendingRequests, employees]);
 
-  // Disponibilidade para OTs pendentes (aguardam data) e OTs sem técnico
+  // Disponibilidade para OTs pendentes (aguardam data)
   useEffect(() => {
     const recompute = async () => {
       const next: Record<string, Set<string>> = {};
-      const entries: [string, string | undefined][] = [
-        ...pendingScheduling.map((o) => [o.id, schedulingDates[o.id]] as [string, string | undefined]),
-        ...unassignedOrders.map((o) => [o.id, unassignedDates[o.id]] as [string, string | undefined]),
-      ];
+      const entries: [string, string | undefined][] = pendingScheduling.map(
+        (o) => [o.id, schedulingDates[o.id]] as [string, string | undefined]
+      );
       for (const [orderId, v] of entries) {
         if (v && employees.length > 0) {
           next[orderId] = await getBusyEmployeeIds(
@@ -238,7 +233,7 @@ export default function ManagerDashboard() {
       setBusyByOrder(next);
     };
     recompute();
-  }, [schedulingDates, unassignedDates, pendingScheduling, unassignedOrders, employees]);
+  }, [schedulingDates, pendingScheduling, employees]);
 
   const toggleTech = (orderId: string, empId: string) => {
     setOrderTechs((prev) => {
@@ -350,45 +345,6 @@ export default function ManagerDashboard() {
     return true;
   };
 
-  const scheduleUnassigned = async (orderId: string) => {
-    const dateValue = unassignedDates[orderId];
-    const techs = orderTechs[orderId] ?? [];
-
-    if (!dateValue && techs.length === 0) {
-      toast({ title: "Erro", description: "Selecione uma data/hora ou pelo menos um técnico", variant: "destructive" });
-      return;
-    }
-
-    if (dateValue) {
-      const { error } = await supabase
-        .from("work_orders")
-        .update({
-          scheduled_date: new Date(dateValue).toISOString(),
-          needs_scheduling: false,
-        })
-        .eq("id", orderId);
-      if (error) {
-        toast({ title: "Erro", description: "Erro ao agendar OT", variant: "destructive" });
-        return;
-      }
-    }
-
-    const order = unassignedOrders.find((o) => o.id === orderId);
-    const ok = await assignTechnicians(orderId, order, dateValue || order?.scheduled_date || undefined);
-    if (!ok) return;
-
-    toast({ title: "Sucesso", description: "OT atualizada com sucesso" });
-    setOrderTechs((prev) => {
-      const next = { ...prev };
-      delete next[orderId];
-      return next;
-    });
-    fetchUnassignedOrders();
-    fetchPendingScheduling();
-    fetchCalendarOrders();
-    fetchRecentOrders();
-  };
-
   const fetchPendingUsers = async () => {
     try {
       // Call the secure edge function to list pending users
@@ -496,19 +452,6 @@ export default function ManagerDashboard() {
         }))
     );
 
-    // Pré-preencher a data já agendada (se existir) no seletor
-    setUnassignedDates((prev) => {
-      const next = { ...prev };
-      for (const o of data.filter((x: any) => !assignedIds.has(x.id))) {
-        if (o.scheduled_date && !next[o.id]) {
-          const d = new Date(o.scheduled_date);
-          next[o.id] = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-            d.getDate()
-          ).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}:00`;
-        }
-      }
-      return next;
-    });
   };
 
   const fetchPendingScheduling = async () => {
@@ -1622,133 +1565,6 @@ export default function ManagerDashboard() {
           );
         })()}
 
-        {/* Unassigned work orders */}
-        {unassignedOrders.length > 0 && (() => {
-          const q = unassignedSearch.trim().toLowerCase();
-          const filtered = unassignedOrders.filter((o) =>
-            !q ||
-            (o.reference || "").toLowerCase().includes(q) ||
-            (o.title || "").toLowerCase().includes(q) ||
-            (o.client_name || "").toLowerCase().includes(q)
-          );
-          const totalPages = Math.max(1, Math.ceil(filtered.length / UNASSIGNED_PAGE_SIZE));
-          const currentPage = Math.min(unassignedPage, totalPages);
-          const pageItems = filtered.slice(
-            (currentPage - 1) * UNASSIGNED_PAGE_SIZE,
-            currentPage * UNASSIGNED_PAGE_SIZE
-          );
-          return (
-            <Card className="border-destructive/30 bg-gradient-to-br from-destructive/5 via-background to-background">
-              <CardHeader className="space-y-3">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <CardTitle className="flex items-center gap-2 text-destructive">
-                    <UserX className="h-5 w-5" />
-                    OT Sem Técnico Atribuído
-                    <Badge variant="secondary" className="ml-2">{unassignedOrders.length}</Badge>
-                  </CardTitle>
-                  {filtered.length !== unassignedOrders.length && (
-                    <span className="text-xs text-muted-foreground">
-                      {filtered.length} de {unassignedOrders.length} após filtros
-                    </span>
-                  )}
-                </div>
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    value={unassignedSearch}
-                    onChange={(e) => { setUnassignedSearch(e.target.value); setUnassignedPage(1); }}
-                    placeholder="Procurar por referência, título ou cliente..."
-                    className="pl-8"
-                  />
-                </div>
-              </CardHeader>
-              <CardContent>
-                {pageItems.length === 0 ? (
-                  <div className="text-center py-8 text-sm text-muted-foreground">
-                    Nenhuma OT corresponde à pesquisa.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {pageItems.map((order) => (
-                      <div
-                        key={order.id}
-                        className="flex flex-col gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-4"
-                      >
-                        <div className="space-y-1 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-semibold">{order.reference}</p>
-                            <Badge variant="destructive">Sem técnico</Badge>
-                            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusColor(order.status)}`}>
-                              {getStatusLabel(order.status)}
-                            </span>
-                          </div>
-                          <p className="text-sm text-muted-foreground">{order.title}</p>
-                          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                            <span>Cliente: {order.client_name}</span>
-                            {order.scheduled_date && (
-                              <span>
-                                Agendada: {format(new Date(order.scheduled_date), "dd/MM/yyyy 'às' HH:mm", { locale: pt })}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="rounded-md border bg-background/60 p-3">
-                          <SlotDateTimePicker
-                            value={unassignedDates[order.id] || ""}
-                            onChange={(v) =>
-                              setUnassignedDates({ ...unassignedDates, [order.id]: v })
-                            }
-                            excludeWorkOrderId={order.id}
-                          />
-                          {renderTechSelector(
-                            order.id,
-                            unassignedDates[order.id],
-                            busyByOrder[order.id] ?? new Set<string>()
-                          )}
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
-                          <Button size="sm" variant="outline" onClick={() => navigate(`/work-orders/${order.id}`)}>
-                            Ver detalhes
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="bg-accent hover:bg-accent/90"
-                            onClick={() => scheduleUnassigned(order.id)}
-                            disabled={
-                              !unassignedDates[order.id] &&
-                              (orderTechs[order.id]?.length ?? 0) === 0
-                            }
-                          >
-                            Guardar data e técnicos
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between mt-4 pt-3 border-t">
-                    <span className="text-xs text-muted-foreground">
-                      Página {currentPage} de {totalPages}
-                    </span>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setUnassignedPage((p) => Math.max(1, p - 1))} disabled={currentPage <= 1}>
-                        <ChevronLeft className="h-4 w-4" />
-                        Anterior
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => setUnassignedPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}>
-                        Seguinte
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })()}
 
         {/* Recent Work Orders */}
         <Card className="hover:shadow-md transition-all duration-300">
