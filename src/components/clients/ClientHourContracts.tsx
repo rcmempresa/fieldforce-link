@@ -140,13 +140,13 @@ export function ClientHourContracts() {
         {rows.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-6">Nenhum cliente com contrato de horas este ano.</p>
         ) : (
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {rows.map((r) => {
               const pct = Math.min(100, (r.used / r.contracted_hours) * 100);
               const exhausted = r.used >= r.contracted_hours;
               const locked = exhausted && r.lock_when_exhausted && !r.manually_unlocked;
               return (
-                <div key={r.id} className="rounded-lg border p-3 space-y-2">
+                <div key={r.id} className="min-w-0 rounded-lg border p-3 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-medium truncate">{r.clientName}</p>
@@ -155,11 +155,11 @@ export function ClientHourContracts() {
                       </p>
                     </div>
                     {locked ? (
-                      <Badge variant="destructive" className="gap-1"><Lock className="h-3 w-3" />Bloqueado</Badge>
+                      <Badge variant="destructive" className="shrink-0 gap-1"><Lock className="h-3 w-3" />Bloqueado</Badge>
                     ) : exhausted && r.manually_unlocked ? (
-                      <Badge variant="outline" className="gap-1"><Unlock className="h-3 w-3" />Desbloqueado</Badge>
+                      <Badge variant="outline" className="shrink-0 gap-1"><Unlock className="h-3 w-3" />Desbloqueado</Badge>
                     ) : pct >= 80 ? (
-                      <Badge variant="outline" className="text-warning border-warning">Quase a esgotar</Badge>
+                      <Badge variant="outline" className="shrink-0 text-warning border-warning">Quase a esgotar</Badge>
                     ) : (
                       <Badge variant="secondary">Ativo</Badge>
                     )}

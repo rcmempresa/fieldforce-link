@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ClipboardList, Users, CheckCircle, UserCheck, Calendar as CalendarIcon, Mail, Clock, Package, Search, ChevronLeft, ChevronRight, AlertTriangle, UserX } from "lucide-react";
+import { ClipboardList, Users, CheckCircle, UserCheck, Calendar as CalendarIcon, Mail, Clock, Package, Search, ChevronLeft, ChevronRight, AlertTriangle, UserX, HardDrive } from "lucide-react";
 import { formatHours } from "@/lib/formatHours";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -1235,22 +1235,20 @@ export default function ManagerDashboard() {
         {/* Quick Actions */}
         <div className="space-y-3">
           <h3 className="text-lg font-semibold tracking-tight">Acesso Rápido</h3>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => navigate("/work-orders")}>
-              <ClipboardList className="mr-2 h-4 w-4" /> Ordens de Trabalho
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate("/clients")}>
-              <Users className="mr-2 h-4 w-4" /> Clientes
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate("/employees")}>
-              <Users className="mr-2 h-4 w-4" /> Funcionários
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate("/material-catalog")}>
-              <Package className="mr-2 h-4 w-4" /> Catálogo de Materiais
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate("/email-logs")}>
-              <Mail className="mr-2 h-4 w-4" /> Histórico de Emails
-            </Button>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+            {[
+              { to: "/work-orders", label: "Ordens de Trabalho", icon: ClipboardList },
+              { to: "/unassigned-work-orders", label: `OT sem técnico${unassignedOrders.length ? ` (${unassignedOrders.length})` : ""}`, icon: UserX },
+              { to: "/clients", label: "Clientes", icon: Users },
+              { to: "/equipments", label: "Equipamentos", icon: HardDrive },
+              { to: "/employees", label: "Funcionários", icon: Users },
+              { to: "/material-catalog", label: "Catálogo de Materiais", icon: Package },
+              { to: "/email-logs", label: "Histórico de Emails", icon: Mail },
+            ].map(({ to, label, icon: Icon }) => (
+              <Button key={to} variant="outline" size="sm" className="h-auto min-w-0 justify-start whitespace-normal py-2 text-left" onClick={() => navigate(to)}>
+                <Icon className="mr-2 h-4 w-4 shrink-0" /> <span className="min-w-0 break-words">{label}</span>
+              </Button>
+            ))}
           </div>
         </div>
 
