@@ -92,7 +92,8 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
       const list = (data || []).filter((r: any) => r.equipments).map((r: any) => ({ eq: r.equipments, part: r.unit_part }));
       setWoEquipments(list);
       // Auto-fill new report when OT has exactly one equipment
-      if (!reportId && list.length === 1) applyEquipment(list[0]);
+      if (!reportId && list.length >= 1) applyEquipment(list[0], 1);
+      if (!reportId && list.length === 2) applyEquipment(list[1], 2);
     })();
   }, [workOrderId]);
 
