@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Save, FileDown, Plus, Trash2, Zap, Wind, Camera } from "lucide-react";
 import SignatureCanvas from "react-signature-canvas";
+import { equipmentLinkLabel } from "@/lib/equipmentLabel";
 import {
   ChecklistItem,
   Measurement,
@@ -70,6 +71,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
   const [woReference, setWoReference] = useState("");
   const [savedReportId, setSavedReportId] = useState(reportId);
   const [logo, setLogo] = useState<string | null>(null);
+  const [woEquipments, setWoEquipments] = useState<Array<{ eq: any; part: string | null }>>([]);
 
   useEffect(() => {
     fetchWoReference();
@@ -80,6 +82,37 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
       loadCurrentUser();
     }
   }, [reportId]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("work_order_equipments")
+        .select("unit_part, equipments ( id, name, brand, model, serial_number, location, equipment_type, outdoor_model, outdoor_serial_number )")
+        .eq("work_order_id", workOrderId);
+      const list = (data || []).filter((r: any) => r.equipments).map((r: any) => ({ eq: r.equipments, part: r.unit_part }));
+      setWoEquipments(list);
+      // Auto-fill new report when OT has exactly one equipment
+      if (!reportId && list.length === 1) applyEquipment(list[0]);
+    })();
+  }, [workOrderId]);
+
+  const applyEquipment = ({ eq, part }: { eq: any; part: string | null }) => {
+    const brandModel = (m: string | null) => [eq.brand, m].filter(Boolean).join(" ");
+    const isAc = eq.equipment_type === "ac";
+    if (isAc && part === "outdoor") {
+      setEquipmentName(`${eq.name} - Unid. Exterior ${brandModel(eq.outdoor_model)}`.trim());
+      setEquipmentSerial(eq.outdoor_serial_number || "");
+      setDesignation(""); setDesignationSerial("");
+    } else {
+      setEquipmentName(`${eq.name}${isAc ? " - Unid. Interior" : ""} ${brandModel(eq.model)}`.trim());
+      setEquipmentSerial(eq.serial_number || "");
+      if (isAc && part !== "indoor") {
+        setDesignation(`Unid. Exterior ${brandModel(eq.outdoor_model)}`.trim());
+        setDesignationSerial(eq.outdoor_serial_number || "");
+      } else { setDesignation(""); setDesignationSerial(""); }
+    }
+    if (eq.location) setSpecificLocation(eq.location);
+  };
 
   const fetchWoReference = async () => {
     const { data } = await supabase
@@ -387,6 +420,19 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
                 <Label>Localização Específica</Label>
                 <Input value={specificLocation} onChange={(e) => setSpecificLocation(e.target.value)} disabled={isReadOnly} placeholder="Sala, corredor, etc." />
               </div>
+              {!isReadOnly && woEquipments.length > 0 && (
+                <div className="space-y-1.5 md:col-span-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                  <Label>Preencher com equipamento da OT</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {woEquipments.map((l, i) => (
+                      <Button key={i} type="button" size="sm" variant="outline" onClick={() => applyEquipment(l)}>
+                        {equipmentLinkLabel(l.eq, l.part)}
+                      </Button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Cria um relatório por equipamento na mesma OT.</p>
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label>Equipamento</Label>
                 <Input value={equipmentName} onChange={(e) => setEquipmentName(e.target.value)} disabled={isReadOnly} />
