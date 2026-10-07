@@ -117,10 +117,10 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   y += 14;
   drawField("Localizacao Especifica", data.specific_location || "", margin, contentWidth);
   y += 14;
-  drawField("Equipamento", data.equipment_name || "", margin, halfW);
+  drawField("Equipamento 1", data.equipment_name || "", margin, halfW);
   drawField("No Serie", data.equipment_serial || "", margin + halfW, halfW);
   y += 14;
-  drawField("Designacao", data.designation || "", margin, halfW);
+  drawField("Equipamento 2", data.designation || "", margin, halfW);
   drawField("No Serie", data.designation_serial || "", margin + halfW, halfW);
   y += 14;
 

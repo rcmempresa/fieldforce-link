@@ -92,26 +92,26 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
       const list = (data || []).filter((r: any) => r.equipments).map((r: any) => ({ eq: r.equipments, part: r.unit_part }));
       setWoEquipments(list);
       // Auto-fill new report when OT has exactly one equipment
-      if (!reportId && list.length === 1) applyEquipment(list[0]);
+      if (!reportId && list.length >= 1) applyEquipment(list[0], 1);
+      if (!reportId && list.length === 2) applyEquipment(list[1], 2);
     })();
   }, [workOrderId]);
 
-  const applyEquipment = ({ eq, part }: { eq: any; part: string | null }) => {
+  const applyEquipment = ({ eq, part }: { eq: any; part: string | null }, slot: 1 | 2 = 1) => {
     const brandModel = (m: string | null) => [eq.brand, m].filter(Boolean).join(" ");
     const isAc = eq.equipment_type === "ac";
-    if (isAc && part === "outdoor") {
-      setEquipmentName(`${eq.name} - Unid. Exterior ${brandModel(eq.outdoor_model)}`.trim());
-      setEquipmentSerial(eq.outdoor_serial_number || "");
-      setDesignation(""); setDesignationSerial("");
+    const indoor = { n: `${eq.name}${isAc ? " - Unid. Interior" : ""} ${brandModel(eq.model)}`.trim(), s: eq.serial_number || "" };
+    const outdoor = { n: `${eq.name} - Unid. Exterior ${brandModel(eq.outdoor_model)}`.trim(), s: eq.outdoor_serial_number || "" };
+    const set1 = (v: { n: string; s: string }) => { setEquipmentName(v.n); setEquipmentSerial(v.s); };
+    const set2 = (v: { n: string; s: string }) => { setDesignation(v.n); setDesignationSerial(v.s); };
+    if (isAc && part !== "indoor" && part !== "outdoor") {
+      // AC both units: indoor -> Equipamento 1, outdoor -> Equipamento 2
+      set1(indoor); set2(outdoor);
     } else {
-      setEquipmentName(`${eq.name}${isAc ? " - Unid. Interior" : ""} ${brandModel(eq.model)}`.trim());
-      setEquipmentSerial(eq.serial_number || "");
-      if (isAc && part !== "indoor") {
-        setDesignation(`Unid. Exterior ${brandModel(eq.outdoor_model)}`.trim());
-        setDesignationSerial(eq.outdoor_serial_number || "");
-      } else { setDesignation(""); setDesignationSerial(""); }
+      const v = isAc && part === "outdoor" ? outdoor : indoor;
+      slot === 1 ? set1(v) : set2(v);
     }
-    if (eq.location) setSpecificLocation(eq.location);
+    if (eq.location && slot === 1) setSpecificLocation(eq.location);
   };
 
   const fetchWoReference = async () => {
@@ -423,18 +423,20 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
               {!isReadOnly && woEquipments.length > 0 && (
                 <div className="space-y-1.5 md:col-span-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
                   <Label>Preencher com equipamento da OT</Label>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="space-y-2">
                     {woEquipments.map((l, i) => (
-                      <Button key={i} type="button" size="sm" variant="outline" onClick={() => applyEquipment(l)}>
-                        {equipmentLinkLabel(l.eq, l.part)}
-                      </Button>
+                      <div key={i} className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-medium flex-1 min-w-0">{equipmentLinkLabel(l.eq, l.part)}</span>
+                        <Button type="button" size="sm" variant="outline" onClick={() => applyEquipment(l, 1)}>Equipamento 1</Button>
+                        <Button type="button" size="sm" variant="outline" onClick={() => applyEquipment(l, 2)}>Equipamento 2</Button>
+                      </div>
                     ))}
                   </div>
-                  <p className="text-xs text-muted-foreground">Cria um relatório por equipamento na mesma OT.</p>
+                  <p className="text-xs text-muted-foreground">Até 2 equipamentos por relatório; para mais, cria outro relatório na mesma OT.</p>
                 </div>
               )}
               <div className="space-y-1.5">
-                <Label>Equipamento</Label>
+                <Label>Equipamento 1</Label>
                 <Input value={equipmentName} onChange={(e) => setEquipmentName(e.target.value)} disabled={isReadOnly} />
               </div>
               <div className="space-y-1.5">
@@ -442,7 +444,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
                 <Input value={equipmentSerial} onChange={(e) => setEquipmentSerial(e.target.value)} disabled={isReadOnly} />
               </div>
               <div className="space-y-1.5">
-                <Label>Designação</Label>
+                <Label>Equipamento 2</Label>
                 <Input value={designation} onChange={(e) => setDesignation(e.target.value)} disabled={isReadOnly} />
               </div>
               <div className="space-y-1.5">
