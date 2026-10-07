@@ -85,12 +85,14 @@ export default function WorkOrders() {
         scheduled_date,
         needs_scheduling,
         client_id,
+        description,
         profiles!work_orders_client_id_fkey (
-          name
+          name,
+          company_name
         ),
         work_order_equipments (
           unit_part,
-          equipments ( id, name, equipment_type, serial_number, outdoor_serial_number )
+          equipments ( id, name, equipment_type, serial_number, outdoor_serial_number, brand, model, outdoor_model, location )
         )
       `)
       .order("created_at", { ascending: false });
@@ -115,8 +117,13 @@ export default function WorkOrders() {
         [
           order.reference,
           order.title,
+          (order as any).description,
           order.profiles?.name,
-          ...(order.work_order_equipments || []).flatMap((l) => [l.equipments?.name, l.equipments?.serial_number, l.equipments?.outdoor_serial_number]),
+          (order.profiles as any)?.company_name,
+          ...(order.work_order_equipments || []).flatMap((l) => {
+            const e = l.equipments as any;
+            return e ? [e.name, e.brand, e.model, e.outdoor_model, e.location, e.serial_number, e.outdoor_serial_number] : [];
+          }),
         ].filter(Boolean).join(" ").toLowerCase().includes(t)
       );
     }
