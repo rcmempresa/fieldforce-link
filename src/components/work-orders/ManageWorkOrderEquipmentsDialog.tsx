@@ -88,8 +88,8 @@ export function ManageWorkOrderEquipmentsDialog({ open, onOpenChange, workOrderI
           label="Equipamentos"
         />
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={save} disabled={saving}>{saving ? "A guardar..." : "Guardar"}</Button>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button type="button" onClick={save} disabled={saving}>{saving ? "A guardar..." : "Guardar"}</Button>
         </div>
       </DialogContent>
     </Dialog>

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 import { DataPagination } from "@/components/ui/data-pagination";
 import { EquipmentHistory } from "@/components/equipments/EquipmentHistory";
 import {
@@ -47,6 +48,7 @@ export default function Equipments() {
   const [catFilter, setCatFilter] = useState("all");
   const [sortBy, setSortBy] = useState("recent");
   const [page, setPage] = useState(1);
+  const { toast } = useToast();
 
   useEffect(() => {
     const load = async () => {
@@ -76,6 +78,18 @@ export default function Equipments() {
     };
     load();
   }, []);
+
+  const changeCategory = async (id: string, category: string) => {
+    const prev = equipments;
+    setEquipments((list) => list.map((e) => (e.id === id ? { ...e, category } : e)));
+    const { error } = await supabase.from("equipments").update({ category }).eq("id", id);
+    if (error) {
+      setEquipments(prev);
+      toast({ title: "Erro", description: "Não foi possível mudar a categoria", variant: "destructive" });
+    } else {
+      toast({ title: "Categoria atualizada" });
+    }
+  };
 
   const clientLabel = (id: string) => {
     const c = clients[id];
@@ -220,7 +234,16 @@ export default function Equipments() {
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <Badge>{EQUIPMENT_CATEGORY_LABEL[(eq.category || "other") as EquipmentCategory]}</Badge>
+                        <Select value={eq.category || "other"} onValueChange={(v) => changeCategory(eq.id, v)}>
+                          <SelectTrigger className="h-7 w-[150px] text-xs" aria-label="Categoria">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(EQUIPMENT_CATEGORY_LABEL).map(([k, l]) => (
+                              <SelectItem key={k} value={k}>{l}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         {eq.brand && <Badge variant="secondary">{eq.brand}</Badge>}
                         {eq.model && <Badge variant="outline">{eq.model}</Badge>}
                         {eq.serial_number && (
