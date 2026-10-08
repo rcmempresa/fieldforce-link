@@ -48,6 +48,7 @@ interface NotificationEmailRequest {
     pauseReason?: string;
     role?: string;
     missingMaterial?: string;
+    attachmentPaths?: { path: string; filename: string }[];
   };
 }
 
@@ -73,6 +74,23 @@ async function sendEmailViaResend(to: string, subject: string, html: string, att
   });
 
   return response;
+}
+
+const STORE_EMAIL = "tecnica.nunorobinson@gmail.com";
+
+// Downloads missing-material attachments from storage as Resend attachments.
+async function loadMaterialAttachments(supabaseAdmin: any, items?: { path: string; filename: string }[]) {
+  const out: any[] = [];
+  for (const it of (items || []).slice(0, 10)) {
+    if (!it?.path || typeof it.path !== "string") continue;
+    const { data: blob, error } = await supabaseAdmin.storage.from("work-order-attachments").download(it.path);
+    if (error || !blob) { console.error("attachment download failed", it.path, error); continue; }
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    out.push({ filename: it.filename || it.path.split("/").pop(), content: btoa(bin) });
+  }
+  return out;
 }
 
 // Fetches extra notification emails registered for a client user.
@@ -129,6 +147,7 @@ async function sendMissingMaterialToManagers(supabaseAdmin: any, data: any): Pro
     });
   }
 
+  const materialAttachments = await loadMaterialAttachments(supabaseAdmin, data.attachmentPaths);
   let workOrderId: string | null = null;
   if (data.workOrderId) {
     workOrderId = data.workOrderId;
@@ -178,7 +197,7 @@ async function sendMissingMaterialToManagers(supabaseAdmin: any, data: any): Pro
         </div>
       `;
 
-      const response = await sendEmailViaResend(user.email, subject, html);
+      const response = await sendEmailViaResend(user.email, subject, html, materialAttachments);
 
       if (!response.ok) {
         const result = await response.text();
@@ -209,6 +228,29 @@ async function sendMissingMaterialToManagers(supabaseAdmin: any, data: any): Pro
     } catch (error) {
       console.error("Error sending email to manager:", manager.user_id, error);
     }
+  }
+
+  // Also notify the store so the material can be ordered
+  try {
+    const storeHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
+        <h1 style="color: #ef4444; font-size: 24px;">Pedido de material - ${data.workOrderReference}</h1>
+        <p style="color:#333">Uma ordem de trabalho foi adiada por falta de material.</p>
+        <p style="color:#333"><strong>OT:</strong> ${data.workOrderReference} - ${data.workOrderTitle}</p>
+        ${data.clientName ? `<p style="color:#333"><strong>Cliente:</strong> ${data.clientName}</p>` : ''}
+        ${data.employeeName ? `<p style="color:#333"><strong>Tecnico:</strong> ${data.employeeName}</p>` : ''}
+        <div style="background-color:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:16px;margin:16px 0;">
+          <p style="margin:0 0 8px 0;font-weight:bold;color:#b45309">Material em falta:</p>
+          <p style="margin:0;white-space:pre-wrap;color:#333">${data.missingMaterial || 'Nao especificado'}</p>
+        </div>
+        <p style="color:#8898aa;font-size:12px">Anexos do tecnico seguem em anexo.</p>
+      </div>`;
+    const r = await sendEmailViaResend(STORE_EMAIL, subject, storeHtml, materialAttachments);
+    const ok = r.ok;
+    const body = await r.text();
+    console.log("Store email", ok ? "sent" : "failed", body);
+  } catch (e) {
+    console.error("Error sending store email:", e);
   }
 
   return new Response(JSON.stringify({ success: true }), {
@@ -674,6 +716,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Handle PDF attachments for completed work orders (OT sheet + maintenance reports)
     let attachments: any[] | undefined;
+    if (type === "work_order_missing_material" && data.attachmentPaths?.length) {
+      attachments = await loadMaterialAttachments(supabaseAdmin, data.attachmentPaths);
+    }
     if (type === "work_order_completed") {
       const toBase64 = (buf: ArrayBuffer) => {
         const bytes = new Uint8Array(buf);
