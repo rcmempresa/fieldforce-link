@@ -72,7 +72,7 @@ export const hvacMeasurements: Measurement[] = [
   { parameter: "Temperatura de aspiração", value: "", unit: "°C" },
   { parameter: "Sobreaquecimento", value: "", unit: "K" },
   { parameter: "Sub-arrefecimento", value: "", unit: "K" },
-  { parameter: "Diferencial de temperatura (ΔT)", value: "", unit: "K" },
+  { parameter: "Diferencial de temperatura (Delta T)", value: "", unit: "K" },
   { parameter: "Tensão de alimentação", value: "", unit: "V" },
   { parameter: "Corrente do compressor", value: "", unit: "A" },
   { parameter: "Corrente do ventilador", value: "", unit: "A" },
