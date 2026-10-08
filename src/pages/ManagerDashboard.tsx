@@ -1018,7 +1018,7 @@ export default function ManagerDashboard() {
         <Notifications />
 
         {/* KPI Strip — most important glance metrics */}
-        <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-7">
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-8">
           <Card className="bg-gradient-to-br from-orange-500/10 to-background border-orange-500/30 hover:shadow-md transition-all">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-1">
