@@ -327,6 +327,11 @@ export default function WorkOrders() {
                             Aguarda data
                           </span>
                         )}
+                        {missingIds.has(order.id) && (
+                          <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-destructive/10 text-destructive border border-destructive/30">
+                            Sem material
+                          </span>
+                        )}
                       </div>
                       {order.work_order_equipments?.length ? (
                         <div className="flex flex-wrap gap-1.5">

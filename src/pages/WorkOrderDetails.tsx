@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Calendar, User, Clock, FileText, Users, Plus, X, Wrench, Package, MapPin, Play, Pause, Circle } from "lucide-react";
 import { entryRegime } from "@/lib/workRegime";
 import { formatHoursDetailed } from "@/lib/formatHours";
+import { fetchMissingMaterialIds } from "@/lib/missingMaterial";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -97,8 +98,13 @@ export default function WorkOrderDetails() {
   const { user, roles } = useAuth();
   const [workOrder, setWorkOrder] = useState<WorkOrderDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [missingMaterial, setMissingMaterial] = useState(false);
   const { toast } = useToast();
   const isManager = roles.includes("manager");
+
+  useEffect(() => {
+    fetchMissingMaterialIds().then((ids) => setMissingMaterial(id ? ids.has(id) : false));
+  }, [id]);
   
   // Manager only states
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -598,6 +604,11 @@ export default function WorkOrderDetails() {
                 >
                   {getStatusLabel(workOrder.status)}
                 </span>
+                {missingMaterial && (
+                  <span className="rounded-full px-3 py-1 text-sm font-medium bg-destructive/10 text-destructive border border-destructive/30">
+                    Sem material
+                  </span>
+                )}
                 <span
                   className={`rounded-full px-3 py-1 text-sm font-medium ${getPriorityColor(
                     workOrder.priority
