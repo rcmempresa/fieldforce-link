@@ -8,6 +8,10 @@ export interface Measurement {
   parameter: string;
   value: string;
   unit: string;
+  /** Equipment group for per-equipment measurements (e.g. "eq1", "eq2") */
+  group?: string;
+  /** User-added row: parameter and unit are editable */
+  custom?: boolean;
 }
 
 export interface Material {
@@ -64,7 +68,20 @@ export const hvacMeasurements: Measurement[] = [
   { parameter: "Humidade relativa", value: "", unit: "%" },
   { parameter: "Caudal de ar", value: "", unit: "m³/h" },
   { parameter: "Consumo energético", value: "", unit: "kW" },
+  { parameter: "Temperatura de descarga", value: "", unit: "°C" },
+  { parameter: "Temperatura de aspiração", value: "", unit: "°C" },
+  { parameter: "Sobreaquecimento", value: "", unit: "K" },
+  { parameter: "Sub-arrefecimento", value: "", unit: "K" },
+  { parameter: "Diferencial de temperatura (ΔT)", value: "", unit: "K" },
+  { parameter: "Tensão de alimentação", value: "", unit: "V" },
+  { parameter: "Corrente do compressor", value: "", unit: "A" },
+  { parameter: "Corrente do ventilador", value: "", unit: "A" },
 ];
+
+export const HVAC_GROUPS = ["eq1", "eq2"] as const;
+
+export const buildHvacGroupedMeasurements = (): Measurement[] =>
+  HVAC_GROUPS.flatMap((g) => hvacMeasurements.map((m) => ({ ...m, group: g })));
 
 // === CCTV ===
 
