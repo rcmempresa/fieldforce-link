@@ -50,6 +50,7 @@ export function WorkOrderFilters({
             <SelectItem value="all">Todos os estados</SelectItem>
             <SelectItem value="pending">Pendente</SelectItem>
             <SelectItem value="needs_scheduling">Aguarda data</SelectItem>
+            <SelectItem value="missing_material">Sem material</SelectItem>
             <SelectItem value="awaiting_approval">Aguarda Aprovação</SelectItem>
             <SelectItem value="approved">Aprovada</SelectItem>
             <SelectItem value="in_progress">Em Progresso</SelectItem>
