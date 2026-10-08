@@ -1,6 +1,8 @@
 import { formatDate, formatDateTime } from "@/lib/formatDate";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { fetchMissingMaterialIds } from "@/lib/missingMaterial";
+import { PackageX } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -97,6 +99,8 @@ export default function ManagerDashboard() {
   const [pendingRequests, setPendingRequests] = useState<WorkOrder[]>([]);
   const [pendingScheduling, setPendingScheduling] = useState<WorkOrder[]>([]);
   const [unassignedOrders, setUnassignedOrders] = useState<WorkOrder[]>([]);
+  const [missingMaterialCount, setMissingMaterialCount] = useState(0);
+  useEffect(() => { fetchMissingMaterialIds().then((s) => setMissingMaterialCount(s.size)); }, []);
   const [schedulingDates, setSchedulingDates] = useState<Record<string, string>>({});
   const [orderTechs, setOrderTechs] = useState<Record<string, string[]>>({});
   const [busyByOrder, setBusyByOrder] = useState<Record<string, Set<string>>>({});
@@ -1049,6 +1053,15 @@ export default function ManagerDashboard() {
                 <UserX className="h-4 w-4 text-destructive" />
               </div>
               <div className="text-2xl font-bold text-destructive">{unassignedOrders.length}</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-destructive/10 to-background border-destructive/30 hover:shadow-md transition-all cursor-pointer" onClick={() => navigate("/work-orders?status=missing_material")}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-muted-foreground">Sem Material</span>
+                <PackageX className="h-4 w-4 text-destructive" />
+              </div>
+              <div className="text-2xl font-bold text-destructive">{missingMaterialCount}</div>
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-primary/5 to-background border-primary/20 hover:shadow-md transition-all">

@@ -4,6 +4,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Eye, Pencil, Trash2, ArrowLeft, Wrench } from "lucide-react";
+import { fetchMissingMaterialIds } from "@/lib/missingMaterial";
 import { equipmentLinkLabel } from "@/lib/equipmentLabel";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -48,7 +49,9 @@ export default function WorkOrders() {
   const [filteredOrders, setFilteredOrders] = useState<WorkOrder[]>([]);
   const [paginatedOrders, setPaginatedOrders] = useState<WorkOrder[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState(() => new URLSearchParams(window.location.search).get("status") || "all");
+  const [missingIds, setMissingIds] = useState<Set<string>>(new Set());
+  useEffect(() => { fetchMissingMaterialIds().then(setMissingIds); }, []);
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [sortBy, setSortBy] = useState("recent");
   const [currentPage, setCurrentPage] = useState(1);
@@ -67,7 +70,7 @@ export default function WorkOrders() {
 
   useEffect(() => {
     filterOrders();
-  }, [searchTerm, statusFilter, priorityFilter, sortBy, workOrders]);
+  }, [searchTerm, statusFilter, priorityFilter, sortBy, workOrders, missingIds]);
 
   useEffect(() => {
     paginateOrders();
@@ -129,7 +132,9 @@ export default function WorkOrders() {
     }
 
     if (statusFilter !== "all") {
-      if (statusFilter === "needs_scheduling") {
+      if (statusFilter === "missing_material") {
+        filtered = filtered.filter((order) => missingIds.has(order.id));
+      } else if (statusFilter === "needs_scheduling") {
         filtered = filtered.filter((order) => order.needs_scheduling);
       } else {
         filtered = filtered.filter((order) => order.status === statusFilter);
