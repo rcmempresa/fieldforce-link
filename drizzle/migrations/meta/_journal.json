@@ -15,6 +15,13 @@
       "when": 1791296508463,
       "tag": "0001_equipment_indoor_outdoor_units",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791446945653,
+      "tag": "0002_equipment_category",
+      "breakpoints": true
     }
   ]
 }

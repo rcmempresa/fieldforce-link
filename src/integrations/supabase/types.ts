@@ -216,6 +216,7 @@ export type Database = {
       equipments: {
         Row: {
           brand: string | null
+          category: string
           client_id: string
           created_at: string
           equipment_type: string
@@ -231,6 +232,7 @@ export type Database = {
         }
         Insert: {
           brand?: string | null
+          category?: string
           client_id: string
           created_at?: string
           equipment_type?: string
@@ -246,6 +248,7 @@ export type Database = {
         }
         Update: {
           brand?: string | null
+          category?: string
           client_id?: string
           created_at?: string
           equipment_type?: string
