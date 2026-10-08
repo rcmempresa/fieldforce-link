@@ -31,6 +31,7 @@ import {
   MAX_PER_SLOT,
 } from "@/lib/employeeAvailability";
 import { SlotDateTimePicker } from "./SlotDateTimePicker";
+import { ManageWorkOrderEquipmentsDialog } from "./ManageWorkOrderEquipmentsDialog";
 
 interface EditWorkOrderDialogProps {
   open: boolean;
@@ -52,6 +53,13 @@ export function EditWorkOrderDialog({
   onSuccess,
 }: EditWorkOrderDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [eqOpen, setEqOpen] = useState(false);
+  const [eqCount, setEqCount] = useState(0);
+  const loadEqCount = async () => {
+    const { count } = await supabase.from("work_order_equipments").select("id", { count: "exact", head: true }).eq("work_order_id", workOrder.id);
+    setEqCount(count || 0);
+  };
+  useEffect(() => { if (open) loadEqCount(); }, [open, workOrder.id]);
   const [employees, setEmployees] = useState<{ id: string; name: string }[]>([]);
   const [assignedIds, setAssignedIds] = useState<string[]>([]);
   const [busyEmployeeIds, setBusyEmployeeIds] = useState<Set<string>>(new Set());
@@ -495,6 +503,23 @@ export function EditWorkOrderDialog({
               rows={3}
             />
           </div>
+
+          <div className="flex items-center justify-between gap-2 rounded-lg border p-3">
+            <div>
+              <Label>Equipamentos</Label>
+              <p className="text-xs text-muted-foreground">{eqCount} associado(s)</p>
+            </div>
+            <Button type="button" variant="outline" size="sm" onClick={() => setEqOpen(true)}>
+              Adicionar / remover
+            </Button>
+          </div>
+          <ManageWorkOrderEquipmentsDialog
+            open={eqOpen}
+            onOpenChange={setEqOpen}
+            workOrderId={workOrder.id}
+            canRemove
+            onSaved={() => { loadEqCount(); onSuccess(); }}
+          />
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
