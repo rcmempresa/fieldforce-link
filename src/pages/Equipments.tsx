@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EQUIPMENT_CATEGORY_LABEL, type EquipmentCategory } from "@/lib/equipmentLabel";
 import { Search, Loader2, HardDrive, MapPin, Building2 } from "lucide-react";
 
 interface EquipmentRow {
@@ -24,6 +25,7 @@ interface EquipmentRow {
   serial_number: string | null;
   location: string | null;
   notes: string | null;
+  category: string | null;
   created_at: string;
 }
 
@@ -42,6 +44,7 @@ export default function Equipments() {
   const [clients, setClients] = useState<Record<string, ClientRow>>({});
   const [search, setSearch] = useState("");
   const [clientFilter, setClientFilter] = useState("all");
+  const [catFilter, setCatFilter] = useState("all");
   const [sortBy, setSortBy] = useState("recent");
   const [page, setPage] = useState(1);
 
@@ -52,7 +55,7 @@ export default function Equipments() {
         supabase
           .from("equipments")
           .select(
-            "id, client_id, name, brand, model, serial_number, location, notes, created_at"
+            "id, client_id, name, brand, model, serial_number, location, notes, category, created_at"
           )
           .order("created_at", { ascending: false }),
         supabase.from("user_roles").select("user_id").eq("role", "client"),
@@ -91,6 +94,7 @@ export default function Equipments() {
     const term = search.trim().toLowerCase();
     let list = equipments.filter((e) => {
       if (clientFilter !== "all" && e.client_id !== clientFilter) return false;
+      if (catFilter !== "all" && (e.category || "other") !== catFilter) return false;
       if (!term) return true;
       const haystack = [
         e.name,
@@ -115,11 +119,11 @@ export default function Equipments() {
     });
 
     return list;
-  }, [equipments, clients, search, clientFilter, sortBy]);
+  }, [equipments, clients, search, clientFilter, catFilter, sortBy]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, clientFilter, sortBy]);
+  }, [search, clientFilter, catFilter, sortBy]);
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const pageItems = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
@@ -170,6 +174,15 @@ export default function Equipments() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {["all", ...Object.keys(EQUIPMENT_CATEGORY_LABEL)].map((c) => (
+                <button key={c} type="button" onClick={() => setCatFilter(c)}
+                  className={`rounded-full border px-3 py-1.5 text-sm ${catFilter === c ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}>
+                  {c === "all" ? "Todas" : EQUIPMENT_CATEGORY_LABEL[c as EquipmentCategory]}
+                  {" "}({c === "all" ? equipments.length : equipments.filter((e) => (e.category || "other") === c).length})
+                </button>
+              ))}
+            </div>
           </CardContent>
         </Card>
 
@@ -207,6 +220,7 @@ export default function Equipments() {
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-2">
+                        <Badge>{EQUIPMENT_CATEGORY_LABEL[(eq.category || "other") as EquipmentCategory]}</Badge>
                         {eq.brand && <Badge variant="secondary">{eq.brand}</Badge>}
                         {eq.model && <Badge variant="outline">{eq.model}</Badge>}
                         {eq.serial_number && (

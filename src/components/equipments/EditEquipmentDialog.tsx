@@ -31,6 +31,7 @@ export function EditEquipmentDialog({ open, onOpenChange, equipment, onSuccess }
       const e = (data || equipment) as any;
       setFormData({
         equipment_type: e.equipment_type === "ac" ? "ac" : "general",
+        category: e.category || "other",
         name: e.name || "",
         brand: e.brand || "",
         model: e.model || "",

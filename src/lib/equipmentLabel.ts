@@ -25,3 +25,19 @@ export function buildEquipmentTitle(items: Array<{ eq: EquipmentLike; part?: str
   if (!items.length) return fallback;
   return items.map(({ eq, part }) => equipmentLinkLabel(eq, part)).join(", ").slice(0, 200);
 }
+
+export type EquipmentCategory = "hvac" | "electricity" | "generator" | "cctv" | "other";
+
+export const EQUIPMENT_CATEGORY_LABEL: Record<EquipmentCategory, string> = {
+  hvac: "Climatização",
+  electricity: "Eletricidade",
+  generator: "Grupo Gerador",
+  cctv: "CCTV",
+  other: "Outros",
+};
+
+/** Report type -> equipment category it lists (intervention lists all). */
+export function categoryForReport(reportType: string | null | undefined): EquipmentCategory | null {
+  if (reportType === "hvac" || reportType === "electricity" || reportType === "generator" || reportType === "cctv") return reportType;
+  return null;
+}

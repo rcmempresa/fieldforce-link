@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Save, FileDown, Plus, Trash2, Zap, Wind, Camera } from "lucide-react";
 import SignatureCanvas from "react-signature-canvas";
-import { equipmentLinkLabel } from "@/lib/equipmentLabel";
+import { equipmentLinkLabel, categoryForReport, EQUIPMENT_CATEGORY_LABEL } from "@/lib/equipmentLabel";
 import {
   ChecklistItem,
   Measurement,
@@ -87,13 +87,15 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
     (async () => {
       const { data } = await supabase
         .from("work_order_equipments")
-        .select("unit_part, equipments ( id, name, brand, model, serial_number, location, equipment_type, outdoor_model, outdoor_serial_number )")
+        .select("unit_part, equipments ( id, name, brand, model, serial_number, location, equipment_type, outdoor_model, outdoor_serial_number, category )")
         .eq("work_order_id", workOrderId);
       const list = (data || []).filter((r: any) => r.equipments).map((r: any) => ({ eq: r.equipments, part: r.unit_part }));
       setWoEquipments(list);
-      // Auto-fill new report when OT has exactly one equipment
-      if (!reportId && list.length >= 1) applyEquipment(list[0], 1);
-      if (!reportId && list.length === 2) applyEquipment(list[1], 2);
+      // Auto-fill new report with equipment of the report's category
+      const wanted = categoryForReport(reportType);
+      const match = list.filter((l: any) => !wanted || (l.eq.category || "other") === wanted);
+      if (!reportId && match.length >= 1) applyEquipment(match[0], 1);
+      if (!reportId && match.length === 2) applyEquipment(match[1], 2);
     })();
   }, [workOrderId]);
 
@@ -420,11 +422,12 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
                 <Label>Localização Específica</Label>
                 <Input value={specificLocation} onChange={(e) => setSpecificLocation(e.target.value)} disabled={isReadOnly} placeholder="Sala, corredor, etc." />
               </div>
-              {!isReadOnly && woEquipments.length > 0 && (
+              {!isReadOnly && woEquipments.length > 0 && (() => { const wanted = categoryForReport(type); const shown = woEquipments.filter((l) => !wanted || (l.eq.category || "other") === wanted || (l.eq.category || "other") === "other"); return (
                 <div className="space-y-1.5 md:col-span-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
                   <Label>Preencher com equipamento da OT</Label>
                   <div className="space-y-2">
-                    {woEquipments.map((l, i) => (
+                    {shown.length === 0 && <p className="text-xs text-muted-foreground">Esta OT não tem equipamentos de {wanted ? EQUIPMENT_CATEGORY_LABEL[wanted] : ""}. Adiciona-os nos "Equipamentos Associados" da OT.</p>}
+                    {shown.map((l, i) => (
                       <div key={i} className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-medium flex-1 min-w-0">{equipmentLinkLabel(l.eq, l.part)}</span>
                         <Button type="button" size="sm" variant="outline" onClick={() => applyEquipment(l, 1)}>Equipamento 1</Button>
@@ -434,7 +437,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
                   </div>
                   <p className="text-xs text-muted-foreground">Até 2 equipamentos por relatório; para mais, cria outro relatório na mesma OT.</p>
                 </div>
-              )}
+              ); })()}
               <div className="space-y-1.5">
                 <Label>Equipamento 1</Label>
                 <Input value={equipmentName} onChange={(e) => setEquipmentName(e.target.value)} disabled={isReadOnly} />
