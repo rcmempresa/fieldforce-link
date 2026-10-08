@@ -3,9 +3,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { Snowflake, Wrench } from "lucide-react";
+import { EQUIPMENT_CATEGORY_LABEL, type EquipmentCategory } from "@/lib/equipmentLabel";
 
 export interface EquipmentFormData {
   equipment_type: "general" | "ac";
+  category: EquipmentCategory;
   name: string;
   brand: string;
   model: string;
@@ -18,6 +20,7 @@ export interface EquipmentFormData {
 
 export const emptyEquipmentForm: EquipmentFormData = {
   equipment_type: "general",
+  category: "other",
   name: "",
   brand: "",
   model: "",
@@ -32,6 +35,7 @@ export function equipmentPayload(f: EquipmentFormData) {
   const isAc = f.equipment_type === "ac";
   return {
     equipment_type: f.equipment_type,
+    category: f.category,
     name: f.name.trim(),
     brand: f.brand || null,
     model: f.model || null,
@@ -64,7 +68,7 @@ export function EquipmentFormFields({ value, onChange }: Props) {
             <button
               key={v}
               type="button"
-              onClick={() => onChange({ ...value, equipment_type: v })}
+              onClick={() => onChange({ ...value, equipment_type: v, category: v === "ac" ? "hvac" : value.category })}
               className={cn(
                 "flex items-center justify-center gap-2 rounded-lg border p-3 text-sm font-medium transition-colors",
                 value.equipment_type === v ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted",
@@ -72,6 +76,25 @@ export function EquipmentFormFields({ value, onChange }: Props) {
             >
               <Icon className="h-4 w-4" />
               {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Categoria</Label>
+        <div className="flex flex-wrap gap-2">
+          {(Object.keys(EQUIPMENT_CATEGORY_LABEL) as EquipmentCategory[]).map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => onChange({ ...value, category: c })}
+              className={cn(
+                "rounded-full border px-3 py-1.5 text-sm transition-colors",
+                value.category === c ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted",
+              )}
+            >
+              {EQUIPMENT_CATEGORY_LABEL[c]}
             </button>
           ))}
         </div>
