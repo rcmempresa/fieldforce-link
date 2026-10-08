@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -34,6 +35,7 @@ export function PauseWorkOrderDialog({
 }: PauseWorkOrderDialogProps) {
   const [selectedReason, setSelectedReason] = useState<string>("");
   const [missingMaterial, setMissingMaterial] = useState<string>("");
+  const [materialFiles, setMaterialFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -58,9 +60,32 @@ export function PauseWorkOrderDialog({
       return;
     }
 
+    if (selectedReason === "falta_material" && materialFiles.length === 0) {
+      toast({
+        title: "Erro",
+        description: "Adicione pelo menos um anexo (foto ou documento) do material em falta",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
+      // Upload missing-material attachments first so the pause only happens with evidence
+      const attachmentPaths: { path: string; filename: string }[] = [];
+      if (selectedReason === "falta_material") {
+        const { data: { user: up } } = await supabase.auth.getUser();
+        for (const file of materialFiles) {
+          const ext = file.name.split(".").pop();
+          const path = `${workOrderId}/${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
+          const { error: upErr } = await supabase.storage.from("work-order-attachments").upload(path, file);
+          if (upErr) throw upErr;
+          await supabase.from("attachments").insert({ work_order_id: workOrderId, filename: `Falta material - ${file.name}`, url: path, uploaded_by: up?.id });
+          attachmentPaths.push({ path, filename: file.name });
+        }
+      }
+
       // Get time entry details to calculate duration
       const { data: timeEntry } = await supabase
         .from("time_entries")
@@ -127,7 +152,7 @@ export function PauseWorkOrderDialog({
 
       // If missing material, send emails to client and manager
       if (selectedReason === "falta_material") {
-        await sendMissingMaterialEmails(workOrderId, missingMaterial);
+        await sendMissingMaterialEmails(workOrderId, missingMaterial, attachmentPaths);
       }
 
       toast({
@@ -139,6 +164,7 @@ export function PauseWorkOrderDialog({
 
       setSelectedReason("");
       setMissingMaterial("");
+      setMaterialFiles([]);
       onOpenChange(false);
       onPause();
     } catch (error) {
@@ -153,7 +179,7 @@ export function PauseWorkOrderDialog({
     }
   };
 
-  const sendMissingMaterialEmails = async (workOrderId: string, materialDescription: string) => {
+  const sendMissingMaterialEmails = async (workOrderId: string, materialDescription: string, attachmentPaths: { path: string; filename: string }[]) => {
     try {
       // Get work order details with client info
       const { data: workOrder } = await supabase
@@ -193,6 +219,7 @@ export function PauseWorkOrderDialog({
               workOrderTitle: workOrder.title,
               employeeName: employeeProfile?.name,
               missingMaterial: materialDescription,
+              attachmentPaths,
               isClient: true,
             },
           },
@@ -211,6 +238,7 @@ export function PauseWorkOrderDialog({
             employeeName: employeeProfile?.name,
             clientName: clientName,
             missingMaterial: materialDescription,
+            attachmentPaths,
           },
         },
       });
@@ -221,7 +249,7 @@ export function PauseWorkOrderDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Pausar Ordem de Trabalho</DialogTitle>
         </DialogHeader>
@@ -250,8 +278,19 @@ export function PauseWorkOrderDialog({
                 onChange={(e) => setMissingMaterial(e.target.value)}
                 rows={4}
               />
+              <Label htmlFor="materialFiles">Anexo *</Label>
+              <Input
+                id="materialFiles"
+                type="file"
+                multiple
+                accept="image/*,application/pdf"
+                onChange={(e) => setMaterialFiles(Array.from(e.target.files || []))}
+              />
+              {materialFiles.length > 0 && (
+                <p className="text-xs text-muted-foreground">{materialFiles.length} ficheiro(s) selecionado(s)</p>
+              )}
               <p className="text-xs text-muted-foreground">
-                Esta informação será enviada por email ao cliente e ao gerente.
+                O comentário e o anexo são enviados por email ao cliente, ao gerente e à loja.
               </p>
             </div>
           )}
