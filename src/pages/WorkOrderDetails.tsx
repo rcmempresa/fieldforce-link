@@ -20,6 +20,7 @@ import {
 import { WorkOrderAttachments } from "@/components/work-orders/WorkOrderAttachments";
 import { MaintenanceReportsList } from "@/components/work-orders/MaintenanceReportsList";
 import { EquipmentAttachments } from "@/components/equipments/EquipmentAttachments";
+import { ManageWorkOrderEquipmentsDialog } from "@/components/work-orders/ManageWorkOrderEquipmentsDialog";
 import { WorkOrderMaterials } from "@/components/work-orders/WorkOrderMaterials";
 import { EditTimeEntriesDialog } from "@/components/work-orders/EditTimeEntriesDialog";
 import { CompleteWorkOrderDialog } from "@/components/work-orders/CompleteWorkOrderDialog";
@@ -108,6 +109,7 @@ export default function WorkOrderDetails() {
   
   // Equipment states
   const [equipments, setEquipments] = useState<Equipment[]>([]);
+  const [manageEqOpen, setManageEqOpen] = useState(false);
   
   // Individual hours per employee
   const [employeeHours, setEmployeeHours] = useState<EmployeeHours[]>([]);
@@ -847,15 +849,31 @@ export default function WorkOrderDetails() {
           </Card>
         )}
 
-        {equipments.length > 0 && (
+        {(equipments.length > 0 || isManager || roles.includes("employee")) && (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                Equipamentos Associados
-              </CardTitle>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  Equipamentos Associados ({equipments.length})
+                </CardTitle>
+                {(isManager || roles.includes("employee")) && (
+                  <Button size="sm" variant="outline" onClick={() => setManageEqOpen(true)}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    {isManager ? "Gerir equipamentos" : "Adicionar equipamento"}
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
+              <ManageWorkOrderEquipmentsDialog
+                open={manageEqOpen}
+                onOpenChange={setManageEqOpen}
+                workOrderId={id!}
+                canRemove={isManager}
+                onSaved={fetchEquipments}
+              />
+              {equipments.length === 0 && <p className="text-sm text-muted-foreground">Nenhum equipamento associado.</p>}
               <Accordion type="single" collapsible className="w-full">
                 {equipments.map((equipment) => (
                   <AccordionItem key={equipment.id} value={equipment.id}>
