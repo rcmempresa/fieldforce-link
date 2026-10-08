@@ -159,16 +159,37 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   doc.text("Unidade", margin + contentWidth * 0.8, y + 2);
   y += 10;
 
-  for (const m of data.measurements) {
-    checkPageBreak(8);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.text(m.parameter, margin + 3, y);
-    doc.text(m.value || "-", margin + contentWidth * 0.55, y);
-    doc.text(m.unit, margin + contentWidth * 0.8, y);
-    doc.setDrawColor(230, 230, 230);
-    doc.line(margin, y + 2, margin + contentWidth, y + 2);
-    y += 7;
+  const drawRows = (rows: Measurement[]) => {
+    for (const m of rows) {
+      checkPageBreak(8);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.text(m.parameter || "-", margin + 3, y);
+      doc.text(m.value || "-", margin + contentWidth * 0.55, y);
+      doc.text(m.unit || "", margin + contentWidth * 0.8, y);
+      doc.setDrawColor(230, 230, 230);
+      doc.line(margin, y + 2, margin + contentWidth, y + 2);
+      y += 7;
+    }
+  };
+  const grouped = data.measurements.some((m) => m.group);
+  if (grouped) {
+    for (const g of ["eq1", "eq2"]) {
+      const rows = data.measurements.filter((m) => (m.group || "eq1") === g);
+      if (!rows.length) continue;
+      checkPageBreak(14);
+      const name = g === "eq1" ? data.equipment_name : data.designation;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(30, 64, 175);
+      doc.text(`${g === "eq1" ? "Equipamento 1" : "Equipamento 2"}${name ? ` - ${name}` : ""}`, margin + 3, y);
+      doc.setTextColor(0, 0, 0);
+      y += 6;
+      drawRows(rows);
+      y += 3;
+    }
+  } else {
+    drawRows(data.measurements);
   }
   y += 5;
 

@@ -21,6 +21,8 @@ import {
   hvacMeasurements,
   cctvChecklist,
   cctvMeasurements,
+  buildHvacGroupedMeasurements,
+  HVAC_GROUPS,
 } from "@/lib/maintenanceReportDefaults";
 import {
   generateMaintenanceReportPDF,
@@ -143,7 +145,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
     const checklistMap = { electricity: electricityChecklist, hvac: hvacChecklist, cctv: cctvChecklist };
     const measurementMap = { electricity: electricityMeasurements, hvac: hvacMeasurements, cctv: cctvMeasurements };
     setChecklist([...(checklistMap[t] || electricityChecklist)]);
-    setMeasurements([...(measurementMap[t] || electricityMeasurements)]);
+    setMeasurements(t === "hvac" ? buildHvacGroupedMeasurements() : (measurementMap[t] || electricityMeasurements).map((m) => ({ ...m })));
   };
 
   const loadReport = async () => {
@@ -311,11 +313,45 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
     setChecklist(updated);
   };
 
-  const updateMeasurement = (index: number, value: string) => {
-    const updated = [...measurements];
-    updated[index].value = value;
-    setMeasurements(updated);
+  const updateMeasurement = (index: number, value: string, field: "value" | "parameter" | "unit" = "value") => {
+    setMeasurements((prev) => prev.map((m, i) => (i === index ? { ...m, [field]: value } : m)));
   };
+  const addMeasurement = (group?: string) => {
+    setMeasurements((prev) => [...prev, { parameter: "", value: "", unit: "", group, custom: true }]);
+  };
+  const removeMeasurement = (index: number) => {
+    setMeasurements((prev) => prev.filter((_, i) => i !== index));
+  };
+  const enableHvacGroups = () => {
+    setMeasurements((prev) => [
+      ...prev.map((m) => ({ ...m, group: m.group || "eq1" })),
+      ...buildHvacGroupedMeasurements().filter((m) => m.group === "eq2"),
+    ]);
+  };
+  const groupTitle = (g: string) =>
+    g === "eq1" ? `Equipamento 1${equipmentName ? ` - ${equipmentName}` : ""}` : `Equipamento 2${designation ? ` - ${designation}` : ""}`;
+  const renderMeasurementRow = (m: Measurement, idx: number) => (
+    <div key={idx} className="grid grid-cols-[1fr_1fr_auto] sm:grid-cols-3 gap-2 items-center">
+      {m.custom && !isReadOnly ? (
+        <Input value={m.parameter} placeholder="Parâmetro" onChange={(e) => updateMeasurement(idx, e.target.value, "parameter")} className="text-sm" />
+      ) : (
+        <Label className="text-sm">{m.parameter}</Label>
+      )}
+      <Input type="text" value={m.value} onChange={(e) => updateMeasurement(idx, e.target.value)} disabled={isReadOnly} className="text-sm" />
+      <div className="flex items-center gap-1">
+        {m.custom && !isReadOnly ? (
+          <Input value={m.unit} placeholder="Unid." onChange={(e) => updateMeasurement(idx, e.target.value, "unit")} className="text-sm w-20" />
+        ) : (
+          <span className="text-sm text-muted-foreground">{m.unit}</span>
+        )}
+        {m.custom && !isReadOnly && (
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeMeasurement(idx)}>
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+    </div>
+  );
 
   const addMaterial = () => {
     setMaterials([...materials, { description: "", quantity: "", unit: "" }]);
@@ -490,21 +526,39 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
             <h3 className="text-sm font-semibold text-primary border-b pb-2">
               📏 Medições {type === "electricity" ? "Elétricas" : type === "cctv" ? "CCTV" : "AVAC"}
             </h3>
-            <div className="space-y-2">
-              {measurements.map((m, idx) => (
-                <div key={idx} className="grid grid-cols-3 gap-2 items-center">
-                  <Label className="text-sm">{m.parameter}</Label>
-                  <Input
-                    type="text"
-                    value={m.value}
-                    onChange={(e) => updateMeasurement(idx, e.target.value)}
-                    disabled={isReadOnly}
-                    className="text-sm"
-                  />
-                  <span className="text-sm text-muted-foreground">{m.unit}</span>
-                </div>
-              ))}
-            </div>
+            {type === "hvac" && measurements.some((m) => m.group) ? (
+              <div className="space-y-6">
+                {HVAC_GROUPS.map((g) => (
+                  <div key={g} className="space-y-2 rounded-md border p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <h4 className="text-sm font-semibold">{groupTitle(g)}</h4>
+                      {!isReadOnly && (
+                        <Button type="button" variant="outline" size="sm" onClick={() => addMeasurement(g)}>
+                          <Plus className="h-3 w-3 mr-1" /> Medição
+                        </Button>
+                      )}
+                    </div>
+                    {measurements.map((m, idx) => (m.group === g ? renderMeasurementRow(m, idx) : null))}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {measurements.map((m, idx) => renderMeasurementRow(m, idx))}
+                {!isReadOnly && (
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => addMeasurement()}>
+                      <Plus className="h-3 w-3 mr-1" /> Medição
+                    </Button>
+                    {type === "hvac" && (
+                      <Button type="button" variant="outline" size="sm" onClick={enableHvacGroups}>
+                        Medições por equipamento
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </section>
 
           {/* Materials */}
