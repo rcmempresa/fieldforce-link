@@ -91,9 +91,11 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
         .eq("work_order_id", workOrderId);
       const list = (data || []).filter((r: any) => r.equipments).map((r: any) => ({ eq: r.equipments, part: r.unit_part }));
       setWoEquipments(list);
-      // Auto-fill new report when OT has exactly one equipment
-      if (!reportId && list.length >= 1) applyEquipment(list[0], 1);
-      if (!reportId && list.length === 2) applyEquipment(list[1], 2);
+      // Auto-fill new report with equipment of the report's category
+      const wanted = categoryForReport(reportType);
+      const match = list.filter((l: any) => !wanted || (l.eq.category || "other") === wanted);
+      if (!reportId && match.length >= 1) applyEquipment(match[0], 1);
+      if (!reportId && match.length === 2) applyEquipment(match[1], 2);
     })();
   }, [workOrderId]);
 
