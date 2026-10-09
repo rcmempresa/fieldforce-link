@@ -26,13 +26,17 @@ export function buildEquipmentTitle(items: Array<{ eq: EquipmentLike; part?: str
   return items.map(({ eq, part }) => equipmentLinkLabel(eq, part)).join(", ").slice(0, 200);
 }
 
-export type EquipmentCategory = "hvac" | "electricity" | "generator" | "cctv" | "other";
+export type EquipmentCategory = "hvac" | "electricity" | "generator" | "cctv" | "refrigeration" | "freezing" | "industrial" | "domestic" | "other";
 
 export const EQUIPMENT_CATEGORY_LABEL: Record<EquipmentCategory, string> = {
   hvac: "Climatização",
   electricity: "Eletricidade",
   generator: "Grupo Gerador",
   cctv: "CCTV",
+  refrigeration: "Refrigeração",
+  freezing: "Congelação",
+  industrial: "Industrial",
+  domestic: "Doméstico",
   other: "Outros",
 };
 
@@ -40,4 +44,15 @@ export const EQUIPMENT_CATEGORY_LABEL: Record<EquipmentCategory, string> = {
 export function categoryForReport(reportType: string | null | undefined): EquipmentCategory | null {
   if (reportType === "hvac" || reportType === "electricity" || reportType === "generator" || reportType === "cctv") return reportType;
   return null;
+}
+
+const GENERIC_CATEGORIES: EquipmentCategory[] = ["other", "industrial", "domestic"];
+
+/** Whether an equipment category is listed by a report of the given category. */
+export function matchesReportCategory(eqCategory: string | null | undefined, wanted: EquipmentCategory | null): boolean {
+  const cat = eqCategory || "other";
+  if (!wanted) return true;
+  if (GENERIC_CATEGORIES.includes(cat as EquipmentCategory)) return true;
+  if (wanted === "hvac") return cat === "hvac" || cat === "refrigeration" || cat === "freezing";
+  return cat === wanted;
 }
