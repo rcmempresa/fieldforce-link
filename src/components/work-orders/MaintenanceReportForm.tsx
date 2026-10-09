@@ -76,6 +76,8 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
   const [logo, setLogo] = useState<string | null>(null);
   const [woEquipments, setWoEquipments] = useState<Array<{ eq: any; part: string | null }>>([]);
   const [hvacEqs, setHvacEqs] = useState<HvacEq[]>([]);
+  const [activeGroupRaw, setActiveGroup] = useState<string>("");
+  const activeGroup = hvacEqs.some((e) => e.group === activeGroupRaw) ? activeGroupRaw : hvacEqs[0]?.group || "";
   const isGrouped = type === "hvac" && measurements.some((m) => m.group);
 
   useEffect(() => {
@@ -615,11 +617,21 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
               📏 Medições {type === "electricity" ? "Elétricas" : type === "cctv" ? "CCTV" : "AVAC"}
             </h3>
             {type === "hvac" && measurements.some((m) => m.group) ? (
-              <div className="space-y-6">
-                {hvacEqs.map((e, i) => (
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {hvacEqs.map((e, i) => {
+                    const filled = measurements.filter((m) => m.group === e.group && m.value).length;
+                    return (
+                      <Button key={e.group} type="button" size="sm" variant={activeGroup === e.group ? "default" : "outline"} onClick={() => setActiveGroup(e.group)}>
+                        Equipamento {i + 1}{e.name ? ` - ${e.name.slice(0, 25)}` : ""}{filled ? ` (${filled})` : ""}
+                      </Button>
+                    );
+                  })}
+                </div>
+                {hvacEqs.filter((e) => e.group === activeGroup).map((e) => (
                   <div key={e.group} className="space-y-2 rounded-md border p-3">
                     <div className="flex items-center justify-between gap-2">
-                      <h4 className="text-sm font-semibold">{`Equipamento ${i + 1}${e.name ? ` - ${e.name}` : ""}`}</h4>
+                      <h4 className="text-sm font-semibold">{`Equipamento ${hvacEqs.indexOf(e) + 1}${e.name ? ` - ${e.name}` : ""}`}</h4>
                       {!isReadOnly && (
                         <Button type="button" variant="outline" size="sm" onClick={() => addMeasurement(e.group)}>
                           <Plus className="h-3 w-3 mr-1" /> Medição
