@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { EQUIPMENT_CATEGORY_LABEL, type EquipmentCategory } from "@/lib/equipmentLabel";
+import { EQUIPMENT_CATEGORY_LABEL, equipmentCategoryLabel, type EquipmentCategory } from "@/lib/equipmentLabel";
 import { Search, Loader2, HardDrive, MapPin, Building2 } from "lucide-react";
 
 interface EquipmentRow {
@@ -192,7 +192,7 @@ export default function Equipments() {
               {["all", ...Object.keys(EQUIPMENT_CATEGORY_LABEL)].map((c) => (
                 <button key={c} type="button" onClick={() => setCatFilter(c)}
                   className={`rounded-full border px-3 py-1.5 text-sm ${catFilter === c ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}>
-                  {c === "all" ? "Todas" : EQUIPMENT_CATEGORY_LABEL[c as EquipmentCategory]}
+                  {c === "all" ? "Todas" : equipmentCategoryLabel(c)}
                   {" "}({c === "all" ? equipments.length : equipments.filter((e) => (e.category || "other") === c).length})
                 </button>
               ))}
@@ -239,6 +239,9 @@ export default function Equipments() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
+                            {!EQUIPMENT_CATEGORY_LABEL[(eq.category || "other") as EquipmentCategory] && (
+                              <SelectItem key="legacy" value={eq.category || "other"}>{equipmentCategoryLabel(eq.category)}</SelectItem>
+                            )}
                             {Object.entries(EQUIPMENT_CATEGORY_LABEL).map(([k, l]) => (
                               <SelectItem key={k} value={k}>{l}</SelectItem>
                             ))}
