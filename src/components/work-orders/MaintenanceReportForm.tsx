@@ -22,8 +22,9 @@ import {
   cctvChecklist,
   cctvMeasurements,
   buildHvacGroupedMeasurements,
-  HVAC_GROUPS,
 } from "@/lib/maintenanceReportDefaults";
+
+interface HvacEq { group: string; name: string; serial: string; source?: string }
 import {
   generateMaintenanceReportPDF,
   uploadMaintenanceReportPDF,
@@ -74,6 +75,8 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
   const [savedReportId, setSavedReportId] = useState(reportId);
   const [logo, setLogo] = useState<string | null>(null);
   const [woEquipments, setWoEquipments] = useState<Array<{ eq: any; part: string | null }>>([]);
+  const [hvacEqs, setHvacEqs] = useState<HvacEq[]>([]);
+  const isGrouped = type === "hvac" && measurements.some((m) => m.group);
 
   useEffect(() => {
     fetchWoReference();
@@ -96,10 +99,30 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
       // Auto-fill new report with equipment of the report's category
       const wanted = categoryForReport(reportType);
       const match = list.filter((l: any) => matchesReportCategory(l.eq.category, wanted));
+      if (!reportId && reportType === "hvac" && match.length) {
+        const entries = match.flatMap(entriesFor);
+        const eqs = entries.map((en, i) => ({ ...en, group: `eq${i + 1}` }));
+        setHvacEqs(eqs);
+        setMeasurements(eqs.flatMap((e) => hvacMeasurements.map((m) => ({ ...m, group: e.group }))));
+        if (match[0].eq.location) setSpecificLocation(match[0].eq.location);
+        return;
+      }
       if (!reportId && match.length >= 1) applyEquipment(match[0], 1);
       if (!reportId && match.length === 2) applyEquipment(match[1], 2);
     })();
   }, [workOrderId]);
+
+  /** Report entries for an OT equipment (AC with both units -> two entries). */
+  const entriesFor = ({ eq, part }: { eq: any; part: string | null }): Omit<HvacEq, "group">[] => {
+    const bm = (m: string | null) => [eq.brand, m].filter(Boolean).join(" ");
+    const isAc = eq.equipment_type === "ac";
+    const indoor = { source: `${eq.id}:in`, name: `${eq.name}${isAc ? " - Unid. Interior" : ""} ${bm(eq.model)}`.trim(), serial: eq.serial_number || "" };
+    const outdoor = { source: `${eq.id}:out`, name: `${eq.name} - Unid. Exterior ${bm(eq.outdoor_model)}`.trim(), serial: eq.outdoor_serial_number || "" };
+    if (!isAc) return [indoor];
+    if (part === "outdoor") return [outdoor];
+    if (part === "indoor") return [indoor];
+    return [indoor, outdoor];
+  };
 
   const applyEquipment = ({ eq, part }: { eq: any; part: string | null }, slot: 1 | 2 = 1) => {
     const brandModel = (m: string | null) => [eq.brand, m].filter(Boolean).join(" ");
@@ -145,7 +168,8 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
     const checklistMap = { electricity: electricityChecklist, hvac: hvacChecklist, cctv: cctvChecklist };
     const measurementMap = { electricity: electricityMeasurements, hvac: hvacMeasurements, cctv: cctvMeasurements };
     setChecklist([...(checklistMap[t] || electricityChecklist)]);
-    setMeasurements(t === "hvac" ? buildHvacGroupedMeasurements() : (measurementMap[t] || electricityMeasurements).map((m) => ({ ...m })));
+    setMeasurements(t === "hvac" ? hvacMeasurements.map((m) => ({ ...m, group: "eq1" })) : (measurementMap[t] || electricityMeasurements).map((m) => ({ ...m })));
+    if (t === "hvac") setHvacEqs([{ group: "eq1", name: "", serial: "" }]);
   };
 
   const loadReport = async () => {
@@ -179,7 +203,14 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
     const storedChecklist = data.checklist_items as any;
     setChecklist(Array.isArray(storedChecklist) ? storedChecklist : storedChecklist?.items || []);
     setLogo(Array.isArray(storedChecklist) ? null : storedChecklist?.logo || null);
-    setMeasurements((data.measurements as any) || []);
+    const ms: Measurement[] = (data.measurements as any) || [];
+    setMeasurements(ms);
+    const groups = Array.from(new Set(ms.map((m) => m.group).filter(Boolean))) as string[];
+    const storedEqs: HvacEq[] = Array.isArray(storedChecklist) ? [] : storedChecklist?.equipments || [];
+    setHvacEqs(groups.map((g) => storedEqs.find((e) => e.group === g) || (
+      g === "eq1" ? { group: g, name: data.equipment_name || "", serial: data.equipment_serial || "" }
+      : g === "eq2" ? { group: g, name: data.designation || "", serial: data.designation_serial || "" }
+      : { group: g, name: "", serial: "" })));
     setMaterials((data.materials as any) || []);
     setGeneralObservations(data.general_observations || "");
     setRecommendations(data.recommendations || "");
@@ -204,11 +235,11 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
     building: building || null,
     floor_number: floorNumber || null,
     specific_location: specificLocation || null,
-    equipment_name: equipmentName || null,
-    equipment_serial: equipmentSerial || null,
-    designation: designation || null,
-    designation_serial: designationSerial || null,
-    checklist_items: { items: checklist, logo },
+    equipment_name: (isGrouped ? hvacEqs[0]?.name : equipmentName) || null,
+    equipment_serial: (isGrouped ? hvacEqs[0]?.serial : equipmentSerial) || null,
+    designation: (isGrouped ? hvacEqs[1]?.name : designation) || null,
+    designation_serial: (isGrouped ? hvacEqs[1]?.serial : designationSerial) || null,
+    checklist_items: { items: checklist, logo, ...(isGrouped ? { equipments: hvacEqs } : {}) },
     measurements: measurements,
     materials: materials,
     general_observations: generalObservations || null,
@@ -278,6 +309,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
         measurements: measurements,
         materials: materials,
         logo,
+        equipments: isGrouped ? hvacEqs : undefined,
       } as any);
 
       const pdfPath = await uploadMaintenanceReportPDF(
@@ -323,13 +355,29 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
     setMeasurements((prev) => prev.filter((_, i) => i !== index));
   };
   const enableHvacGroups = () => {
-    setMeasurements((prev) => [
-      ...prev.map((m) => ({ ...m, group: m.group || "eq1" })),
-      ...buildHvacGroupedMeasurements().filter((m) => m.group === "eq2"),
-    ]);
+    setMeasurements((prev) => prev.map((m) => ({ ...m, group: m.group || "eq1" })));
+    setHvacEqs([{ group: "eq1", name: equipmentName, serial: equipmentSerial }]);
   };
-  const groupTitle = (g: string) =>
-    g === "eq1" ? `Equipamento 1${equipmentName ? ` - ${equipmentName}` : ""}` : `Equipamento 2${designation ? ` - ${designation}` : ""}`;
+  const nextGroup = (list: HvacEq[]) => `eq${list.reduce((mx, e) => Math.max(mx, parseInt(e.group.replace("eq", "")) || 0), 0) + 1}`;
+  const addEq = (entry?: Omit<HvacEq, "group">) => {
+    const group = nextGroup(hvacEqs);
+    setHvacEqs((prev) => [...prev, { group, name: entry?.name || "", serial: entry?.serial || "", source: entry?.source }]);
+    setMeasurements((prev) => [...prev, ...hvacMeasurements.map((m) => ({ ...m, group }))]);
+  };
+  const removeEq = (group: string) => {
+    setHvacEqs((prev) => prev.filter((e) => e.group !== group));
+    setMeasurements((prev) => prev.filter((m) => m.group !== group));
+  };
+  const updateEq = (group: string, field: "name" | "serial", value: string) =>
+    setHvacEqs((prev) => prev.map((e) => (e.group === group ? { ...e, [field]: value } : e)));
+  const toggleEntry = (en: Omit<HvacEq, "group">) => {
+    const existing = hvacEqs.find((h) => h.source === en.source);
+    if (existing) { removeEq(existing.group); return; }
+    // Reuse an empty slot if present
+    const empty = hvacEqs.find((h) => !h.name && !h.source);
+    if (empty) setHvacEqs((prev) => prev.map((h) => (h.group === empty.group ? { ...h, ...en } : h)));
+    else addEq(en);
+  };
   const renderMeasurementRow = (m: Measurement, idx: number) => (
     <div key={idx} className="grid grid-cols-[1fr_1fr_auto] sm:grid-cols-3 gap-2 items-center">
       {m.custom && !isReadOnly ? (
@@ -458,6 +506,45 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
                 <Label>Localização Específica</Label>
                 <Input value={specificLocation} onChange={(e) => setSpecificLocation(e.target.value)} disabled={isReadOnly} placeholder="Sala, corredor, etc." />
               </div>
+              {type === "hvac" && measurements.some((m) => m.group) ? (
+                <div className="space-y-3 md:col-span-2">
+                  {!isReadOnly && woEquipments.length > 0 && (() => { const shown = woEquipments.filter((l) => matchesReportCategory(l.eq.category, "hvac")).flatMap(entriesFor); return (
+                    <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                      <Label>Equipamentos da OT neste relatório</Label>
+                      {shown.length === 0 && <p className="text-xs text-muted-foreground">Esta OT não tem equipamentos de Climatização. Adiciona-os nos "Equipamentos Associados" da OT.</p>}
+                      {shown.map((en) => (
+                        <label key={en.source} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <Checkbox checked={hvacEqs.some((h) => h.source === en.source)} onCheckedChange={() => toggleEntry(en)} />
+                          <span>{en.name}{en.serial ? ` (Nº ${en.serial})` : ""}</span>
+                        </label>
+                      ))}
+                      <p className="text-xs text-muted-foreground">Seleciona um ou vários; cada equipamento tem as suas medições AVAC.</p>
+                    </div>
+                  ); })()}
+                  {hvacEqs.map((e, i) => (
+                    <div key={e.group} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 items-end">
+                      <div className="space-y-1.5">
+                        <Label>Equipamento {i + 1}</Label>
+                        <Input value={e.name} onChange={(ev) => updateEq(e.group, "name", ev.target.value)} disabled={isReadOnly} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Nº Série</Label>
+                        <Input value={e.serial} onChange={(ev) => updateEq(e.group, "serial", ev.target.value)} disabled={isReadOnly} />
+                      </div>
+                      {!isReadOnly && (
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeEq(e.group)} aria-label="Remover equipamento">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  {!isReadOnly && (
+                    <Button type="button" variant="outline" size="sm" onClick={() => addEq()}>
+                      <Plus className="h-3 w-3 mr-1" /> Adicionar equipamento
+                    </Button>
+                  )}
+                </div>
+              ) : (<>
               {!isReadOnly && woEquipments.length > 0 && (() => { const wanted = categoryForReport(type); const shown = woEquipments.filter((l) => matchesReportCategory(l.eq.category, wanted)); return (
                 <div className="space-y-1.5 md:col-span-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
                   <Label>Preencher com equipamento da OT</Label>
@@ -490,6 +577,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
                 <Label>Nº Série</Label>
                 <Input value={designationSerial} onChange={(e) => setDesignationSerial(e.target.value)} disabled={isReadOnly} />
               </div>
+              </>)}
             </div>
           </section>
 
@@ -528,17 +616,17 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
             </h3>
             {type === "hvac" && measurements.some((m) => m.group) ? (
               <div className="space-y-6">
-                {HVAC_GROUPS.map((g) => (
-                  <div key={g} className="space-y-2 rounded-md border p-3">
+                {hvacEqs.map((e, i) => (
+                  <div key={e.group} className="space-y-2 rounded-md border p-3">
                     <div className="flex items-center justify-between gap-2">
-                      <h4 className="text-sm font-semibold">{groupTitle(g)}</h4>
+                      <h4 className="text-sm font-semibold">{`Equipamento ${i + 1}${e.name ? ` - ${e.name}` : ""}`}</h4>
                       {!isReadOnly && (
-                        <Button type="button" variant="outline" size="sm" onClick={() => addMeasurement(g)}>
+                        <Button type="button" variant="outline" size="sm" onClick={() => addMeasurement(e.group)}>
                           <Plus className="h-3 w-3 mr-1" /> Medição
                         </Button>
                       )}
                     </div>
-                    {measurements.map((m, idx) => (m.group === g ? renderMeasurementRow(m, idx) : null))}
+                    {measurements.map((m, idx) => (m.group === e.group ? renderMeasurementRow(m, idx) : null))}
                   </div>
                 ))}
               </div>
