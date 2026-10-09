@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Save, FileDown, Plus, Trash2, Zap, Wind, Camera } from "lucide-react";
 import SignatureCanvas from "react-signature-canvas";
-import { equipmentLinkLabel, categoryForReport, EQUIPMENT_CATEGORY_LABEL } from "@/lib/equipmentLabel";
+import { equipmentLinkLabel, categoryForReport, matchesReportCategory, EQUIPMENT_CATEGORY_LABEL } from "@/lib/equipmentLabel";
 import {
   ChecklistItem,
   Measurement,
@@ -95,7 +95,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
       setWoEquipments(list);
       // Auto-fill new report with equipment of the report's category
       const wanted = categoryForReport(reportType);
-      const match = list.filter((l: any) => !wanted || (l.eq.category || "other") === wanted);
+      const match = list.filter((l: any) => matchesReportCategory(l.eq.category, wanted));
       if (!reportId && match.length >= 1) applyEquipment(match[0], 1);
       if (!reportId && match.length === 2) applyEquipment(match[1], 2);
     })();
@@ -458,7 +458,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
                 <Label>Localização Específica</Label>
                 <Input value={specificLocation} onChange={(e) => setSpecificLocation(e.target.value)} disabled={isReadOnly} placeholder="Sala, corredor, etc." />
               </div>
-              {!isReadOnly && woEquipments.length > 0 && (() => { const wanted = categoryForReport(type); const shown = woEquipments.filter((l) => !wanted || (l.eq.category || "other") === wanted || (l.eq.category || "other") === "other"); return (
+              {!isReadOnly && woEquipments.length > 0 && (() => { const wanted = categoryForReport(type); const shown = woEquipments.filter((l) => matchesReportCategory(l.eq.category, wanted)); return (
                 <div className="space-y-1.5 md:col-span-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
                   <Label>Preencher com equipamento da OT</Label>
                   <div className="space-y-2">
