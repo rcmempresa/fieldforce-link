@@ -26,19 +26,45 @@ export function buildEquipmentTitle(items: Array<{ eq: EquipmentLike; part?: str
   return items.map(({ eq, part }) => equipmentLinkLabel(eq, part)).join(", ").slice(0, 200);
 }
 
-export type EquipmentCategory = "hvac" | "electricity" | "generator" | "cctv" | "refrigeration" | "freezing" | "industrial" | "domestic" | "other";
+export type EquipmentCategory =
+  | "hvac"
+  | "electricity"
+  | "generator"
+  | "cctv"
+  | "automatismos"
+  | "refrigeration"
+  | "thermal_accumulator"
+  | "heat_pump"
+  | "industrial"
+  | "domestic"
+  | "other";
 
 export const EQUIPMENT_CATEGORY_LABEL: Record<EquipmentCategory, string> = {
   hvac: "Climatização",
   electricity: "Eletricidade",
   generator: "Grupo Gerador",
   cctv: "CCTV",
-  refrigeration: "Refrigeração",
-  freezing: "Congelação",
+  automatismos: "Automatismos",
+  refrigeration: "Refrigeração & Congelação",
+  thermal_accumulator: "Termo Acumulador",
+  heat_pump: "Bomba de Calor",
   industrial: "Industrial",
   domestic: "Doméstico",
   other: "Outros",
 };
+
+/** Categories retired from the picker but still stored on old rows. */
+const LEGACY_CATEGORY_LABEL: Record<string, string> = {
+  freezing: "Refrigeração & Congelação",
+};
+
+/** Label for any stored category value, including legacy ones. */
+export function equipmentCategoryLabel(cat: string | null | undefined): string {
+  const key = cat && cat in EQUIPMENT_CATEGORY_LABEL ? (cat as EquipmentCategory) : null;
+  if (key) return EQUIPMENT_CATEGORY_LABEL[key];
+  if (cat && cat in LEGACY_CATEGORY_LABEL) return LEGACY_CATEGORY_LABEL[cat];
+  return EQUIPMENT_CATEGORY_LABEL.other;
+}
 
 /** Report type -> equipment category it lists (intervention lists all). */
 export function categoryForReport(reportType: string | null | undefined): EquipmentCategory | null {
@@ -48,11 +74,18 @@ export function categoryForReport(reportType: string | null | undefined): Equipm
 
 const GENERIC_CATEGORIES: EquipmentCategory[] = ["other", "industrial", "domestic"];
 
+/** Extra equipment categories a report of the given category also lists. */
+const REPORT_CATEGORY_GROUPS: Partial<Record<EquipmentCategory, EquipmentCategory[]>> = {
+  hvac: ["hvac", "refrigeration", "thermal_accumulator", "heat_pump"],
+  electricity: ["electricity", "automatismos"],
+};
+
 /** Whether an equipment category is listed by a report of the given category. */
 export function matchesReportCategory(eqCategory: string | null | undefined, wanted: EquipmentCategory | null): boolean {
-  const cat = eqCategory || "other";
+  const cat = (eqCategory || "other") as EquipmentCategory;
   if (!wanted) return true;
-  if (GENERIC_CATEGORIES.includes(cat as EquipmentCategory)) return true;
-  if (wanted === "hvac") return cat === "hvac" || cat === "refrigeration" || cat === "freezing";
+  if (GENERIC_CATEGORIES.includes(cat)) return true;
+  const group = REPORT_CATEGORY_GROUPS[wanted];
+  if (group) return group.includes(cat);
   return cat === wanted;
 }

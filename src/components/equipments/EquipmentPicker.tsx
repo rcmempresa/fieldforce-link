@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Search, MapPin, Snowflake } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { UNIT_PART_LABEL, EQUIPMENT_CATEGORY_LABEL, type UnitPart, type EquipmentCategory } from "@/lib/equipmentLabel";
+import { UNIT_PART_LABEL, equipmentCategoryLabel, type UnitPart } from "@/lib/equipmentLabel";
 
 export interface PickerEquipment {
   id: string;
@@ -63,7 +63,7 @@ export function EquipmentPicker({ equipments, selected, parts, onToggle, onPartC
               {["all", ...cats].map((c) => (
                 <button key={c} type="button" onClick={() => setCat(c)}
                   className={cn("rounded-full border px-3 py-1 text-xs", cat === c ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted")}>
-                  {c === "all" ? "Todas" : EQUIPMENT_CATEGORY_LABEL[c as EquipmentCategory] || c}
+                  {c === "all" ? "Todas" : equipmentCategoryLabel(c)}
                 </button>
               ))}
             </div>
@@ -80,7 +80,7 @@ export function EquipmentPicker({ equipments, selected, parts, onToggle, onPartC
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
                         {eq.name}
-                        {eq.category && eq.category !== "other" && <Badge variant="outline">{EQUIPMENT_CATEGORY_LABEL[eq.category as EquipmentCategory]}</Badge>}
+                        {eq.category && eq.category !== "other" && <Badge variant="outline">{equipmentCategoryLabel(eq.category)}</Badge>}
                         {isAc && <Badge variant="secondary" className="gap-1"><Snowflake className="h-3 w-3" />AC</Badge>}
                       </div>
                       <div className="space-y-0.5 text-xs text-muted-foreground">
