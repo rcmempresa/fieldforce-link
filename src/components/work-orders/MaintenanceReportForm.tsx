@@ -22,8 +22,9 @@ import {
   cctvChecklist,
   cctvMeasurements,
   buildHvacGroupedMeasurements,
-  HVAC_GROUPS,
 } from "@/lib/maintenanceReportDefaults";
+
+interface HvacEq { group: string; name: string; serial: string; source?: string }
 import {
   generateMaintenanceReportPDF,
   uploadMaintenanceReportPDF,

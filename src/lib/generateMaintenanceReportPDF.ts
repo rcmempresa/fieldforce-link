@@ -30,6 +30,7 @@ interface ReportData {
   technician_signature: string | null;
   supervisor_signature: string | null;
   work_order_reference: string;
+  equipments?: Array<{ group: string; name: string; serial: string }>;
 }
 
 export function generateMaintenanceReportPDF(data: ReportData): Blob {
@@ -117,12 +118,22 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   y += 14;
   drawField("Localizacao Especifica", data.specific_location || "", margin, contentWidth);
   y += 14;
-  drawField("Equipamento 1", data.equipment_name || "", margin, halfW);
-  drawField("No Serie", data.equipment_serial || "", margin + halfW, halfW);
-  y += 14;
-  drawField("Equipamento 2", data.designation || "", margin, halfW);
-  drawField("No Serie", data.designation_serial || "", margin + halfW, halfW);
-  y += 14;
+  const eqList = data.equipments || [];
+  if (eqList.length) {
+    eqList.forEach((e, i) => {
+      checkPageBreak(14);
+      drawField(`Equipamento ${i + 1}`, e.name || "", margin, halfW);
+      drawField("No Serie", e.serial || "", margin + halfW, halfW);
+      y += 14;
+    });
+  } else {
+    drawField("Equipamento 1", data.equipment_name || "", margin, halfW);
+    drawField("No Serie", data.equipment_serial || "", margin + halfW, halfW);
+    y += 14;
+    drawField("Equipamento 2", data.designation || "", margin, halfW);
+    drawField("No Serie", data.designation_serial || "", margin + halfW, halfW);
+    y += 14;
+  }
 
   // === CHECKLIST ===
   const checklistLabel = isElectricity ? "Eletrica" : isCctv ? "CCTV" : "AVAC";
@@ -174,20 +185,22 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
   };
   const grouped = data.measurements.some((m) => m.group);
   if (grouped) {
-    for (const g of ["eq1", "eq2"]) {
+    const groups = eqList.length
+      ? eqList.map((e) => ({ g: e.group, name: e.name }))
+      : [{ g: "eq1", name: data.equipment_name }, { g: "eq2", name: data.designation }];
+    groups.forEach(({ g, name }, i) => {
       const rows = data.measurements.filter((m) => (m.group || "eq1") === g);
-      if (!rows.length) continue;
+      if (!rows.length) return;
       checkPageBreak(14);
-      const name = g === "eq1" ? data.equipment_name : data.designation;
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
       doc.setTextColor(30, 64, 175);
-      doc.text(`${g === "eq1" ? "Equipamento 1" : "Equipamento 2"}${name ? ` - ${name}` : ""}`, margin + 3, y);
+      doc.text(`Equipamento ${i + 1}${name ? ` - ${name}` : ""}`, margin + 3, y);
       doc.setTextColor(0, 0, 0);
       y += 6;
       drawRows(rows);
       y += 3;
-    }
+    });
   } else {
     drawRows(data.measurements);
   }
