@@ -1,0 +1,2 @@
+ALTER TABLE public.equipments DROP CONSTRAINT IF EXISTS equipments_category_check;
+ALTER TABLE public.equipments ADD CONSTRAINT equipments_category_check CHECK (category = ANY (ARRAY['hvac','electricity','generator','cctv','automatismos','refrigeration','thermal_accumulator','heat_pump','industrial','domestic','other','freezing']));
