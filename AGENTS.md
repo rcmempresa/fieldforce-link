@@ -5,3 +5,4 @@
 - Work order titles are generated from the linked equipment (with AC indoor/outdoor unit via work_order_equipments.unit_part); a manual subject is only used when no equipment is selected, so lists can show the equipment being repaired.
 - Completed-work-order emails attach the OT sheet plus every maintenance report PDF of that OT, downloaded server-side; keeps clients receiving the full documentation.
 - Equipments carry a category (equipments.category) matching maintenance report types; report forms list only the OT's equipment of their category, so one OT can hold several equipments and produce one report per equipment.
+- Keep completion dialog actions outside the scrolling form body and use page scrolling for employee order lists on mobile; prevents completion controls from being clipped on small screens.

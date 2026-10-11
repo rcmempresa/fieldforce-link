@@ -730,7 +730,7 @@ export default function EmployeeDashboard() {
                             <TimeTracker startTime={order.active_time_entry_start} className="text-xs" />
                           )}
                         </div>
-                        <div className="flex flex-wrap items-center gap-1">
+                        <div className="flex w-full flex-wrap items-center gap-1 sm:w-auto">
                           {order.status !== "completed" && order.status !== "invoiced" && order.active_time_entry_id && (
                             <Button
                               size="sm"
@@ -748,7 +748,7 @@ export default function EmployeeDashboard() {
                             </Button>
                           )}
                           {! ["completed", "invoiced", "cancelled"].includes(order.status) && (
-                            <Button size="sm" onClick={() => handleCompleteClick(order.id, order.reference)}>
+                            <Button size="sm" className="order-first w-full sm:order-none sm:w-auto" onClick={() => handleCompleteClick(order.id, order.reference)}>
                               <CheckCircle className="h-4 w-4 mr-1" />
                               Concluir OT
                             </Button>
@@ -853,7 +853,7 @@ export default function EmployeeDashboard() {
                       <p>Nenhuma ordem em execução</p>
                     </div>
                   ) : (
-                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                    <div className="space-y-3 sm:max-h-[400px] sm:overflow-y-auto sm:pr-2">
                       {filterOrdersByClient(activeOrders).map((order) => (
                         <div key={order.id} className="flex flex-col gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
                           <div className="space-y-1 flex-1">
@@ -900,7 +900,7 @@ export default function EmployeeDashboard() {
                               <Pause className="h-3.5 w-3.5 mr-1" />
                               Pausar
                             </Button>
-                            <Button size="sm" onClick={() => handleCompleteClick(order.id, order.reference)}>
+                            <Button size="sm" className="order-first w-full sm:order-none sm:w-auto" onClick={() => handleCompleteClick(order.id, order.reference)}>
                               <CheckCircle className="h-3.5 w-3.5 mr-1" />
                               Concluir OT
                             </Button>
@@ -922,7 +922,7 @@ export default function EmployeeDashboard() {
                       <p>Nenhuma ordem pausada</p>
                     </div>
                   ) : (
-                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                    <div className="space-y-3 sm:max-h-[400px] sm:overflow-y-auto sm:pr-2">
                       {filterOrdersByClient(startedOrders).map((order) => (
                         <div key={order.id} className="flex flex-col gap-3 rounded-lg border border-warning/30 bg-warning/5 p-3">
                           <div className="space-y-1 flex-1">
@@ -956,7 +956,7 @@ export default function EmployeeDashboard() {
                               <Play className="h-3.5 w-3.5 mr-1" />
                               Retomar
                             </Button>
-                            <Button size="sm" variant="secondary" onClick={() => handleCompleteClick(order.id, order.reference)}>
+                            <Button size="sm" className="order-first w-full sm:order-none sm:w-auto" onClick={() => handleCompleteClick(order.id, order.reference)}>
                               <CheckCircle className="h-3.5 w-3.5 mr-1" />
                               Concluir OT
                             </Button>
@@ -983,7 +983,7 @@ export default function EmployeeDashboard() {
                       <p>Nenhuma nova ordem</p>
                     </div>
                   ) : (
-                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                    <div className="space-y-3 sm:max-h-[400px] sm:overflow-y-auto sm:pr-2">
                       {filterOrdersByClient(newOrders).map((order) => (
                         <div key={order.id} className="flex flex-col gap-3 rounded-lg border p-3">
                           <div className="space-y-1 flex-1">
@@ -1012,7 +1012,7 @@ export default function EmployeeDashboard() {
                               Iniciar
                             </Button>
                             {! ["completed", "invoiced", "cancelled"].includes(order.status) && (
-                              <Button size="sm" variant="secondary" onClick={() => handleCompleteClick(order.id, order.reference)}>
+                              <Button size="sm" className="order-first w-full sm:order-none sm:w-auto" onClick={() => handleCompleteClick(order.id, order.reference)}>
                                 <CheckCircle className="h-3.5 w-3.5 mr-1" />
                                 Concluir OT
                               </Button>
@@ -1036,7 +1036,7 @@ export default function EmployeeDashboard() {
                       <p>Nenhuma ordem concluída</p>
                     </div>
                   ) : (
-                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                    <div className="space-y-3 sm:max-h-[400px] sm:overflow-y-auto sm:pr-2">
                       {filterOrdersByClient(completedOrders).map((order) => (
                         <div key={order.id} className="flex flex-col gap-3 rounded-lg border border-accent/30 bg-accent/5 p-3">
                           <div className="space-y-1 flex-1">
