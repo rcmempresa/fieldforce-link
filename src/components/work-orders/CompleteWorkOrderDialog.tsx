@@ -503,7 +503,7 @@ export function CompleteWorkOrderDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex w-[calc(100%-2rem)] max-w-md max-h-[calc(100dvh-2rem)] flex-col overflow-hidden">
+      <DialogContent className="flex h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md max-h-[900px] flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>Concluir OT</DialogTitle>
           <DialogDescription>
@@ -512,7 +512,7 @@ export function CompleteWorkOrderDialog({
         </DialogHeader>
         
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full shrink-0 grid-cols-2">
             <TabsTrigger value="end_session" className="flex items-center gap-1 text-xs min-w-0 px-1">
               <UserCheck className="h-4 w-4 shrink-0" />
               <span className="truncate">Terminar sessão</span>
@@ -585,8 +585,8 @@ export function CompleteWorkOrderDialog({
             </DialogFooter>
           </TabsContent>
 
-          <TabsContent value="complete_order" className="mt-4 min-h-0 flex-1 overflow-hidden">
-            <form onSubmit={handleCompleteWithCheck} className="flex h-full min-h-0 flex-col gap-4">
+          <TabsContent value="complete_order" className="mt-4 min-h-0 flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
+            <form onSubmit={handleCompleteWithCheck} className="flex min-h-0 flex-1 flex-col gap-4">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
               {otherActiveEmployees.length > 0 && (
                 <div className="rounded-lg border border-warning/50 bg-warning/10 p-3 flex items-start gap-2">
