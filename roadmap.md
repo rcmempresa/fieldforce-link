@@ -5,3 +5,4 @@
 - [x] Mostrar badge "Sem material" em cada OT da lista e nos detalhes quando a última pausa foi por falta de material.
 - [x] Corrigir o botão final cortado na janela de conclusão e destacar Concluir OT nas listas do telemóvel.
 - [x] Mostrar os técnicos atribuídos dentro de cada cartão da lista de OT (e "Sem técnico" quando não há).
+- [x] Adicionar página "Meu Perfil" com histórico de intervenções antigas para o técnico.
