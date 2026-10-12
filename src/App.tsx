@@ -20,6 +20,7 @@ import EmailLogs from "./pages/EmailLogs";
 import MaterialCatalog from "./pages/MaterialCatalog";
 import Equipments from "./pages/Equipments";
 import UnassignedWorkOrders from "./pages/UnassignedWorkOrders";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
