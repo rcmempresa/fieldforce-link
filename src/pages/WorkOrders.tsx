@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Eye, Pencil, Trash2, ArrowLeft, Wrench } from "lucide-react";
+import { Plus, Eye, Pencil, Trash2, ArrowLeft, Wrench, Users } from "lucide-react";
 import { fetchMissingMaterialIds } from "@/lib/missingMaterial";
 import { equipmentLinkLabel } from "@/lib/equipmentLabel";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +40,10 @@ interface WorkOrder {
     unit_part: string | null;
     equipments: { id: string; name: string; equipment_type: string | null; serial_number: string | null; outdoor_serial_number: string | null } | null;
   }>;
+  work_order_assignments?: Array<{
+    user_id: string;
+    profiles: { name: string } | null;
+  }> | null;
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -96,6 +100,10 @@ export default function WorkOrders() {
         work_order_equipments (
           unit_part,
           equipments ( id, name, equipment_type, serial_number, outdoor_serial_number, brand, model, outdoor_model, location )
+        ),
+        work_order_assignments (
+          user_id,
+          profiles!work_order_assignments_user_id_fkey ( name )
         )
       `)
       .order("created_at", { ascending: false });
@@ -127,6 +135,7 @@ export default function WorkOrders() {
             const e = l.equipments as any;
             return e ? [e.name, e.brand, e.model, e.outdoor_model, e.location, e.serial_number, e.outdoor_serial_number] : [];
           }),
+          ...(order.work_order_assignments || []).map((a) => a.profiles?.name),
         ].filter(Boolean).join(" ").toLowerCase().includes(t)
       );
     }
@@ -199,6 +208,15 @@ export default function WorkOrders() {
       setDeleteDialogOpen(false);
       setSelectedOrder(null);
     }
+  };
+
+  const getTechnicians = (order: WorkOrder) => {
+    const names: string[] = [];
+    (order.work_order_assignments || []).forEach((a) => {
+      const n = a.profiles?.name;
+      if (n && !names.includes(n)) names.push(n);
+    });
+    return names;
   };
 
   const getStatusColor = (status: string) => {
