@@ -368,6 +368,25 @@ export default function WorkOrders() {
                       ) : (
                         <p className="text-sm text-muted-foreground">{order.title}</p>
                       )}
+                      {(() => {
+                        const techs = getTechnicians(order);
+                        return (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                              <Users className="h-3.5 w-3.5" />
+                              {techs.length ? (techs.length > 1 ? "Técnicos:" : "Técnico:") : "Sem técnico"}
+                            </span>
+                            {techs.map((n, i) => (
+                              <span
+                                key={i}
+                                className="inline-flex items-center rounded-md border border-primary/25 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+                              >
+                                {n}
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      })()}
                       <p className="text-xs text-muted-foreground">
                         Cliente: {order.profiles.name}
                         {order.scheduled_date && (
