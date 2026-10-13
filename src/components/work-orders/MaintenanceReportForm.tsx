@@ -297,6 +297,8 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
   };
 
   const handleGeneratePDF = async () => {
+    { const fd = getFormData(); if (!fd.technician_signature || !fd.supervisor_signature) { toast({ title: "Assinaturas em falta", description: "Preencha as duas assinaturas antes de gerar o relatório.", variant: "destructive" }); return; }
+    }
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
