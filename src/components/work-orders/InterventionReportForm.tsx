@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useReportAutosave } from "@/hooks/useReportAutosave";
 import { supabase } from "@/integrations/supabase/client";
 import {
   generateInterventionReportPDF,
@@ -191,9 +192,13 @@ export function InterventionReportForm({ workOrderId, reportId, canEdit, onClose
     }
   };
 
+  const generatingRef = useRef(false);
+  useReportAutosave(canEdit && status === "draft" && !loading, () => ({ reportDate, client, installation, cc, proposal, contract, equipments, materials, serviceDescription, emmUsed, emmCode, executions, clientName, technicianName, logo, sig: getSignatures() }), async () => { if (!generatingRef.current) await saveReport("draft"); });
+
   const handleGeneratePdf = async () => {
     { const sig = getSignatures(); if (!sig.technician || !sig.client) { toast({ title: "Assinaturas em falta", description: "Preencha as duas assinaturas antes de gerar o relatório.", variant: "destructive" }); return; }
     }
+    generatingRef.current = true;
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();

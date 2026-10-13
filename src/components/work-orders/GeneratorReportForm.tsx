@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useReportAutosave } from "@/hooks/useReportAutosave";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Save, FileDown, Plus, Trash2, Cog } from "lucide-react";
@@ -245,9 +246,13 @@ export function GeneratorReportForm({ workOrderId, reportId, canEdit, onClose }:
     }
   };
 
+  const generatingRef = useRef(false);
+  useReportAutosave(canEdit && status === "draft" && !loading, getFormData, async () => { if (!generatingRef.current) await handleSave("draft"); });
+
   const handleGeneratePDF = async () => {
     { const fd = getFormData(); if (!fd.technician_signature || !fd.supervisor_signature) { toast({ title: "Assinaturas em falta", description: "Preencha as duas assinaturas antes de gerar o relatório.", variant: "destructive" }); return; }
     }
+    generatingRef.current = true;
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
