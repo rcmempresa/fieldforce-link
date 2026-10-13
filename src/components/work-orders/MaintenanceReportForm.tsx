@@ -283,6 +283,8 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
         setSavedReportId(id);
       }
 
+      setTechSignature(formData.technician_signature);
+      setSupSignature(formData.supervisor_signature);
       if (!newStatus) toast({ title: "Sucesso", description: "Relatório guardado" });
       return id;
     } catch (error: any) {

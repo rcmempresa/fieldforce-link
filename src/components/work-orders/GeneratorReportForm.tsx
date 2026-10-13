@@ -233,6 +233,8 @@ export function GeneratorReportForm({ workOrderId, reportId, canEdit, onClose }:
         setSavedReportId(id);
       }
 
+      setTechSignature(formData.technician_signature);
+      setSupSignature(formData.supervisor_signature);
       if (!newStatus) toast({ title: "Sucesso", description: "Relatorio guardado" });
       return id;
     } catch (error: any) {
