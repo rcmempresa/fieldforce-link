@@ -223,8 +223,9 @@ export function GeneratorReportForm({ workOrderId, reportId, canEdit, onClose }:
 
       let id = savedReportId;
       if (id) {
-        const { error } = await supabase.from("maintenance_reports").update(saveData as any).eq("id", id);
+        const { data: updated, error } = await supabase.from("maintenance_reports").update({ ...saveData, created_by: undefined } as any).eq("id", id).select("id");
         if (error) throw error;
+        if (!updated?.length) throw new Error("Sem permissao para editar este relatorio");
       } else {
         const { data, error } = await supabase.from("maintenance_reports").insert(saveData as any).select("id").single();
         if (error) throw error;

@@ -268,11 +268,12 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
 
       let id = savedReportId;
       if (id) {
-        const { error } = await supabase
+        const { data: updated, error } = await supabase
           .from("maintenance_reports")
-          .update(saveData as any)
-          .eq("id", id);
+          .update({ ...saveData, created_by: undefined } as any)
+          .eq("id", id).select("id");
         if (error) throw error;
+        if (!updated?.length) throw new Error("Sem permissão para editar este relatório");
       } else {
         const { data, error } = await supabase
           .from("maintenance_reports")
@@ -324,7 +325,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
 
       // Update report with PDF URL
       {
-        const { error } = await supabase
+        const { data: updated, error } = await supabase
           .from("maintenance_reports")
           .update({ pdf_url: pdfPath, status: "completed" } as any)
           .eq("id", id);
