@@ -166,8 +166,9 @@ export function InterventionReportForm({ workOrderId, reportId, canEdit, onClose
     };
 
     if (savedReportId) {
-      const { error } = await supabase.from("maintenance_reports").update(payload as never).eq("id", savedReportId);
+      const { data: updated, error } = await supabase.from("maintenance_reports").update({ ...payload, created_by: undefined } as never).eq("id", savedReportId).select("id");
       if (error) throw error;
+      if (!updated?.length) throw new Error("Sem permissão para editar este relatório");
       return savedReportId;
     }
     const { data, error } = await supabase.from("maintenance_reports").insert(payload as never).select("id").single();
