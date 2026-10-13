@@ -192,6 +192,8 @@ export function InterventionReportForm({ workOrderId, reportId, canEdit, onClose
   };
 
   const handleGeneratePdf = async () => {
+    { const sig = getSignatures(); if (!sig.technician || !sig.client) { toast({ title: "Assinaturas em falta", description: "Preencha as duas assinaturas antes de gerar o relatório.", variant: "destructive" }); return; }
+    }
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
