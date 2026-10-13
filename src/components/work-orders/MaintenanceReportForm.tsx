@@ -325,7 +325,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
 
       // Update report with PDF URL
       {
-        const { data: updated, error } = await supabase
+        const { error } = await supabase
           .from("maintenance_reports")
           .update({ pdf_url: pdfPath, status: "completed" } as any)
           .eq("id", id);
