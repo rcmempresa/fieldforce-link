@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useReportAutosave } from "@/hooks/useReportAutosave";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Save, FileDown, Plus, Trash2, Zap, Wind, Camera } from "lucide-react";
@@ -296,9 +297,13 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
     }
   };
 
+  const generatingRef = useRef(false);
+  useReportAutosave(canEdit && status === "draft" && !loading, getFormData, async () => { if (!generatingRef.current) await handleSave("draft"); });
+
   const handleGeneratePDF = async () => {
     { const fd = getFormData(); if (!fd.technician_signature || !fd.supervisor_signature) { toast({ title: "Assinaturas em falta", description: "Preencha as duas assinaturas antes de gerar o relatório.", variant: "destructive" }); return; }
     }
+    generatingRef.current = true;
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -342,6 +347,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
       console.error("PDF error:", error);
       toast({ title: "Erro", description: error.message || "Erro ao gerar PDF", variant: "destructive" });
     } finally {
+      generatingRef.current = false;
       setSaving(false);
     }
   };
