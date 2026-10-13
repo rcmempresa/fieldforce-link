@@ -233,6 +233,8 @@ export function GeneratorReportForm({ workOrderId, reportId, canEdit, onClose }:
         setSavedReportId(id);
       }
 
+      setTechSignature(formData.technician_signature);
+      setSupSignature(formData.supervisor_signature);
       if (!newStatus) toast({ title: "Sucesso", description: "Relatorio guardado" });
       return id;
     } catch (error: any) {
@@ -552,8 +554,11 @@ export function GeneratorReportForm({ workOrderId, reportId, canEdit, onClose }:
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label>Assinatura do Tecnico</Label>
-                {techSignature && isReadOnly ? (
-                  <img src={techSignature} alt="Assinatura Tecnico" className="border rounded h-32 w-full object-contain bg-background" />
+                {techSignature ? (
+                  <>
+                    <img src={techSignature} alt="Assinatura Tecnico" className="border rounded h-32 w-full object-contain bg-background" />
+                    {!isReadOnly && <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => { setTechSignature(null); techSigRef.current?.clear(); }}>Limpar e assinar de novo</Button>}
+                  </>
                 ) : (
                   <>
                     <div className="border-2 border-border rounded-md bg-background">
@@ -565,8 +570,11 @@ export function GeneratorReportForm({ workOrderId, reportId, canEdit, onClose }:
               </div>
               <div className="space-y-2">
                 <Label>Assinatura do Supervisor</Label>
-                {supSignature && isReadOnly ? (
-                  <img src={supSignature} alt="Assinatura Supervisor" className="border rounded h-32 w-full object-contain bg-background" />
+                {supSignature ? (
+                  <>
+                    <img src={supSignature} alt="Assinatura Supervisor" className="border rounded h-32 w-full object-contain bg-background" />
+                    {!isReadOnly && <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => { setSupSignature(null); supSigRef.current?.clear(); }}>Limpar e assinar de novo</Button>}
+                  </>
                 ) : (
                   <>
                     <div className="border-2 border-border rounded-md bg-background">
