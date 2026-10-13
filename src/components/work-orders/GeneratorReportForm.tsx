@@ -290,6 +290,7 @@ export function GeneratorReportForm({ workOrderId, reportId, canEdit, onClose }:
     } catch (error: any) {
       toast({ title: "Erro", description: error.message || "Erro ao gerar PDF", variant: "destructive" });
     } finally {
+      generatingRef.current = false;
       setSaving(false);
     }
   };

@@ -236,6 +236,7 @@ export function InterventionReportForm({ workOrderId, reportId, canEdit, onClose
       console.error("Error generating intervention PDF:", error);
       toast({ title: "Erro", description: "Não foi possível gerar o PDF.", variant: "destructive" });
     } finally {
+      generatingRef.current = false;
       setSaving(false);
     }
   };

@@ -347,6 +347,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
       console.error("PDF error:", error);
       toast({ title: "Erro", description: error.message || "Erro ao gerar PDF", variant: "destructive" });
     } finally {
+      generatingRef.current = false;
       setSaving(false);
     }
   };
