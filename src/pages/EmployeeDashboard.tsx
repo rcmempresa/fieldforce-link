@@ -40,6 +40,7 @@ interface WorkOrder {
   active_time_entry_regime?: string | null;
   has_been_started?: boolean;
   total_hours_worked?: number;
+  missing_material?: boolean;
 }
 
 interface Stats {
@@ -115,6 +116,7 @@ export default function EmployeeDashboard() {
               scheduled_date,
               status,
               total_hours,
+              time_entries (pause_reason, start_time),
               profiles:client_id (
                 name
               )
@@ -146,8 +148,12 @@ export default function EmployeeDashboard() {
           const wo = item.work_orders;
           if (!wo) return null;
           const activeEntry = activeTimeEntriesMap.get(wo.id);
+          const latestEntry = [...(wo.time_entries || [])].sort(
+            (a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime()
+          )[0];
           return {
             ...wo,
+            missing_material: latestEntry?.pause_reason === "falta_material",
             client_name: wo.profiles?.name || 'N/A',
             active_time_entry_id: activeEntry?.id,
             active_time_entry_start: activeEntry?.start_time,
@@ -714,6 +720,7 @@ export default function EmployeeDashboard() {
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div className="flex flex-wrap items-center gap-2 min-w-0">
                           <p className="font-medium text-sm">{order.reference}</p>
+                          {order.missing_material && <Badge variant="destructive"><PackageX className="mr-1 h-3 w-3" />Sem material</Badge>}
                           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
                             {getStatusLabel(order.status)}
                           </span>
@@ -862,6 +869,7 @@ export default function EmployeeDashboard() {
                           <div className="space-y-1 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-medium text-sm">{order.reference}</p>
+                              {order.missing_material && <Badge variant="destructive"><PackageX className="mr-1 h-3 w-3" />Sem material</Badge>}
                               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(order.priority)}`}>
                                 {getPriorityLabel(order.priority)}
                               </span>
@@ -931,6 +939,7 @@ export default function EmployeeDashboard() {
                           <div className="space-y-1 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-medium text-sm">{order.reference}</p>
+                              {order.missing_material && <Badge variant="destructive"><PackageX className="mr-1 h-3 w-3" />Sem material</Badge>}
                               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(order.priority)}`}>
                                 {getPriorityLabel(order.priority)}
                               </span>
@@ -992,6 +1001,7 @@ export default function EmployeeDashboard() {
                           <div className="space-y-1 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-medium text-sm">{order.reference}</p>
+                              {order.missing_material && <Badge variant="destructive"><PackageX className="mr-1 h-3 w-3" />Sem material</Badge>}
                               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(order.priority)}`}>
                                 {getPriorityLabel(order.priority)}
                               </span>
@@ -1045,6 +1055,7 @@ export default function EmployeeDashboard() {
                           <div className="space-y-1 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-medium text-sm">{order.reference}</p>
+                              {order.missing_material && <Badge variant="destructive"><PackageX className="mr-1 h-3 w-3" />Sem material</Badge>}
                               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(order.priority)}`}>
                                 {getPriorityLabel(order.priority)}
                               </span>
