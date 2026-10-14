@@ -58,6 +58,7 @@ interface MonthlyHours {
 
 export default function EmployeeDashboard() {
   const [assignedOrders, setAssignedOrders] = useState<WorkOrder[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(true);
   const [stats, setStats] = useState<Stats>({ 
     assignedOrders: 0, 
     hoursToday: 0, 
@@ -94,66 +95,49 @@ export default function EmployeeDashboard() {
   }, []);
 
   const fetchAssignedOrders = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    const { data } = await supabase
-      .from("work_order_assignments")
-      .select(`
-        work_order_id,
-        work_orders (
-          id,
-          reference,
-          title,
-          priority,
-          scheduled_date,
-          status,
-          profiles:client_id (
-            name
-          )
-        )
-      `)
-      .eq("user_id", user.id);
+      // Run the three lightweight queries in parallel (no huge id lists in the URL)
+      const [assignRes, activeRes, userEntriesRes] = await Promise.all([
+        supabase
+          .from("work_order_assignments")
+          .select(`
+            work_order_id,
+            work_orders (
+              id,
+              reference,
+              title,
+              priority,
+              scheduled_date,
+              status,
+              total_hours,
+              profiles:client_id (
+                name
+              )
+            )
+          `)
+          .eq("user_id", user.id),
+        supabase
+          .from("time_entries")
+          .select("id, work_order_id, start_time, work_regime")
+          .eq("user_id", user.id)
+          .is("end_time", null),
+        supabase
+          .from("time_entries")
+          .select("work_order_id")
+          .eq("user_id", user.id)
+          .limit(10000),
+      ]);
 
-    if (data) {
-      // Get active time entries for in_progress orders
-      const { data: activeTimeEntries } = await supabase
-        .from("time_entries")
-        .select("id, work_order_id, start_time, work_regime")
-        .eq("user_id", user.id)
-        .is("end_time", null);
+      const data = assignRes.data;
+      if (!data) return;
 
       const activeTimeEntriesMap = new Map(
-        activeTimeEntries?.map(entry => [entry.work_order_id, { id: entry.id, start_time: entry.start_time, work_regime: (entry as any).work_regime }]) || []
+        activeRes.data?.map(entry => [entry.work_order_id, { id: entry.id, start_time: entry.start_time, work_regime: (entry as any).work_regime }]) || []
       );
-
-      // Get all work order IDs that have been started at least once (have any time entries)
-      const workOrderIds = data
-        .map((item: any) => item.work_orders?.id)
-        .filter(Boolean);
-
-      // Get user's time entries to determine which orders this user has started
-      const { data: userTimeEntries } = await supabase
-        .from("time_entries")
-        .select("work_order_id, duration_hours")
-        .eq("user_id", user.id)
-        .in("work_order_id", workOrderIds);
-
-      const startedWorkOrderIds = new Set(userTimeEntries?.map(entry => entry.work_order_id) || []);
-
-      // Get ALL time entries from ALL employees for these work orders to calculate total hours
-      const { data: allTimeEntries } = await supabase
-        .from("time_entries")
-        .select("work_order_id, duration_hours")
-        .in("work_order_id", workOrderIds);
-
-      // Calculate total hours per work order (sum of all employees)
-      const hoursPerWorkOrder = new Map<string, number>();
-      allTimeEntries?.forEach(entry => {
-        const current = hoursPerWorkOrder.get(entry.work_order_id) || 0;
-        hoursPerWorkOrder.set(entry.work_order_id, current + (entry.duration_hours || 0));
-      });
+      const startedWorkOrderIds = new Set(userEntriesRes.data?.map(entry => entry.work_order_id) || []);
 
       const orders = data
         .map((item: any) => {
@@ -167,11 +151,14 @@ export default function EmployeeDashboard() {
             active_time_entry_start: activeEntry?.start_time,
             active_time_entry_regime: activeEntry?.work_regime,
             has_been_started: startedWorkOrderIds.has(wo.id),
-            total_hours_worked: hoursPerWorkOrder.get(wo.id) || 0,
+            // total_hours is kept up to date by the database for all employees
+            total_hours_worked: Number(wo.total_hours) || 0,
           };
         })
         .filter(Boolean);
       setAssignedOrders(orders);
+    } finally {
+      setLoadingOrders(false);
     }
   };
 
@@ -798,7 +785,9 @@ export default function EmployeeDashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            {filterOrdersByClient(assignedOrders).length === 0 ? (
+            {loadingOrders && assignedOrders.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">A carregar ordens de trabalho...</p>
+            ) : filterOrdersByClient(assignedOrders).length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
                 {clientFilter === "all" ? "Nenhuma ordem de trabalho atribuída" : `Nenhuma ordem para ${clientFilter}`}
               </p>
