@@ -749,6 +749,45 @@ export type Database = {
           },
         ]
       }
+      work_order_previous_assignments: {
+        Row: {
+          id: string
+          reason: string
+          removed_at: string
+          user_id: string
+          work_order_id: string
+        }
+        Insert: {
+          id?: string
+          reason?: string
+          removed_at?: string
+          user_id: string
+          work_order_id: string
+        }
+        Update: {
+          id?: string
+          reason?: string
+          removed_at?: string
+          user_id?: string
+          work_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_order_previous_assignments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_order_previous_assignments_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_orders: {
         Row: {
           address: string | null
@@ -850,6 +889,18 @@ export type Database = {
       is_approved: { Args: { _user_id: string }; Returns: boolean }
       is_client_hours_locked: { Args: { _client_id: string }; Returns: boolean }
       is_first_user: { Args: never; Returns: boolean }
+      is_previous_assignee: {
+        Args: { _user: string; _wo: string }
+        Returns: boolean
+      }
+      reassign_previous_technicians: {
+        Args: { _wo: string }
+        Returns: undefined
+      }
+      release_assignments_for_missing_material: {
+        Args: { _wo: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "manager" | "employee" | "client"
