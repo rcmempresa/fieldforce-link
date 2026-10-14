@@ -43,6 +43,13 @@
       "when": 1791999297249,
       "tag": "0005_missing_material_release",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791999579034,
+      "tag": "0006_speed_up_profile_visibility",
+      "breakpoints": true
     }
   ]
 }
