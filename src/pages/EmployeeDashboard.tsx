@@ -558,8 +558,9 @@ export default function EmployeeDashboard() {
     (order) => order.active_time_entry_id && order.status !== "completed" && order.status !== "invoiced"
   );
   // Started/Paused: employee has worked on this before but doesn't have an active session
+  // OTs paradas por falta de material pertencem apenas ao separador "Sem Material".
   const startedOrders = assignedOrders.filter(
-    (order) => order.has_been_started && !order.active_time_entry_id && order.status !== "completed" && order.status !== "invoiced"
+    (order) => order.has_been_started && !order.active_time_entry_id && order.status !== "completed" && order.status !== "invoiced" && !order.missing_material
   );
   // New: employee has never worked on this order
   const newOrders = assignedOrders.filter(
