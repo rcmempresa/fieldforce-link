@@ -6,3 +6,5 @@
 - [x] Corrigir o botão final cortado na janela de conclusão e destacar Concluir OT nas listas do telemóvel.
 - [x] Mostrar os técnicos atribuídos dentro de cada cartão da lista de OT (e "Sem técnico" quando não há).
 - [x] Adicionar página "Meu Perfil" com histórico de intervenções antigas para o técnico.
+- [x] Adicionar botão "Detalhes" nas OTs que aparecem ao selecionar o dia no calendário do painel do técnico.
+- [x] OTs sem material: tirar do separador "Pausadas" e mostrar apenas no separador "Sem Material".
