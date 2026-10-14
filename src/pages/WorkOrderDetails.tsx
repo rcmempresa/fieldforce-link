@@ -102,9 +102,21 @@ export default function WorkOrderDetails() {
   const { toast } = useToast();
   const isManager = roles.includes("manager");
 
+  const [hasPrevious, setHasPrevious] = useState(false);
   useEffect(() => {
     fetchMissingMaterialIds().then((ids) => setMissingMaterial(id ? ids.has(id) : false));
+    if (id) supabase.from("work_order_previous_assignments").select("id", { count: "exact", head: true }).eq("work_order_id", id)
+      .then(({ count }) => setHasPrevious((count || 0) > 0));
   }, [id]);
+
+  const reassignPrevious = async () => {
+    if (!id) return;
+    const { error } = await supabase.rpc("reassign_previous_technicians", { _wo: id });
+    if (error) { toast({ title: "Erro", description: "Não foi possível reatribuir.", variant: "destructive" }); return; }
+    toast({ title: "Técnicos reatribuídos" });
+    setHasPrevious(false);
+    window.location.reload();
+  };
   
   // Manager only states
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -608,6 +620,11 @@ export default function WorkOrderDetails() {
                   <span className="rounded-full px-3 py-1 text-sm font-medium bg-destructive/10 text-destructive border border-destructive/30">
                     Sem material
                   </span>
+                )}
+                {isManager && hasPrevious && (
+                  <Button size="sm" variant="outline" onClick={reassignPrevious}>
+                    Reatribuir técnicos anteriores
+                  </Button>
                 )}
                 <span
                   className={`rounded-full px-3 py-1 text-sm font-medium ${getPriorityColor(
