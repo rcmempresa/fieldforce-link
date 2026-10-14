@@ -751,6 +751,13 @@ export default function EmployeeDashboard() {
                               Concluir OT
                             </Button>
                           )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => navigate(`/work-orders/${order.id}`)}
+                          >
+                            Detalhes
+                          </Button>
                         </div>
                       </div>
                       <p className="text-sm text-muted-foreground">{order.title}</p>
