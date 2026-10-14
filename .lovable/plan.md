@@ -6,6 +6,7 @@
    - guarda quem eram esses técnicos ("técnicos anteriores");
    - a OT continua no cartão/separador **Sem Material** do gerente e com o selo vermelho «Sem material».
 2. Os técnicos ganham um novo separador **«Sem material»** no seu painel, com as OTs que já lhes foram atribuídas e estão paradas por falta de material (só para ver: referência, equipamento, cliente, comentário da pausa e anexo).
+   - Hoje os técnicos não conseguem ver que uma OT está sem material; passam a ver o selo vermelho **«Sem material»** nas suas listas e nos detalhes da OT (corrige a permissão de leitura das pausas que o impede).
 3. Quando o material chegar, o gerente abre a OT (ou a página «OT sem técnico») e carrega em **«Reatribuir técnicos anteriores»** (um clique) ou escolhe outro técnico. A OT sai de «Sem material» assim que alguém volta a trabalhar nela.
 4. O histórico do técnico (Meu Perfil) continua a mostrar essas OTs, porque ele trabalhou nelas.
 
