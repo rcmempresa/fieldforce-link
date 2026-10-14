@@ -24,6 +24,7 @@ import { ptBR } from "date-fns/locale";
 import { Notifications } from "@/components/Notifications";
 import { MaintenanceReportForm } from "@/components/work-orders/MaintenanceReportForm";
 import { GeneratorReportForm } from "@/components/work-orders/GeneratorReportForm";
+import { EmployeeMissingMaterial } from "@/components/work-orders/EmployeeMissingMaterial";
 
 interface WorkOrder {
   id: string;
@@ -576,6 +577,7 @@ export default function EmployeeDashboard() {
   return (
     <DashboardLayout title="Dashboard do Funcionário">
       <div className="space-y-6">
+        <EmployeeMissingMaterial />
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <Card>

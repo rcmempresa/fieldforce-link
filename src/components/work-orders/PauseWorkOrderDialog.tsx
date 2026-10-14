@@ -150,9 +150,13 @@ export function PauseWorkOrderDialog({
 
       if (updateError) throw updateError;
 
-      // If missing material, send emails to client and manager
+      // If missing material, send emails, then release technicians (kept as "previous assignees")
       if (selectedReason === "falta_material") {
         await sendMissingMaterialEmails(workOrderId, missingMaterial, attachmentPaths);
+        if (newStatus === "pending") {
+          const { error: relErr } = await supabase.rpc("release_assignments_for_missing_material", { _wo: workOrderId });
+          if (relErr) console.error("Error releasing assignments:", relErr);
+        }
       }
 
       toast({
