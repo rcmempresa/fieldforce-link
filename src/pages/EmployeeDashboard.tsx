@@ -25,6 +25,7 @@ import { Notifications } from "@/components/Notifications";
 import { MaintenanceReportForm } from "@/components/work-orders/MaintenanceReportForm";
 import { GeneratorReportForm } from "@/components/work-orders/GeneratorReportForm";
 import { EmployeeMissingMaterial } from "@/components/work-orders/EmployeeMissingMaterial";
+import { PackageX } from "lucide-react";
 
 interface WorkOrder {
   id: string;
@@ -58,6 +59,7 @@ interface MonthlyHours {
 
 export default function EmployeeDashboard() {
   const [assignedOrders, setAssignedOrders] = useState<WorkOrder[]>([]);
+  const [missingCount, setMissingCount] = useState(0);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [stats, setStats] = useState<Stats>({ 
     assignedOrders: 0, 
@@ -793,7 +795,7 @@ export default function EmployeeDashboard() {
               </p>
             ) : (
               <Tabs defaultValue={filterOrdersByClient(activeOrders).length > 0 ? "active" : filterOrdersByClient(startedOrders).length > 0 ? "paused" : "new"} className="w-full">
-                <TabsList className="grid w-full grid-cols-4 mb-4">
+                <TabsList className="grid h-auto w-full grid-cols-3 sm:grid-cols-5 mb-4">
                   <TabsTrigger value="active" className="flex items-center gap-1.5 text-xs sm:text-sm">
                     <PlayCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     <span className="hidden sm:inline">Em Execução</span>
@@ -831,6 +833,16 @@ export default function EmployeeDashboard() {
                     {filterOrdersByClient(completedOrders).length > 0 && (
                       <Badge variant="outline" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px] bg-accent/20">
                         {filterOrdersByClient(completedOrders).length}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="missing" className="flex items-center gap-1.5 text-xs sm:text-sm">
+                    <PackageX className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-destructive" />
+                    <span className="hidden sm:inline">Sem Material</span>
+                    <span className="sm:hidden">S/ Mat.</span>
+                    {missingCount > 0 && (
+                      <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px]">
+                        {missingCount}
                       </Badge>
                     )}
                   </TabsTrigger>
@@ -1056,6 +1068,11 @@ export default function EmployeeDashboard() {
                       ))}
                     </div>
                   )}
+                </TabsContent>
+
+                {/* Missing material Tab */}
+                <TabsContent value="missing" className="mt-0">
+                  <EmployeeMissingMaterial embedded onCount={setMissingCount} />
                 </TabsContent>
               </Tabs>
             )}
