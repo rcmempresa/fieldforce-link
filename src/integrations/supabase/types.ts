@@ -871,6 +871,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      employee_visible_profile_ids: {
+        Args: { _viewer: string }
+        Returns: string[]
+      }
       get_client_hours_used: {
         Args: { _client_id: string; _year: number }
         Returns: number
