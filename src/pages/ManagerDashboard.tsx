@@ -93,6 +93,23 @@ interface Stats {
   activeClients: number;
 }
 
+/** Lê todos os registos de horas aos blocos de 1000 (o backend devolve no máximo 1000 por pedido). */
+async function fetchAllTimeEntries(select: string): Promise<any[]> {
+  const pageSize = 1000;
+  const all: any[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from("time_entries")
+      .select(select)
+      .order("id")
+      .range(from, from + pageSize - 1);
+    if (error || !data) break;
+    all.push(...data);
+    if (data.length < pageSize) break;
+  }
+  return all;
+}
+
 export default function ManagerDashboard() {
   const navigate = useNavigate();
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
@@ -136,11 +153,12 @@ export default function ManagerDashboard() {
 
   const fetchChartData = async () => {
     try {
-      const [{ data: wos }, { data: tes }] = await Promise.all([
+      const [{ data: wos }, tes] = await Promise.all([
         supabase
           .from("work_orders")
-          .select("id, client_id, service_type, profiles!work_orders_client_id_fkey(company_name, name)"),
-        supabase.from("time_entries").select("work_order_id, duration_hours"),
+          .select("id, client_id, service_type, profiles!work_orders_client_id_fkey(company_name, name)")
+          .range(0, 9999),
+        fetchAllTimeEntries("work_order_id, duration_hours"),
       ]);
 
       const woMap = new Map((wos || []).map((w) => [w.id, w]));
@@ -673,23 +691,18 @@ export default function ManagerDashboard() {
         )
       `)
       .not("scheduled_date", "is", null)
-      .order("scheduled_date", { ascending: true });
+      .order("scheduled_date", { ascending: true })
+      .range(0, 9999);
 
     if (data) {
       // Fetch time entries with user info for all work orders
       const workOrderIds = data.map((order: any) => order.id);
       
-      const { data: timeEntries } = await supabase
-        .from("time_entries")
-        .select(`
-          work_order_id, 
-          duration_hours,
-          user_id,
-          profiles!time_entries_user_id_fkey (
-            name
-          )
-        `)
-        .in("work_order_id", workOrderIds);
+      const idSet = new Set(workOrderIds);
+      const allEntries = await fetchAllTimeEntries(
+        "work_order_id, duration_hours, user_id, profiles!time_entries_user_id_fkey (name)"
+      );
+      const timeEntries = allEntries.filter((e: any) => idSet.has(e.work_order_id));
 
       // Calculate total hours and individual hours per work order
       const hoursMap = new Map<string, { total: number; byEmployee: Map<string, { name: string; hours: number }> }>();
