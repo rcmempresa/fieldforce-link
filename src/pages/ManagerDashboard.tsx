@@ -136,11 +136,12 @@ export default function ManagerDashboard() {
 
   const fetchChartData = async () => {
     try {
-      const [{ data: wos }, { data: tes }] = await Promise.all([
+      const [{ data: wos }, tes] = await Promise.all([
         supabase
           .from("work_orders")
-          .select("id, client_id, service_type, profiles!work_orders_client_id_fkey(company_name, name)"),
-        supabase.from("time_entries").select("work_order_id, duration_hours"),
+          .select("id, client_id, service_type, profiles!work_orders_client_id_fkey(company_name, name)")
+          .range(0, 9999),
+        fetchAllTimeEntries("work_order_id, duration_hours"),
       ]);
 
       const woMap = new Map((wos || []).map((w) => [w.id, w]));
@@ -679,17 +680,11 @@ export default function ManagerDashboard() {
       // Fetch time entries with user info for all work orders
       const workOrderIds = data.map((order: any) => order.id);
       
-      const { data: timeEntries } = await supabase
-        .from("time_entries")
-        .select(`
-          work_order_id, 
-          duration_hours,
-          user_id,
-          profiles!time_entries_user_id_fkey (
-            name
-          )
-        `)
-        .in("work_order_id", workOrderIds);
+      const idSet = new Set(workOrderIds);
+      const allEntries = await fetchAllTimeEntries(
+        "work_order_id, duration_hours, user_id, profiles!time_entries_user_id_fkey (name)"
+      );
+      const timeEntries = allEntries.filter((e: any) => idSet.has(e.work_order_id));
 
       // Calculate total hours and individual hours per work order
       const hoursMap = new Map<string, { total: number; byEmployee: Map<string, { name: string; hours: number }> }>();
