@@ -93,6 +93,23 @@ interface Stats {
   activeClients: number;
 }
 
+/** Lê todos os registos de horas aos blocos de 1000 (o backend devolve no máximo 1000 por pedido). */
+async function fetchAllTimeEntries(select: string): Promise<any[]> {
+  const pageSize = 1000;
+  const all: any[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from("time_entries")
+      .select(select)
+      .order("id")
+      .range(from, from + pageSize - 1);
+    if (error || !data) break;
+    all.push(...data);
+    if (data.length < pageSize) break;
+  }
+  return all;
+}
+
 export default function ManagerDashboard() {
   const navigate = useNavigate();
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
@@ -674,7 +691,8 @@ export default function ManagerDashboard() {
         )
       `)
       .not("scheduled_date", "is", null)
-      .order("scheduled_date", { ascending: true });
+      .order("scheduled_date", { ascending: true })
+      .range(0, 9999);
 
     if (data) {
       // Fetch time entries with user info for all work orders
