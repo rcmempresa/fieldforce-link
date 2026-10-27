@@ -1,6 +1,7 @@
 import { formatDate, formatDateTime } from "@/lib/formatDate";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { ContractDecisions } from "@/components/contracts/ContractDecisions";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -587,6 +588,7 @@ export default function WorkOrderDetails() {
   return (
     <DashboardLayout title="Detalhes da Ordem">
       <div className="space-y-6">
+        {isManager && id && <ContractDecisions workOrderId={id} />}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Button variant="ghost" onClick={() => navigate("/work-orders")}>
             <ArrowLeft className="mr-2 h-4 w-4" />
