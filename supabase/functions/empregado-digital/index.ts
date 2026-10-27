@@ -35,10 +35,23 @@ Deno.serve(async (req) => {
   try {
     switch (action) {
       case "listar_ots": {
+        const clientSearch = str(p.client_search, 100);
+        const unassigned = p.unassigned === true || p.unassigned === "true";
+        const clientJoin = clientSearch ? "client:profiles!work_orders_client_id_fkey!inner(id, name, company_name)" : "client:profiles!work_orders_client_id_fkey(id, name, company_name)";
         let q = db.from("work_orders")
-          .select("id, reference, title, status, priority, service_type, scheduled_date, total_hours, address, client:profiles!work_orders_client_id_fkey(id, name, company_name), work_order_assignments(user_id, profiles!work_order_assignments_user_id_fkey(name))")
+          .select(`id, reference, title, status, priority, service_type, scheduled_date, needs_scheduling, is_after_hours, total_hours, address, ${clientJoin}, work_order_assignments(user_id, profiles!work_order_assignments_user_id_fkey(name))`)
           .order("scheduled_date", { ascending: false, nullsFirst: false })
           .limit(limit);
+        const priority = str(p.priority, 30);
+        if (priority) q = q.eq("priority", priority);
+        const bool = (v: unknown) => v === true || v === "true" ? true : v === false || v === "false" ? false : undefined;
+        const ns = bool(p.needs_scheduling); if (ns !== undefined) q = q.eq("needs_scheduling", ns);
+        const ah = bool(p.is_after_hours); if (ah !== undefined) q = q.eq("is_after_hours", ah);
+        if (unassigned) q = q.is("work_order_assignments", null);
+        if (clientSearch) {
+          const s = clientSearch.replace(/[%,()]/g, " ");
+          q = q.or(`name.ilike.%${s}%,company_name.ilike.%${s}%`, { referencedTable: "client" });
+        }
         const status = str(p.status, 30);
         if (status) q = q.eq("status", status);
         const date = str(p.scheduled_date, 10);
@@ -102,8 +115,49 @@ Deno.serve(async (req) => {
         const total_hours = data.reduce((s, e: any) => s + (Number(e.duration_hours) || 0), 0);
         return json({ data, count: data.length, total_hours });
       }
+      case "ots_atrasadas": {
+        const today = new Date().toISOString().slice(0, 10);
+        const { data, error } = await db.from("work_orders")
+          .select("id, reference, title, status, priority, scheduled_date, client:profiles!work_orders_client_id_fkey(id, name, company_name), work_order_assignments(user_id, profiles!work_order_assignments_user_id_fkey(name))")
+          .in("status", ["pending", "in_progress"])
+          .lt("scheduled_date", today)
+          .order("scheduled_date", { ascending: true })
+          .limit(limit);
+        if (error) throw error;
+        return json({ data, count: data.length });
+      }
+      case "horas_equipa": {
+        const from = str(p.date_from, 10), to = str(p.date_to, 10);
+        if (from && !isDate(from)) return json({ error: "date_from must be YYYY-MM-DD" }, 400);
+        if (to && !isDate(to)) return json({ error: "date_to must be YYYY-MM-DD" }, 400);
+        const groups = new Map<string, { user_id: string; name: string | null; total_hours: number; registos: number }>();
+        for (let off = 0; ; off += 1000) {
+          let q = db.from("time_entries").select("user_id, duration_hours, profiles!time_entries_user_id_fkey(name)").order("id").range(off, off + 999);
+          if (from) q = q.gte("start_time", from);
+          if (to) q = q.lt("start_time", nextDay(to));
+          const { data, error } = await q;
+          if (error) throw error;
+          for (const e of data as any[]) {
+            const g = groups.get(e.user_id) ?? { user_id: e.user_id, name: e.profiles?.name ?? null, total_hours: 0, registos: 0 };
+            g.total_hours += Number(e.duration_hours) || 0; g.registos++;
+            groups.set(e.user_id, g);
+          }
+          if (data.length < 1000) break;
+        }
+        const data = [...groups.values()].map((g) => ({ ...g, total_hours: Math.round(g.total_hours * 100) / 100 })).sort((a, b) => b.total_hours - a.total_hours);
+        return json({ data, count: data.length });
+      }
+      case "resumo_dia": {
+        const date = str(p.date ?? p.data, 10);
+        if (!isDate(date)) return json({ error: "date must be YYYY-MM-DD" }, 400);
+        const counts: Record<string, number> = { pending: 0, in_progress: 0, completed: 0, paused: 0 };
+        const { data, error } = await db.from("work_orders").select("status").gte("scheduled_date", date!).lt("scheduled_date", nextDay(date!)).limit(5000);
+        if (error) throw error;
+        for (const r of data as any[]) counts[r.status] = (counts[r.status] ?? 0) + 1;
+        return json({ data: counts });
+      }
       default:
-        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas"] }, 400);
+        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia"] }, 400);
     }
   } catch (e: any) {
     console.error(action, e);
