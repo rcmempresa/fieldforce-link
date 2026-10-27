@@ -52,6 +52,23 @@ Deno.serve(async (req) => {
           const s = clientSearch.replace(/[%,()]/g, " ");
           q = q.or(`name.ilike.%${s}%,company_name.ilike.%${s}%`, { referencedTable: "client" });
         }
+        // filtro por técnico (nome)
+        const tecnicoSearch = str(p.tecnico_search, 100);
+        if (tecnicoSearch) {
+          const s = tecnicoSearch.replace(/[%,()]/g, " ");
+          const { data: profs, error: pe } = await db.from("profiles").select("id").ilike("name", `%${s}%`).limit(200);
+          if (pe) throw pe;
+          const ids = (profs ?? []).map((x: any) => x.id);
+          if (!ids.length) return json({ data: [], count: 0 });
+          const { data: asg, error: ae } = await db.from("work_order_assignments").select("work_order_id").in("user_id", ids).limit(5000);
+          if (ae) throw ae;
+          const woIds = [...new Set((asg ?? []).map((x: any) => x.work_order_id))];
+          if (!woIds.length) return json({ data: [], count: 0 });
+          q = q.in("id", woIds);
+        }
+        // filtro por tipo de serviço
+        const serviceType = str(p.service_type, 30);
+        if (serviceType) q = q.eq("service_type", serviceType);
         const status = str(p.status, 30);
         if (status) q = q.eq("status", status);
         const date = str(p.scheduled_date, 10);
@@ -222,8 +239,54 @@ Deno.serve(async (req) => {
         const data = [...groups.values()].sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "", "pt-PT"));
         return json({ data, count: data.length });
       }
+   case "relatorio_mensal": {
+     const year = Number(p.year) || new Date().getUTCFullYear();
+     const month = Math.min(Math.max(Number(p.month) || new Date().getUTCMonth() + 1, 1), 12);
+     const dateFrom = `${year}-${String(month).padStart(2, "0")}-01`;
+     const dateTo = month === 12
+       ? `${year + 1}-01-01`
+       : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+
+     const [woRes, teRes] = await Promise.all([
+       db.from("work_orders")
+         .select("status, service_type, work_order_assignments(user_id, profiles!work_order_assignments_user_id_fkey(name))")
+         .gte("scheduled_date", dateFrom).lt("scheduled_date", dateTo).limit(5000),
+       db.from("time_entries")
+         .select("user_id, duration_hours, profiles!time_entries_user_id_fkey(name)")
+         .gte("start_time", dateFrom).lt("start_time", dateTo).limit(5000),
+     ]);
+     if (woRes.error) throw woRes.error;
+     if (teRes.error) throw teRes.error;
+
+     const por_estado: Record<string, number> = {};
+     const por_tipo: Record<string, number> = {};
+     const tecMap = new Map<string, { name: string; completed: number; total: number; hours: number }>();
+
+     for (const wo of woRes.data as any[]) {
+       por_estado[wo.status] = (por_estado[wo.status] ?? 0) + 1;
+       if (wo.service_type) por_tipo[wo.service_type] = (por_tipo[wo.service_type] ?? 0) + 1;
+       for (const a of wo.work_order_assignments ?? []) {
+         const uid = a.user_id;
+         const name = a.profiles?.name ?? uid;
+         const g = tecMap.get(uid) ?? { name, completed: 0, total: 0, hours: 0 };
+         g.total++;
+         if (wo.status === "completed") g.completed++;
+         tecMap.set(uid, g);
+       }
+     }
+     for (const e of teRes.data as any[]) {
+       const g = tecMap.get(e.user_id);
+       if (g) g.hours += Number(e.duration_hours) || 0;
+     }
+     const total_horas = (teRes.data as any[]).reduce((s, e: any) => s + (Number(e.duration_hours) || 0), 0);
+     const por_tecnico = [...tecMap.values()]
+       .map(t => ({ ...t, hours: Math.round(t.hours * 100) / 100 }))
+       .sort((a, b) => b.completed - a.completed);
+
+     return json({ data: { por_estado, por_tipo, total_horas: Math.round(total_horas * 100) / 100, por_tecnico } });
+   }
       default:
-        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa"] }, 400);
+        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal"] }, 400);
     }
   } catch (e: any) {
     console.error(action, e);
