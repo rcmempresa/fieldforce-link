@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
     switch (action) {
       case "listar_ots": {
         let q = db.from("work_orders")
-          .select("id, reference, title, status, priority, service_type, scheduled_date, total_hours, address, client:profiles!work_orders_client_id_fkey(id, name, company_name), work_order_assignments(user_id, profiles(name))")
+          .select("id, reference, title, status, priority, service_type, scheduled_date, total_hours, address, client:profiles!work_orders_client_id_fkey(id, name, company_name), work_order_assignments(user_id, profiles!work_order_assignments_user_id_fkey(name))")
           .order("scheduled_date", { ascending: false, nullsFirst: false })
           .limit(limit);
         const status = str(p.status, 30);
@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
         const reference = str(p.reference, 50);
         if (!reference) return json({ error: "Missing params.reference" }, 400);
         const { data, error } = await db.from("work_orders")
-          .select("*, client:profiles!work_orders_client_id_fkey(id, name, company_name, phone, address), work_order_assignments(user_id, profiles(name)), work_order_equipments(*, equipments(*)), work_order_materials(*), time_entries(id, user_id, start_time, end_time, duration_hours, work_regime, pause_reason, note)")
+          .select("*, client:profiles!work_orders_client_id_fkey(id, name, company_name, phone, address), work_order_assignments(user_id, profiles!work_order_assignments_user_id_fkey(name)), work_order_equipments(*, equipments(*)), work_order_materials(*), time_entries(id, user_id, start_time, end_time, duration_hours, work_regime, pause_reason, note)")
           .ilike("reference", reference)
           .maybeSingle();
         if (error) throw error;
