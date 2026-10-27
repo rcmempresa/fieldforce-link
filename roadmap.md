@@ -1,13 +1,5 @@
-- [x] Criar relatório de intervenção editável com geração de PDF.
-- [x] Tornar visível e utilizável a conclusão de OT no telemóvel.
-- [x] Permitir escolher e guardar um logótipo por relatório e mostrá-lo no PDF.
-- [x] Remover a secção de OTs sem técnico do painel principal (fica só na página dedicada /unassigned-work-orders).
-- [x] Mostrar badge "Sem material" em cada OT da lista e nos detalhes quando a última pausa foi por falta de material.
-- [x] Corrigir o botão final cortado na janela de conclusão e destacar Concluir OT nas listas do telemóvel.
-- [x] Mostrar os técnicos atribuídos dentro de cada cartão da lista de OT (e "Sem técnico" quando não há).
-- [x] Adicionar página "Meu Perfil" com histórico de intervenções antigas para o técnico.
-- [x] Adicionar botão "Detalhes" nas OTs que aparecem ao selecionar o dia no calendário do painel do técnico.
-- [x] OTs sem material: tirar do separador "Pausadas" e mostrar apenas no separador "Sem Material".
-- [x] Remover tudo o que é do Lovable: imagem de partilha, ícone do separador (coração) e texto do README.
-- [ ] Publicar para que o link no ar deixe de mostrar a pré-visualização do Lovable. (aguarda confirmação do Rodrigo)
-- [x] Contratos de manutenção (AVAC, Bomba de Calor, Eletricidade) e relatório mensal de OTs por faturar
+# Current tasks
+
+- [ ] Add equipamentos_cliente, materiais_usados and disponibilidade_equipa to empregado-digital.
+- [ ] Test filters, date boundaries and technician workload totals.
+- [ ] Deploy and verify authenticated requests for the three actions.

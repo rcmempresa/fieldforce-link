@@ -156,8 +156,74 @@ Deno.serve(async (req) => {
         for (const r of data as any[]) counts[r.status] = (counts[r.status] ?? 0) + 1;
         return json({ data: counts });
       }
+      case "equipamentos_cliente": {
+        if (typeof p.client_search !== "string" || !p.client_search.trim() || p.client_search.length > 100) {
+          return json({ error: "client_search must be a non-empty string of at most 100 characters" }, 400);
+        }
+        const search = p.client_search.trim().toLocaleLowerCase("pt-PT");
+        const { data: rows, error } = await db.from("work_orders")
+          .select("reference, title, client:profiles!work_orders_client_id_fkey(id, name, company_name), work_order_equipments(*, equipments(id, name, brand, model, category, location))")
+          .order("scheduled_date", { ascending: false, nullsFirst: false })
+          .limit(100);
+        if (error) throw error;
+        const data = (rows ?? []).filter((row: any) =>
+          [row.client?.name, row.client?.company_name].some((value) =>
+            typeof value === "string" && value.toLocaleLowerCase("pt-PT").includes(search)));
+        return json({ data, count: data.length });
+      }
+      case "materiais_usados": {
+        for (const key of ["date_from", "date_to"]) {
+          const value = p[key];
+          if (value !== undefined && (typeof value !== "string" || !isDate(value) ||
+              !Number.isFinite(Date.parse(value + "T00:00:00Z")) ||
+              new Date(value + "T00:00:00Z").toISOString().slice(0, 10) !== value)) {
+            return json({ error: `${key} must be a valid YYYY-MM-DD date` }, 400);
+          }
+        }
+        const from = str(p.date_from, 10), to = str(p.date_to, 10);
+        if (from && to && from > to) return json({ error: "date_from must not be after date_to" }, 400);
+        let q = db.from("work_order_materials")
+          .select("*, work_orders!inner(id, reference, title, scheduled_date)")
+          .order("id", { ascending: false })
+          .limit(200);
+        if (from) q = q.gte("work_orders.scheduled_date", from);
+        if (to) q = q.lt("work_orders.scheduled_date", nextDay(to));
+        const { data, error } = await q;
+        if (error) throw error;
+        return json({ data, count: data.length });
+      }
+      case "disponibilidade_equipa": {
+        // The app uses employee/manager, not technician/admin. user_roles has
+        // no direct profiles FK, so names are fetched through their shared IDs.
+        const { data: roles, error: rolesError } = await db.from("user_roles")
+          .select("user_id").in("role", ["employee", "manager"]);
+        if (rolesError) throw rolesError;
+        const ids = [...new Set((roles ?? []).map((role) => role.user_id))];
+        if (!ids.length) return json({ data: [], count: 0 });
+        const { data: profiles, error: profilesError } = await db.from("profiles")
+          .select("id, name").in("id", ids).order("name", { ascending: true });
+        if (profilesError) throw profilesError;
+        const groups = new Map<string, { user_id: string; name: string | null; open_ots: number; in_progress_ots: number }>(
+          ids.map((id) => [id, { user_id: id, name: profiles?.find((profile) => profile.id === id)?.name ?? null, open_ots: 0, in_progress_ots: 0 }]));
+        for (let offset = 0; ; offset += 1000) {
+          const { data: assignments, error } = await db.from("work_order_assignments")
+            .select("user_id, work_orders!inner(status)")
+            .in("work_orders.status", ["pending", "in_progress"])
+            .order("id", { ascending: true }).range(offset, offset + 999);
+          if (error) throw error;
+          for (const assignment of assignments as any[]) {
+            const group = groups.get(assignment.user_id);
+            if (!group) continue;
+            group.open_ots++;
+            if (assignment.work_orders?.status === "in_progress") group.in_progress_ots++;
+          }
+          if (assignments.length < 1000) break;
+        }
+        const data = [...groups.values()].sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "", "pt-PT"));
+        return json({ data, count: data.length });
+      }
       default:
-        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia"] }, 400);
+        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa"] }, 400);
     }
   } catch (e: any) {
     console.error(action, e);
