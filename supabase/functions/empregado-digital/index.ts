@@ -239,8 +239,6 @@ Deno.serve(async (req) => {
         const data = [...groups.values()].sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "", "pt-PT"));
         return json({ data, count: data.length });
       }
-      case "relatorio_mensal" antes do default:
-
    case "relatorio_mensal": {
      const year = Number(p.year) || new Date().getUTCFullYear();
      const month = Math.min(Math.max(Number(p.month) || new Date().getUTCMonth() + 1, 1), 12);
