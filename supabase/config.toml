@@ -25,3 +25,6 @@ verify_jwt = false
 verify_jwt = false
 [functions.monthly-uninvoiced-report]
 verify_jwt = false
+
+[functions.empregado-digital]
+verify_jwt = false
