@@ -182,7 +182,7 @@ export default function Contracts() {
               ))}
             </div>
           )}
-          {filtered.length > PAGE && <DataPagination currentPage={page} totalPages={Math.ceil(filtered.length / PAGE)} onPageChange={setPage} />}
+          {filtered.length > PAGE && <DataPagination currentPage={page} totalPages={Math.ceil(filtered.length / PAGE)} onPageChange={setPage} itemsPerPage={PAGE} totalItems={filtered.length} />}
         </CardContent>
       </Card>
 
