@@ -1,3 +1,4 @@
+import { ContractDecisions } from "@/components/contracts/ContractDecisions";
 import { formatDate, formatDateTime } from "@/lib/formatDate";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -1026,6 +1027,8 @@ export default function ManagerDashboard() {
             Acompanhe as métricas principais e gerencie as operações
           </p>
         </div>
+
+        <ContractDecisions />
 
         {/* Notifications */}
         <Notifications />

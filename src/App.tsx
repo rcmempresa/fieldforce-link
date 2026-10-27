@@ -21,6 +21,7 @@ import MaterialCatalog from "./pages/MaterialCatalog";
 import Equipments from "./pages/Equipments";
 import UnassignedWorkOrders from "./pages/UnassignedWorkOrders";
 import Profile from "./pages/Profile";
+import Contracts from "./pages/Contracts";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -133,6 +134,7 @@ const App = () => (
               </ProtectedRoute>
             }
           />
+          <Route path="/contracts" element={<ProtectedRoute allowedRoles={["manager"]}><Contracts /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

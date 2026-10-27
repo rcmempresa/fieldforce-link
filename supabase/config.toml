@@ -23,3 +23,5 @@ verify_jwt = false
 
 [functions.send-notification-email]
 verify_jwt = false
+[functions.monthly-uninvoiced-report]
+verify_jwt = false

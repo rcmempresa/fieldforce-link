@@ -307,6 +307,92 @@ export type Database = {
           },
         ]
       }
+      maintenance_contract_equipments: {
+        Row: {
+          contract_id: string
+          equipment_id: string
+          id: string
+          unit_part: string
+        }
+        Insert: {
+          contract_id: string
+          equipment_id: string
+          id?: string
+          unit_part?: string
+        }
+        Update: {
+          contract_id?: string
+          equipment_id?: string
+          id?: string
+          unit_part?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_contract_equipments_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_contract_equipments_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_contracts: {
+        Row: {
+          client_id: string
+          contract_type: string
+          created_at: string
+          created_by: string | null
+          frequency: string
+          id: string
+          next_date: string
+          notes: string | null
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          contract_type: string
+          created_at?: string
+          created_by?: string | null
+          frequency: string
+          id?: string
+          next_date?: string
+          notes?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          contract_type?: string
+          created_at?: string
+          created_by?: string | null
+          frequency?: string
+          id?: string
+          next_date?: string
+          notes?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_contracts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_reports: {
         Row: {
           approval_date: string | null
@@ -792,6 +878,8 @@ export type Database = {
         Row: {
           address: string | null
           client_id: string
+          contract_decision_pending: boolean
+          contract_id: string | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -812,6 +900,8 @@ export type Database = {
         Insert: {
           address?: string | null
           client_id: string
+          contract_decision_pending?: boolean
+          contract_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -832,6 +922,8 @@ export type Database = {
         Update: {
           address?: string | null
           client_id?: string
+          contract_decision_pending?: boolean
+          contract_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -858,6 +950,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "work_orders_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_contracts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "work_orders_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
@@ -871,6 +970,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_contract_work_order: {
+        Args: { _contract: string }
+        Returns: string
+      }
+      decide_contract: {
+        Args: { _continue: boolean; _wo: string }
+        Returns: string
+      }
       employee_visible_profile_ids: {
         Args: { _viewer: string }
         Returns: string[]

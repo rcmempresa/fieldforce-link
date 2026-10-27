@@ -28,6 +28,7 @@ import {
   Menu,
   Moon,
   Sun,
+  FileSignature,
 } from "lucide-react";
 
 interface DashboardLayoutProps {
@@ -48,6 +49,7 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
     { label: "Sem Técnico", to: "/unassigned-work-orders", icon: UserX },
     { label: "Clientes", to: "/clients", icon: Users },
     { label: "Equipamentos", to: "/equipments", icon: HardDrive },
+    { label: "Contratos", to: "/contracts", icon: FileSignature },
     { label: "Funcionários", to: "/employees", icon: UserCog },
     { label: "Materiais", to: "/material-catalog", icon: Package },
     { label: "Emails", to: "/email-logs", icon: Mail },
