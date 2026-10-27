@@ -56,13 +56,19 @@ Deno.serve(async (req) => {
       case "detalhe_ot": {
         const reference = str(p.reference, 50);
         if (!reference) return json({ error: "Missing params.reference" }, 400);
-        const { data, error } = await db.from("work_orders")
+        const { data: rows, error } = await db.from("work_orders")
           .select("*, client:profiles!work_orders_client_id_fkey(id, name, company_name, phone, address), work_order_assignments(user_id, profiles!work_order_assignments_user_id_fkey(name)), work_order_equipments(*, equipments(*)), work_order_materials(*), time_entries(id, user_id, start_time, end_time, duration_hours, work_regime, pause_reason, note)")
-          .ilike("reference", reference)
-          .maybeSingle();
+          .ilike("reference", `%${reference}%`)
+          .order("reference", { ascending: true })
+          .limit(6);
         if (error) throw error;
-        if (!data) return json({ error: "OT não encontrada" }, 404);
-        return json({ data });
+        const found = rows ?? [];
+        if (!found.length) return json({ error: "OT não encontrada" }, 404);
+        const exact = found.find((r: any) => r.reference?.toLowerCase() === reference.toLowerCase());
+        const data = exact ?? found[0];
+        const response: any = { data };
+        if (!exact && found.length > 1) response.matches = found.map((r: any) => r.reference);
+        return json(response);
       }
       case "listar_clientes": {
         const { data: roles, error: rErr } = await db.from("user_roles").select("user_id").eq("role", "client");
