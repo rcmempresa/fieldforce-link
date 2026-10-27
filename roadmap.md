@@ -10,3 +10,4 @@
 - [x] OTs sem material: tirar do separador "Pausadas" e mostrar apenas no separador "Sem Material".
 - [x] Remover tudo o que é do Lovable: imagem de partilha, ícone do separador (coração) e texto do README.
 - [ ] Publicar para que o link no ar deixe de mostrar a pré-visualização do Lovable. (aguarda confirmação do Rodrigo)
+- [x] Contratos de manutenção (AVAC, Bomba de Calor, Eletricidade) e relatório mensal de OTs por faturar
