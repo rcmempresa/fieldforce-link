@@ -118,7 +118,7 @@ export default function Contracts() {
       return;
     }
     await supabase.from("maintenance_contract_equipments").insert(
-      selected.map((id) => ({ contract_id: c.id, equipment_id: id, unit_part: equipments.find((e) => e.id === id)?.equipment_type === "ac" ? "both" : "both" })),
+      selected.map((id) => ({ contract_id: c.id, equipment_id: id, unit_part: equipments.find((e) => e.id === id)?.equipment_type ? "both" : "both" })),
     );
     const { error: woErr } = await supabase.rpc("create_contract_work_order", { _contract: c.id });
     setSaving(false);
@@ -182,7 +182,7 @@ export default function Contracts() {
               ))}
             </div>
           )}
-          <DataPagination page={page} pageSize={PAGE} total={filtered.length} onPageChange={setPage} />
+          {filtered.length > PAGE && <DataPagination currentPage={page} totalPages={Math.ceil(filtered.length / PAGE)} onPageChange={setPage} />}
         </CardContent>
       </Card>
 
