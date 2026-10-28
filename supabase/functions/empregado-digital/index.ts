@@ -296,9 +296,6 @@ Deno.serve(async (req) => {
         if (findErr) throw findErr;
         if (!rows?.length) return json({ error: "OT não encontrada" }, 404);
         const update: Record<string, unknown> = { status };
-        const pauseReason = str(p.pause_reason, 50);
-        if (status === "paused" && pauseReason) update.pause_reason = pauseReason;
-        if (status !== "paused") update.pause_reason = null;
         const { error: updateErr } = await db.from("work_orders").update(update).eq("id", (rows[0] as any).id);
         if (updateErr) throw updateErr;
         return json({ data: { reference: (rows[0] as any).reference, status } });
