@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { z } from "npm:zod@3.25.76";
 
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -13,6 +14,59 @@ function safeEqual(a: string, b: string) {
   let r = 0;
   for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return r === 0;
+}
+
+const dateInput = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((date) => {
+  const timestamp = Date.parse(`${date}T00:00:00Z`);
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === date;
+}, "Invalid calendar date");
+const timeInput = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+const referenceInput = z.string().trim().min(1).max(50);
+const nameInput = z.string().trim().min(1).max(100).refine((name) => !!name.replace(/[%,()_]/g, " ").trim());
+const writeSchemas = {
+  remover_tecnico_ot: z.object({ reference: referenceInput, tecnico_nome: nameInput }),
+  agendar_ot: z.object({ reference: referenceInput, date: dateInput, time: timeInput.default("09:00") }),
+  criar_ot: z.object({ titulo: z.string().trim().min(1).max(200), client_search: nameInput,
+    service_type: z.enum(["repair", "maintenance", "installation", "warranty"]).default("repair"),
+    priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
+    descricao: z.string().trim().max(1000).optional(), date: dateInput.optional(),
+    time: timeInput.default("09:00"), tecnico_nome: nameInput.optional() }),
+  registar_horas_ot: z.object({ reference: referenceInput, user_id: z.string().uuid(),
+    horas: z.number().finite().positive(), date: dateInput.default(() => new Date().toISOString().slice(0, 10)) }),
+};
+
+// Write actions must never choose an arbitrary match for a partial reference.
+async function findWriteOrder(db: any, reference: string) {
+  const { data: exact, error: exactError } = await db.from("work_orders")
+    .select("id, reference").ilike("reference", reference.replace(/[%_]/g, "")).limit(2);
+  if (exactError) throw exactError;
+  const exactMatch = exact?.find((row: any) => row.reference.toLowerCase() === reference.toLowerCase());
+  if (exactMatch) return { data: exactMatch };
+  const { data: rows, error } = await db.from("work_orders").select("id, reference")
+    .ilike("reference", `%${reference.replace(/[%_]/g, "")}%`).order("reference").limit(6);
+  if (error) throw error;
+  if (!rows?.length) return { response: json({ error: "OT não encontrada" }, 404) };
+  if (rows.length > 1) return { response: json({ error: "Referência ambígua", matches: rows.map((row: any) => row.reference) }, 400) };
+  return { data: rows[0] };
+}
+
+async function findWriteProfile(db: any, search: string, client = false, userId?: string) {
+  const { data: roles, error: roleError } = await db.from("user_roles").select("user_id")
+    .in("role", client ? ["client"] : ["employee", "manager"]);
+  if (roleError) throw roleError;
+  const ids = [...new Set((roles ?? []).map((row: any) => row.user_id))];
+  if (!ids.length || (userId && !ids.includes(userId))) return { response: json({ error: client ? "Cliente não encontrado" : "Técnico não encontrado" }, 404) };
+  let query = db.from("profiles").select("id, name, company_name").in("id", ids);
+  if (userId) query = query.eq("id", userId);
+  else {
+    const term = search.replace(/[%,()_]/g, " ");
+    query = client ? query.or(`name.ilike.%${term}%,company_name.ilike.%${term}%`) : query.ilike("name", `%${term}%`);
+  }
+  const { data: rows, error } = await query.limit(6);
+  if (error) throw error;
+  if (!rows?.length) return { response: json({ error: client ? "Cliente não encontrado" : "Técnico não encontrado" }, 404) };
+  if (rows.length > 1) return { response: json({ error: "Nome ambíguo", matches: rows.map((row: any) => client ? row.company_name || row.name : row.name) }, 400) };
+  return { data: rows[0] };
 }
 
 Deno.serve(async (req) => {
@@ -29,7 +83,9 @@ Deno.serve(async (req) => {
   const p = body?.params && typeof body.params === "object" && !Array.isArray(body.params) ? body.params : {};
   if (!action) return json({ error: "Missing 'action'" }, 400);
 
-  const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const url = Deno.env.get("SUPABASE_URL"), key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) return json({ error: "Server configuration missing" }, 500);
+  const db = createClient(url, key);
   const limit = Math.min(Math.max(Number(p.limit) || 50, 1), 500);
 
   try {
@@ -337,8 +393,70 @@ Deno.serve(async (req) => {
         if (assignErr) throw assignErr;
         return json({ data: { reference: (otRows[0] as any).reference, technician: tecnicoName } });
       }
+      case "remover_tecnico_ot": {
+        const parsed = writeSchemas.remover_tecnico_ot.safeParse(p);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const order = await findWriteOrder(db, parsed.data.reference);
+        if (order.response) return order.response;
+        const technician = await findWriteProfile(db, parsed.data.tecnico_nome);
+        if (technician.response) return technician.response;
+        const { error } = await db.from("work_order_assignments").delete()
+          .eq("work_order_id", order.data.id).eq("user_id", technician.data.id);
+        if (error) throw error;
+        return json({ data: { reference: order.data.reference, technician: technician.data.name } });
+      }
+      case "agendar_ot": {
+        const parsed = writeSchemas.agendar_ot.safeParse({ ...p, date: p.date ?? p.data });
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const order = await findWriteOrder(db, parsed.data.reference);
+        if (order.response) return order.response;
+        const scheduled_date = `${parsed.data.date}T${parsed.data.time}:00Z`;
+        const { error } = await db.from("work_orders").update({ scheduled_date, needs_scheduling: false }).eq("id", order.data.id);
+        if (error) throw error;
+        return json({ data: { reference: order.data.reference, scheduled_date } });
+      }
+      case "criar_ot": {
+        const parsed = writeSchemas.criar_ot.safeParse({ ...p, titulo: p.titulo ?? p.title,
+          descricao: p.descricao ?? p.description, date: p.date ?? p.data });
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const input = parsed.data;
+        const client = await findWriteProfile(db, input.client_search, true);
+        if (client.response) return client.response;
+        const technician = input.tecnico_nome ? await findWriteProfile(db, input.tecnico_nome) : undefined;
+        if (technician?.response) return technician.response;
+        const scheduled_date = input.date ? `${input.date}T${input.time}:00Z` : null;
+        // Omit reference: the database trigger allocates it under an advisory lock.
+        const { data: created, error } = await db.from("work_orders").insert({ title: input.titulo,
+          client_id: client.data.id, service_type: input.service_type, priority: input.priority,
+          description: input.descricao, status: "pending", scheduled_date, needs_scheduling: !scheduled_date })
+          .select("id, reference").single();
+        if (error) throw error;
+        if (technician?.data) {
+          const { error: assignmentError } = await db.from("work_order_assignments")
+            .insert({ work_order_id: created.id, user_id: technician.data.id });
+          if (assignmentError) return json({ data: created, error: "OT criada, mas a atribuição do técnico falhou; não repita a criação." }, 500);
+        }
+        return json({ data: created });
+      }
+      case "registar_horas_ot": {
+        const parsed = writeSchemas.registar_horas_ot.safeParse({ ...p, horas: p.horas ?? p.hours, date: p.date ?? p.data });
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const input = parsed.data;
+        const order = await findWriteOrder(db, input.reference);
+        if (order.response) return order.response;
+        const technician = await findWriteProfile(db, "", false, input.user_id);
+        if (technician.response) return technician.response;
+        const start_time = `${input.date}T08:00:00Z`;
+        const end = new Date(Date.parse(start_time) + input.horas * 3600000);
+        if (!Number.isFinite(end.getTime())) return json({ error: "Número de horas inválido" }, 400);
+        const { data: entry, error } = await db.from("time_entries").insert({ work_order_id: order.data.id,
+          user_id: input.user_id, duration_hours: input.horas, start_time, end_time: end.toISOString(), work_regime: "labor" })
+          .select("id").single();
+        if (error) throw error;
+        return json({ data: { reference: order.data.reference, hours: input.horas, entry_id: entry.id } });
+      }
       default:
-        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot"] }, 400);
+        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot"] }, 400);
     }
   } catch (e: any) {
     console.error(action, e);

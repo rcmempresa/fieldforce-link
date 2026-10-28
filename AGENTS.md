@@ -7,3 +7,4 @@
 - Equipments carry a category (equipments.category) matching maintenance report types; report forms list only the OT's equipment of their category, so one OT can hold several equipments and produce one report per equipment.
 - Keep completion dialog actions outside the scrolling form body and use page scrolling for employee order lists on mobile; prevents completion controls from being clipped on small screens.
 - Maintenance contracts generate their OTs through SECURITY DEFINER RPCs (create_contract_work_order, decide_contract); the next OT is only created after a manager decides on the completed one, so contracts never auto-spawn unattended work.
+- Agent write actions validate inputs and resolve unique role-filtered profiles and OT references before mutation; OT creation relies on the existing reference trigger to avoid collisions.
