@@ -285,8 +285,63 @@ Deno.serve(async (req) => {
 
      return json({ data: { por_estado, por_tipo, total_horas: Math.round(total_horas * 100) / 100, por_tecnico } });
    }
+      case "atualizar_estado_ot": {
+        const reference = str(p.reference, 50);
+        const status = str(p.status, 30);
+        if (!reference || !status) return json({ error: "reference e status obrigatórios" }, 400);
+        const validStatuses = ["pending", "in_progress", "completed", "paused", "cancelled"];
+        if (!validStatuses.includes(status)) return json({ error: "Estado inválido" }, 400);
+        const { data: rows, error: findErr } = await db.from("work_orders")
+          .select("id, reference").ilike("reference", `%${reference}%`).order("reference").limit(1);
+        if (findErr) throw findErr;
+        if (!rows?.length) return json({ error: "OT não encontrada" }, 404);
+        const update: Record<string, unknown> = { status };
+        const pauseReason = str(p.pause_reason, 50);
+        if (status === "paused" && pauseReason) update.pause_reason = pauseReason;
+        if (status !== "paused") update.pause_reason = null;
+        const { error: updateErr } = await db.from("work_orders").update(update).eq("id", (rows[0] as any).id);
+        if (updateErr) throw updateErr;
+        return json({ data: { reference: (rows[0] as any).reference, status } });
+      }
+      case "adicionar_nota_ot": {
+        const reference = str(p.reference, 50);
+        const nota = str(p.nota ?? p.note, 1000);
+        if (!reference || !nota) return json({ error: "reference e nota obrigatórios" }, 400);
+        const { data: rows, error: findErr } = await db.from("work_orders")
+          .select("id, reference, notes").ilike("reference", `%${reference}%`).order("reference").limit(1);
+        if (findErr) throw findErr;
+        if (!rows?.length) return json({ error: "OT não encontrada" }, 404);
+        const ot = rows[0] as any;
+        const timestamp = new Date().toISOString().slice(0, 16).replace("T", " ");
+        const novasNotes = ot.notes ? `${ot.notes}\n[${timestamp}] ${nota}` : `[${timestamp}] ${nota}`;
+        const { error: updateErr } = await db.from("work_orders").update({ notes: novasNotes }).eq("id", ot.id);
+        if (updateErr) throw updateErr;
+        return json({ data: { reference: ot.reference } });
+      }
+      case "atribuir_tecnico_ot": {
+        const reference = str(p.reference, 50);
+        const tecnicoNome = str(p.tecnico_nome, 100);
+        if (!reference || !tecnicoNome) return json({ error: "reference e tecnico_nome obrigatórios" }, 400);
+        const { data: otRows, error: otErr } = await db.from("work_orders")
+          .select("id, reference").ilike("reference", `%${reference}%`).order("reference").limit(1);
+        if (otErr) throw otErr;
+        if (!otRows?.length) return json({ error: "OT não encontrada" }, 404);
+        const otId = (otRows[0] as any).id;
+        const s = tecnicoNome.replace(/[%,()]/g, " ");
+        const { data: profiles, error: profErr } = await db.from("profiles")
+          .select("id, name").ilike("name", `%${s}%`).limit(3);
+        if (profErr) throw profErr;
+        if (!profiles?.length) return json({ error: `Técnico '${tecnicoNome}' não encontrado` }, 404);
+        if (profiles.length > 1) return json({ error: "Nome ambíguo", matches: profiles.map((x: any) => x.name) }, 400);
+        const tecnicoId = (profiles[0] as any).id;
+        const tecnicoName = (profiles[0] as any).name;
+        const { error: assignErr } = await db.from("work_order_assignments")
+          .upsert({ work_order_id: otId, user_id: tecnicoId }, { onConflict: "work_order_id,user_id" });
+        if (assignErr) throw assignErr;
+        return json({ data: { reference: (otRows[0] as any).reference, technician: tecnicoName } });
+      }
       default:
-        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal"] }, 400);
+        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot"] }, 400);
     }
   } catch (e: any) {
     console.error(action, e);
