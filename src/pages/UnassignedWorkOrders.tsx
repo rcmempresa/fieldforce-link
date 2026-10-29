@@ -135,14 +135,18 @@ export default function UnassignedWorkOrders() {
         toast({ title: "Erro", description: "Não foi possível atribuir o técnico.", variant: "destructive" });
         return;
       }
-      toast({ title: date ? "Técnico atribuído e OT agendada" : "Técnico atribuído" });
+      toast({ title: dateChanged ? "Técnico atribuído e OT agendada" : "Técnico atribuído" });
       load();
       return;
     }
 
     setSaving(null);
-    toast({ title: "OT agendada" });
-    load();
+    if (dateChanged) {
+      toast({ title: "OT agendada" });
+      load();
+    } else {
+      toast({ title: "Sem alterações", description: "Escolhe um técnico ou uma data diferente." });
+    }
   };
 
   return (
