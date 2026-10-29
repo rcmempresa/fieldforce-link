@@ -10,8 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataPagination } from "@/components/ui/data-pagination";
 import { formatDateTime } from "@/lib/formatDate";
-import { Search, UserX, Eye, Loader2, UserPlus, Pencil } from "lucide-react";
+import { Search, UserX, Eye, Loader2, UserPlus, Pencil, CalendarIcon } from "lucide-react";
 import { EditWorkOrderDialog } from "@/components/work-orders/EditWorkOrderDialog";
+import { SlotDateTimePicker } from "@/components/work-orders/SlotDateTimePicker";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface Row {
   id: string;
@@ -36,6 +38,8 @@ export default function UnassignedWorkOrders() {
   const [sortBy, setSortBy] = useState("recent");
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<Row | null>(null);
+  const [dates, setDates] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -87,17 +91,48 @@ export default function UnassignedWorkOrders() {
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const pageItems = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
-  const assign = async (orderId: string) => {
+  const toInputValue = (iso: string) => {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const assignAndSchedule = async (orderId: string) => {
     const userId = picked[orderId];
-    if (!userId) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from("work_order_assignments").insert({ work_order_id: orderId, user_id: userId, assigned_by: user?.id });
-    if (error) {
-      toast({ title: "Erro", description: "Não foi possível atribuir o técnico.", variant: "destructive" });
+    const date = dates[orderId];
+    if (!userId && !date) return;
+    setSaving(orderId);
+
+    if (date) {
+      const { error: dateErr } = await supabase
+        .from("work_orders")
+        .update({ scheduled_date: date, needs_scheduling: false })
+        .eq("id", orderId);
+      if (dateErr) {
+        setSaving(null);
+        toast({ title: "Erro", description: "Não foi possível marcar a data.", variant: "destructive" });
+        return;
+      }
+    }
+
+    if (userId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from("work_order_assignments")
+        .insert({ work_order_id: orderId, user_id: userId, assigned_by: user?.id });
+      setSaving(null);
+      if (error) {
+        toast({ title: "Erro", description: "Não foi possível atribuir o técnico.", variant: "destructive" });
+        return;
+      }
+      toast({ title: date ? "Técnico atribuído e OT agendada" : "Técnico atribuído" });
+      load();
       return;
     }
-    toast({ title: "Técnico atribuído" });
-    setRows((prev) => prev.filter((r) => r.id !== orderId));
+
+    setSaving(null);
+    toast({ title: "OT agendada" });
+    load();
   };
 
   return (
@@ -149,14 +184,44 @@ export default function UnassignedWorkOrders() {
                     </p>
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       <Select value={picked[r.id] || ""} onValueChange={(v) => setPicked((p) => ({ ...p, [r.id]: v }))}>
-                        <SelectTrigger className="sm:w-64"><SelectValue placeholder="Escolher técnico" /></SelectTrigger>
+                        <SelectTrigger className="sm:w-56"><SelectValue placeholder="Escolher técnico" /></SelectTrigger>
                         <SelectContent>
                           {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button size="sm" variant="outline" className="justify-start sm:w-56">
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dates[r.id]
+                              ? formatDateTime(dates[r.id])
+                              : r.scheduled_date
+                                ? formatDateTime(r.scheduled_date)
+                                : "Escolher data e hora"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="max-h-[80vh] w-auto overflow-y-auto p-3" align="start">
+                          <SlotDateTimePicker
+                            value={dates[r.id] ?? (r.scheduled_date ? toInputValue(r.scheduled_date) : "")}
+                            onChange={(v) => setDates((d) => ({ ...d, [r.id]: v }))}
+                            excludeWorkOrderId={r.id}
+                            label="Data e hora da OT"
+                          />
+                        </PopoverContent>
+                      </Popover>
                       <div className="flex gap-2">
-                        <Button size="sm" className="flex-1 sm:flex-none" disabled={!picked[r.id]} onClick={() => assign(r.id)}>
-                          <UserPlus className="mr-1 h-4 w-4" /> Atribuir
+                        <Button
+                          size="sm"
+                          className="flex-1 sm:flex-none"
+                          disabled={(!picked[r.id] && !dates[r.id]) || saving === r.id}
+                          onClick={() => assignAndSchedule(r.id)}
+                        >
+                          {saving === r.id ? (
+                            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                          ) : (
+                            <UserPlus className="mr-1 h-4 w-4" />
+                          )}
+                          Atribuir e agendar
                         </Button>
                         <Button size="icon" variant="outline" aria-label="Ver OT" title="Ver" onClick={() => navigate(`/work-orders/${r.id}`)}>
                           <Eye className="h-4 w-4" />
