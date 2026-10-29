@@ -13,7 +13,7 @@ import { formatDateTime } from "@/lib/formatDate";
 import { Search, UserX, Eye, Loader2, UserPlus, Pencil, CalendarIcon } from "lucide-react";
 import { EditWorkOrderDialog } from "@/components/work-orders/EditWorkOrderDialog";
 import { SlotDateTimePicker } from "@/components/work-orders/SlotDateTimePicker";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getLisbonDateKey, getSlot } from "@/lib/employeeAvailability";
 
 interface Row {
@@ -30,6 +30,9 @@ interface Row {
 const PER_PAGE = 10;
 const STATUS: Record<string, string> = { pending: "Pendente", approved: "Aprovada", in_progress: "Em progresso" };
 
+/** "changed" = data gravada, "unchanged" = já estava igual, "error" = falhou */
+type DateResult = "changed" | "unchanged" | "error";
+
 export default function UnassignedWorkOrders() {
   const [rows, setRows] = useState<Row[]>([]);
   const [employees, setEmployees] = useState<{ id: string; name: string }[]>([]);
@@ -39,6 +42,7 @@ export default function UnassignedWorkOrders() {
   const [sortBy, setSortBy] = useState("recent");
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<Row | null>(null);
+  const [dateTarget, setDateTarget] = useState<Row | null>(null);
   const [dates, setDates] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -98,30 +102,63 @@ export default function UnassignedWorkOrders() {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
 
+  /** Abre o diálogo de data com o valor atual da OT já marcado no calendário */
+  const openDate = (r: Row) => {
+    setDates((d) => ({ ...d, [r.id]: d[r.id] ?? (r.scheduled_date ? toInputValue(r.scheduled_date) : "") }));
+    setDateTarget(r);
+  };
+
+  /** Grava a data escolhida, mas só quando é diferente da que a OT já tem */
+  const writeDate = async (orderId: string, date: string): Promise<DateResult> => {
+    const original = rows.find((x) => x.id === orderId)?.scheduled_date;
+    const unchanged =
+      !!original &&
+      getLisbonDateKey(new Date(original)) === getLisbonDateKey(new Date(date)) &&
+      getSlot(new Date(original)) === getSlot(new Date(date));
+    if (unchanged) return "unchanged";
+
+    const { error } = await supabase
+      .from("work_orders")
+      .update({ scheduled_date: date, needs_scheduling: false })
+      .eq("id", orderId);
+    if (error) {
+      toast({ title: "Erro", description: "Não foi possível marcar a data.", variant: "destructive" });
+      return "error";
+    }
+    return "changed";
+  };
+
+  const saveDate = async () => {
+    if (!dateTarget) return;
+    const date = dates[dateTarget.id];
+    if (!date) {
+      setDateTarget(null);
+      return;
+    }
+    setSaving(dateTarget.id);
+    const result = await writeDate(dateTarget.id, date);
+    setSaving(null);
+    if (result === "changed") {
+      toast({ title: "OT agendada" });
+      load();
+    } else if (result === "unchanged") {
+      toast({ title: "Data já estava marcada" });
+    }
+    if (result !== "error") setDateTarget(null);
+  };
+
   const assignAndSchedule = async (orderId: string) => {
     const userId = picked[orderId];
     const date = dates[orderId];
     if (!userId && !date) return;
     setSaving(orderId);
 
-    let dateChanged = false;
+    let result: DateResult = "unchanged";
     if (date) {
-      const original = rows.find((x) => x.id === orderId)?.scheduled_date;
-      const unchanged =
-        !!original &&
-        getLisbonDateKey(new Date(original)) === getLisbonDateKey(new Date(date)) &&
-        getSlot(new Date(original)) === getSlot(new Date(date));
-      if (!unchanged) {
-        const { error: dateErr } = await supabase
-          .from("work_orders")
-          .update({ scheduled_date: date, needs_scheduling: false })
-          .eq("id", orderId);
-        if (dateErr) {
-          setSaving(null);
-          toast({ title: "Erro", description: "Não foi possível marcar a data.", variant: "destructive" });
-          return;
-        }
-        dateChanged = true;
+      result = await writeDate(orderId, date);
+      if (result === "error") {
+        setSaving(null);
+        return;
       }
     }
 
@@ -135,13 +172,13 @@ export default function UnassignedWorkOrders() {
         toast({ title: "Erro", description: "Não foi possível atribuir o técnico.", variant: "destructive" });
         return;
       }
-      toast({ title: dateChanged ? "Técnico atribuído e OT agendada" : "Técnico atribuído" });
+      toast({ title: result === "changed" ? "Técnico atribuído e OT agendada" : "Técnico atribuído" });
       load();
       return;
     }
 
     setSaving(null);
-    if (dateChanged) {
+    if (result === "changed") {
       toast({ title: "OT agendada" });
       load();
     } else {
@@ -203,26 +240,14 @@ export default function UnassignedWorkOrders() {
                           {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button size="sm" variant="outline" className="justify-start sm:w-56">
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {dates[r.id]
-                              ? formatDateTime(dates[r.id])
-                              : r.scheduled_date
-                                ? formatDateTime(r.scheduled_date)
-                                : "Escolher data e hora"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="max-h-[80vh] w-auto overflow-y-auto p-3" align="start">
-                          <SlotDateTimePicker
-                            value={dates[r.id] ?? (r.scheduled_date ? toInputValue(r.scheduled_date) : "")}
-                            onChange={(v) => setDates((d) => ({ ...d, [r.id]: v }))}
-                            excludeWorkOrderId={r.id}
-                            label="Data e hora da OT"
-                          />
-                        </PopoverContent>
-                      </Popover>
+                      <Button size="sm" variant="outline" className="justify-start sm:w-56" onClick={() => openDate(r)}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dates[r.id]
+                          ? formatDateTime(dates[r.id])
+                          : r.scheduled_date
+                            ? formatDateTime(r.scheduled_date)
+                            : "Escolher data e hora"}
+                      </Button>
                       <div className="flex gap-2">
                         <Button
                           size="sm"
@@ -249,11 +274,35 @@ export default function UnassignedWorkOrders() {
                 </Card>
               ))}
             </div>
-            {editing && <EditWorkOrderDialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)} workOrder={editing} onSuccess={() => { setEditing(null); load(); }} />}
             <DataPagination currentPage={page} totalPages={totalPages} onPageChange={setPage} itemsPerPage={PER_PAGE} totalItems={filtered.length} />
           </>
         )}
       </div>
+
+      {dateTarget && (
+        <Dialog open onOpenChange={(o) => !o && setDateTarget(null)}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Data e hora — {dateTarget.reference}</DialogTitle>
+            </DialogHeader>
+            <SlotDateTimePicker
+              value={dates[dateTarget.id] ?? ""}
+              onChange={(v) => setDates((d) => ({ ...d, [dateTarget.id]: v }))}
+              excludeWorkOrderId={dateTarget.id}
+              label="Data e hora da OT"
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setDateTarget(null)}>Cancelar</Button>
+              <Button onClick={saveDate} disabled={!dates[dateTarget.id] || saving === dateTarget.id}>
+                {saving === dateTarget.id && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+                Guardar data
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {editing && <EditWorkOrderDialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)} workOrder={editing} onSuccess={() => { setEditing(null); load(); }} />}
     </DashboardLayout>
   );
 }
