@@ -14,6 +14,7 @@ import { Search, UserX, Eye, Loader2, UserPlus, Pencil, CalendarIcon } from "luc
 import { EditWorkOrderDialog } from "@/components/work-orders/EditWorkOrderDialog";
 import { SlotDateTimePicker } from "@/components/work-orders/SlotDateTimePicker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { getLisbonDateKey, getSlot } from "@/lib/employeeAvailability";
 
 interface Row {
   id: string;
