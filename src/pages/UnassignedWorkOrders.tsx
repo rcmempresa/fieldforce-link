@@ -104,15 +104,24 @@ export default function UnassignedWorkOrders() {
     if (!userId && !date) return;
     setSaving(orderId);
 
+    let dateChanged = false;
     if (date) {
-      const { error: dateErr } = await supabase
-        .from("work_orders")
-        .update({ scheduled_date: date, needs_scheduling: false })
-        .eq("id", orderId);
-      if (dateErr) {
-        setSaving(null);
-        toast({ title: "Erro", description: "Não foi possível marcar a data.", variant: "destructive" });
-        return;
+      const original = rows.find((x) => x.id === orderId)?.scheduled_date;
+      const unchanged =
+        !!original &&
+        getLisbonDateKey(new Date(original)) === getLisbonDateKey(new Date(date)) &&
+        getSlot(new Date(original)) === getSlot(new Date(date));
+      if (!unchanged) {
+        const { error: dateErr } = await supabase
+          .from("work_orders")
+          .update({ scheduled_date: date, needs_scheduling: false })
+          .eq("id", orderId);
+        if (dateErr) {
+          setSaving(null);
+          toast({ title: "Erro", description: "Não foi possível marcar a data.", variant: "destructive" });
+          return;
+        }
+        dateChanged = true;
       }
     }
 
