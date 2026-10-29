@@ -37,6 +37,8 @@ export type EquipmentCategory =
   | "heat_pump"
   | "industrial"
   | "domestic"
+  | "intrusion"
+  | "fire"
   | "other";
 
 export const EQUIPMENT_CATEGORY_LABEL: Record<EquipmentCategory, string> = {
@@ -50,6 +52,8 @@ export const EQUIPMENT_CATEGORY_LABEL: Record<EquipmentCategory, string> = {
   heat_pump: "Bomba de Calor",
   industrial: "Industrial",
   domestic: "Doméstico",
+  intrusion: "Central de Intrusão",
+  fire: "Central de Incêndios",
   other: "Outros",
 };
 
@@ -77,7 +81,7 @@ const GENERIC_CATEGORIES: EquipmentCategory[] = ["other", "industrial", "domesti
 /** Extra equipment categories a report of the given category also lists. */
 const REPORT_CATEGORY_GROUPS: Partial<Record<EquipmentCategory, EquipmentCategory[]>> = {
   hvac: ["hvac", "refrigeration", "thermal_accumulator", "heat_pump"],
-  electricity: ["electricity", "automatismos"],
+  electricity: ["electricity", "automatismos", "intrusion", "fire"],
 };
 
 /** Whether an equipment category is listed by a report of the given category. */

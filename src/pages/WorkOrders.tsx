@@ -93,6 +93,7 @@ export default function WorkOrders() {
         needs_scheduling,
         client_id,
         description,
+        notes,
         profiles!work_orders_client_id_fkey (
           name,
           company_name
@@ -129,6 +130,7 @@ export default function WorkOrders() {
           order.reference,
           order.title,
           (order as any).description,
+          (order as any).notes,
           order.profiles?.name,
           (order.profiles as any)?.company_name,
           ...(order.work_order_equipments || []).flatMap((l) => {
