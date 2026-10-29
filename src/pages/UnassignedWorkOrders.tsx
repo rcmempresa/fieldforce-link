@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataPagination } from "@/components/ui/data-pagination";
 import { formatDateTime } from "@/lib/formatDate";
-import { Search, UserX, Eye, Loader2, UserPlus } from "lucide-react";
+import { Search, UserX, Eye, Loader2, UserPlus, Pencil } from "lucide-react";
+import { EditWorkOrderDialog } from "@/components/work-orders/EditWorkOrderDialog";
 
 interface Row {
   id: string;
@@ -34,6 +35,7 @@ export default function UnassignedWorkOrders() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("recent");
   const [page, setPage] = useState(1);
+  const [editing, setEditing] = useState<Row | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -156,8 +158,11 @@ export default function UnassignedWorkOrders() {
                         <Button size="sm" className="flex-1 sm:flex-none" disabled={!picked[r.id]} onClick={() => assign(r.id)}>
                           <UserPlus className="mr-1 h-4 w-4" /> Atribuir
                         </Button>
-                        <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => navigate(`/work-orders/${r.id}`)}>
-                          <Eye className="mr-1 h-4 w-4" /> Abrir
+                        <Button size="icon" variant="outline" aria-label="Ver OT" title="Ver" onClick={() => navigate(`/work-orders/${r.id}`)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="outline" aria-label="Editar OT" title="Editar" onClick={() => setEditing(r)}>
+                          <Pencil className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -165,6 +170,7 @@ export default function UnassignedWorkOrders() {
                 </Card>
               ))}
             </div>
+            {editing && <EditWorkOrderDialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)} workOrder={editing} onSuccess={() => { setEditing(null); load(); }} />}
             <DataPagination currentPage={page} totalPages={totalPages} onPageChange={setPage} itemsPerPage={PER_PAGE} totalItems={filtered.length} />
           </>
         )}
