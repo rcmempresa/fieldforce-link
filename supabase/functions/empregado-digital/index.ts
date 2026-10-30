@@ -23,7 +23,20 @@ const dateInput = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((date) => {
 const timeInput = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const referenceInput = z.string().trim().min(1).max(50);
 const nameInput = z.string().trim().min(1).max(100).refine((name) => !!name.replace(/[%,()_]/g, " ").trim());
+const booleanInput = z.preprocess((value) => value === "true" ? true : value === "false" ? false : value, z.boolean());
+const materialDescriptionInput = z.string().trim().min(1).max(500).refine((value) => !!value.replace(/[%,()_]/g, " ").trim());
 const writeSchemas = {
+  editar_ot: z.object({ reference: referenceInput,
+    title: z.string().trim().min(1).max(200).optional(),
+    description: z.string().trim().min(1).max(1000).optional(),
+    service_type: z.enum(["repair", "maintenance", "installation", "warranty"]).optional(),
+    priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
+    address: z.string().trim().min(1).max(500).optional(),
+    is_after_hours: booleanInput.optional(), needs_scheduling: booleanInput.optional() }),
+  adicionar_material_ot: z.object({ reference: referenceInput, description: materialDescriptionInput,
+    quantity: z.preprocess((value) => typeof value === "string" && value.trim() ? Number(value) : value, z.number().finite().positive()).default(1),
+    unit: z.string().trim().min(1).max(20).default("un"), created_by: z.string().uuid().optional() }),
+  remover_material_ot: z.object({ reference: referenceInput, description: materialDescriptionInput }),
   remover_tecnico_ot: z.object({ reference: referenceInput, tecnico_nome: nameInput }),
   agendar_ot: z.object({ reference: referenceInput, date: dateInput, time: timeInput.default("09:00") }),
   criar_ot: z.object({ titulo: z.string().trim().min(1).max(200), client_search: nameInput,
@@ -455,8 +468,56 @@ Deno.serve(async (req) => {
         if (error) throw error;
         return json({ data: { reference: order.data.reference, hours: input.horas, entry_id: entry.id } });
       }
+      case "editar_ot": {
+        const parsed = writeSchemas.editar_ot.safeParse({ ...p, title: p.titulo ?? p.title,
+          description: p.descricao ?? p.description, address: p.morada ?? p.address });
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const { reference, ...fields } = parsed.data;
+        const update = Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
+        if (!Object.keys(update).length) return json({ error: "Nenhum campo para atualizar" }, 400);
+        const order = await findWriteOrder(db, reference);
+        if (order.response) return order.response;
+        const { data: updated, error } = await db.from("work_orders").update(update).eq("id", order.data.id).select("id").single();
+        if (error) throw error;
+        if (!updated) return json({ error: "OT não encontrada" }, 404);
+        return json({ data: { reference: order.data.reference, updated: Object.keys(update) } });
+      }
+      case "adicionar_material_ot": {
+        const parsed = writeSchemas.adicionar_material_ot.safeParse({ ...p,
+          description: p.descricao ?? p.description, quantity: p.quantidade ?? p.quantity, unit: p.unidade ?? p.unit });
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const { reference, ...material } = parsed.data;
+        const order = await findWriteOrder(db, reference);
+        if (order.response) return order.response;
+        if (material.created_by) {
+          const creator = await findWriteProfile(db, "", false, material.created_by);
+          if (creator.response) return creator.response;
+        }
+        const { data: inserted, error } = await db.from("work_order_materials")
+          .insert({ work_order_id: order.data.id, ...material }).select("id").single();
+        if (error) throw error;
+        return json({ data: { reference: order.data.reference, material_id: inserted.id } });
+      }
+      case "remover_material_ot": {
+        const parsed = writeSchemas.remover_material_ot.safeParse({ ...p, description: p.descricao ?? p.description });
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const order = await findWriteOrder(db, parsed.data.reference);
+        if (order.response) return order.response;
+        const term = parsed.data.description.replace(/[%,()_]/g, " ").trim();
+        const { data: materials, error: findError } = await db.from("work_order_materials")
+          .select("id, description").eq("work_order_id", order.data.id).ilike("description", `%${term}%`).limit(3);
+        if (findError) throw findError;
+        if (!materials?.length) return json({ error: `Material '${parsed.data.description}' não encontrado na OT` }, 404);
+        if (materials.length > 1) return json({ error: "Material ambíguo", matches: materials.map((material) => material.description) }, 400);
+        const material = materials[0];
+        const { data: removed, error } = await db.from("work_order_materials").delete()
+          .eq("id", material.id).eq("work_order_id", order.data.id).select("id").single();
+        if (error) throw error;
+        if (!removed) return json({ error: "Material não encontrado na OT" }, 404);
+        return json({ data: { reference: order.data.reference, removed: material.description } });
+      }
       default:
-        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot"] }, 400);
+        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot"] }, 400);
     }
   } catch (e: any) {
     console.error(action, e);
