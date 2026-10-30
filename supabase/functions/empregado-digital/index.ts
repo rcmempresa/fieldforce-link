@@ -26,6 +26,14 @@ const nameInput = z.string().trim().min(1).max(100).refine((name) => !!name.repl
 const booleanInput = z.preprocess((value) => value === "true" ? true : value === "false" ? false : value, z.boolean());
 const materialDescriptionInput = z.string().trim().min(1).max(500).refine((value) => !!value.replace(/[%,()_]/g, " ").trim());
 const writeSchemas = {
+  editar_cliente: z.object({ client_search: nameInput,
+    phone: z.string().trim().min(1).max(50).optional(),
+    address: z.string().trim().min(1).max(500).optional(),
+    name: z.string().trim().min(1).max(200).optional(),
+    company_name: z.string().trim().min(1).max(200).optional() }),
+  apagar_registo_horas: z.object({ reference: referenceInput,
+    date: dateInput.default(() => new Date().toISOString().slice(0, 10)),
+    user_id: z.string().uuid().optional() }),
   editar_ot: z.object({ reference: referenceInput,
     title: z.string().trim().min(1).max(200).optional(),
     description: z.string().trim().min(1).max(1000).optional(),
@@ -358,7 +366,7 @@ Deno.serve(async (req) => {
         const reference = str(p.reference, 50);
         const status = str(p.status, 30);
         if (!reference || !status) return json({ error: "reference e status obrigatórios" }, 400);
-        const validStatuses = ["pending", "in_progress", "completed", "paused", "cancelled"];
+        const validStatuses = ["pending", "in_progress", "completed", "paused", "cancelled", "invoiced"];
         if (!validStatuses.includes(status)) return json({ error: "Estado inválido" }, 400);
         const { data: rows, error: findErr } = await db.from("work_orders")
           .select("id, reference").ilike("reference", `%${reference}%`).order("reference").limit(1);
@@ -516,8 +524,47 @@ Deno.serve(async (req) => {
         if (!removed) return json({ error: "Material não encontrado na OT" }, 404);
         return json({ data: { reference: order.data.reference, removed: material.description } });
       }
+      case "editar_cliente": {
+        const parsed = writeSchemas.editar_cliente.safeParse({ ...p, phone: p.telefone ?? p.phone,
+          address: p.morada ?? p.address, name: p.nome ?? p.name, company_name: p.empresa ?? p.company_name });
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const { client_search, ...fields } = parsed.data;
+        const update = Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
+        if (!Object.keys(update).length) return json({ error: "Nenhum campo para atualizar" }, 400);
+        const client = await findWriteProfile(db, client_search, true);
+        if (client.response) return client.response;
+        const { data: updated, error } = await db.from("profiles").update(update).eq("id", client.data.id)
+          .select("id, name, company_name").single();
+        if (error) throw error;
+        if (!updated) return json({ error: "Cliente não encontrado" }, 404);
+        return json({ data: { id: updated.id, name: updated.company_name || updated.name, updated: Object.keys(update) } });
+      }
+      case "apagar_registo_horas": {
+        const parsed = writeSchemas.apagar_registo_horas.safeParse({ ...p, date: p.date ?? p.data });
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const input = parsed.data;
+        const order = await findWriteOrder(db, input.reference);
+        if (order.response) return order.response;
+        let query = db.from("time_entries").select("id, duration_hours, start_time, profiles!time_entries_user_id_fkey(name)")
+          .eq("work_order_id", order.data.id).gte("start_time", input.date).lt("start_time", nextDay(input.date))
+          .order("start_time", { ascending: false });
+        if (input.user_id) query = query.eq("user_id", input.user_id);
+        const { data: entries, error: findError } = await query.limit(5);
+        if (findError) throw findError;
+        if (!entries?.length) return json({ error: `Sem registos de horas para ${order.data.reference} em ${input.date}` }, 404);
+        if (entries.length > 1) return json({ error: "Múltiplos registos encontrados", entries: entries.map((entry: any) => ({
+          id: entry.id, hours: entry.duration_hours, time: entry.start_time, technician: entry.profiles?.name })) }, 400);
+        const entry = entries[0];
+        let deletion = db.from("time_entries").delete().eq("id", entry.id).eq("work_order_id", order.data.id)
+          .gte("start_time", input.date).lt("start_time", nextDay(input.date));
+        if (input.user_id) deletion = deletion.eq("user_id", input.user_id);
+        const { data: deleted, error } = await deletion.select("id, duration_hours").single();
+        if (error) throw error;
+        if (!deleted) return json({ error: "Registo de horas não encontrado" }, 404);
+        return json({ data: { reference: order.data.reference, deleted_hours: deleted.duration_hours, date: input.date } });
+      }
       default:
-        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot"] }, 400);
+        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "editar_cliente", "apagar_registo_horas"] }, 400);
     }
   } catch (e: any) {
     console.error(action, e);
