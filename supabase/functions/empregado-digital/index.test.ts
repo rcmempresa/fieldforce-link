@@ -199,3 +199,75 @@ test("four write actions reject wrong secret without database access", async () 
   }
   expect(calls).toHaveLength(0);
 });
+
+test("editar_ot updates Portuguese aliases and false flags without changing other fields", async () => {
+  seedWriteFixtures();
+  const result = await request("editar_ot", { reference: "0688", titulo: "Novo título", descricao: "Descrição",
+    morada: "Rua 1", service_type: "maintenance", priority: "urgent", is_after_hours: "false", needs_scheduling: false, status: "completed" });
+  expect(result.status).toBe(200);
+  expect(fixtures.work_orders[0]).toEqual({ id: "ot1", reference: "WO-2026-0688", title: "Novo título",
+    description: "Descrição", address: "Rua 1", service_type: "maintenance", priority: "urgent", is_after_hours: false, needs_scheduling: false });
+  expect(result.body.data.updated).toEqual(["title", "description", "service_type", "priority", "address", "is_after_hours", "needs_scheduling"]);
+});
+test("editar_ot rejects invalid enums, flags and empty updates before database access", async () => {
+  for (const fields of [{ priority: "invalid" }, { service_type: "invalid" }, { is_after_hours: "yes" }, {}, { title: " " }]) {
+    expect((await request("editar_ot", { reference: "0688", ...fields })).status).toBe(400);
+  }
+  expect(calls).toHaveLength(0);
+});
+test("adicionar_material_ot defaults quantity to 1 and unit to un", async () => {
+  seedWriteFixtures();
+  const result = await request("adicionar_material_ot", { reference: "0688", descricao: "Cabo" });
+  expect(result.status).toBe(200);
+  expect(fixtures.work_order_materials).toEqual([{ id: "new-id", work_order_id: "ot1", description: "Cabo", quantity: 1, unit: "un" }]);
+  expect(result.body.data).toEqual({ reference: "WO-2026-0688", material_id: "new-id" });
+});
+test("adicionar_material_ot accepts aliases and a verified creator", async () => {
+  seedWriteFixtures();
+  expect((await request("adicionar_material_ot", { reference: "0688", description: "Cabo", quantidade: "2.5", unidade: "m", created_by: technicianId })).status).toBe(200);
+  expect(fixtures.work_order_materials[0]).toMatchObject({ quantity: 2.5, unit: "m", created_by: technicianId });
+});
+test("adicionar_material_ot rejects invalid quantities and creator IDs", async () => {
+  for (const quantity of [0, -1, "invalid", ""]) {
+    expect((await request("adicionar_material_ot", { reference: "0688", descricao: "Cabo", quantity })).status).toBe(400);
+  }
+  expect((await request("adicionar_material_ot", { reference: "0688", descricao: "Cabo", created_by: "bad" })).status).toBe(400);
+  expect(calls).toHaveLength(0);
+  seedWriteFixtures();
+  expect((await request("adicionar_material_ot", { reference: "0688", descricao: "Cabo", created_by: "22222222-2222-4222-8222-222222222222" })).status).toBe(404);
+  expect(calls.some((call) => call.method === "insert")).toBe(false);
+});
+test("remover_material_ot removes only the matching material from the selected OT", async () => {
+  seedWriteFixtures();
+  fixtures.work_order_materials = [{ id: "m1", work_order_id: "ot1", description: "Cabo elétrico" }, { id: "m2", work_order_id: "ot2", description: "Cabo elétrico" }];
+  const result = await request("remover_material_ot", { reference: "0688", descricao: "cabo" });
+  expect(result.status).toBe(200);
+  expect(result.body.data.removed).toBe("Cabo elétrico");
+  expect(fixtures.work_order_materials.map((material) => material.id)).toEqual(["m2"]);
+});
+test("remover_material_ot rejects missing and ambiguous materials without deleting", async () => {
+  seedWriteFixtures();
+  expect((await request("remover_material_ot", { reference: "0688", descricao: "Cabo" })).status).toBe(404);
+  fixtures.work_order_materials = [{ id: "m1", work_order_id: "ot1", description: "Cabo A" }, { id: "m2", work_order_id: "ot1", description: "Cabo B" }];
+  const result = await request("remover_material_ot", { reference: "0688", descricao: "Cabo" });
+  expect(result.status).toBe(400);
+  expect(result.body.matches).toEqual(["Cabo A", "Cabo B"]);
+  expect(calls.some((call) => call.method === "delete")).toBe(false);
+});
+test("three new actions reject ambiguous references and honor exact references", async () => {
+  seedWriteFixtures();
+  fixtures.work_orders.push({ id: "ot2", reference: "WO-2025-0688" });
+  for (const action of ["editar_ot", "adicionar_material_ot", "remover_material_ot"]) {
+    expect((await request(action, { reference: "0688", title: "Title", description: "Cabo" })).status).toBe(400);
+  }
+  expect(calls.some((call) => ["update", "insert", "delete"].includes(call.method))).toBe(false);
+  expect((await request("editar_ot", { reference: "WO-2026-0688", title: "Title" })).status).toBe(200);
+  expect(fixtures.work_orders[1]).not.toHaveProperty("title");
+});
+test("three new actions reject wrong secrets and advertise supported actions", async () => {
+  const actions = ["editar_ot", "adicionar_material_ot", "remover_material_ot"];
+  for (const action of actions) expect((await request(action, {}, "wrong")).status).toBe(401);
+  expect(calls).toHaveLength(0);
+  const result = await request("unknown");
+  for (const action of actions) expect(result.body.supported).toContain(action);
+});
