@@ -271,3 +271,85 @@ test("three new actions reject wrong secrets and advertise supported actions", a
   const result = await request("unknown");
   for (const action of actions) expect(result.body.supported).toContain(action);
 });
+
+test("atualizar_estado_ot accepts invoiced and changes only status", async () => {
+  fixtures.work_orders = [{ id: "ot1", reference: "WO-2026-0688", status: "completed", notes: "Preservar" }];
+  const result = await request("atualizar_estado_ot", { reference: "0688", status: "invoiced" });
+  expect(result.status).toBe(200);
+  expect(fixtures.work_orders[0]).toEqual({ id: "ot1", reference: "WO-2026-0688", status: "invoiced", notes: "Preservar" });
+});
+test("editar_cliente updates aliases and returns the updated company name without modifying staff", async () => {
+  seedWriteFixtures();
+  fixtures.profiles[0].name = "Empresa técnico";
+  const result = await request("editar_cliente", { client_search: "Empresa", telefone: "123456789", morada: "Rua Nova", nome: "Nome novo", empresa: "Empresa nova", role: "manager" });
+  expect(result.status).toBe(200);
+  expect(fixtures.profiles[1]).toEqual({ id: "client1", name: "Nome novo", company_name: "Empresa nova", phone: "123456789", address: "Rua Nova" });
+  expect(fixtures.profiles[0].name).toBe("Empresa técnico");
+  expect(result.body.data).toEqual({ id: "client1", name: "Empresa nova", updated: ["phone", "address", "name", "company_name"] });
+});
+test("editar_cliente rejects ambiguous and missing clients without writing", async () => {
+  seedWriteFixtures();
+  expect((await request("editar_cliente", { client_search: "Duarte", phone: "123" })).status).toBe(404);
+  fixtures.user_roles.push({ user_id: "client2", role: "client" });
+  fixtures.profiles.push({ id: "client2", name: "Outro", company_name: "Empresa dois" });
+  const result = await request("editar_cliente", { client_search: "Empresa", phone: "123" });
+  expect(result.status).toBe(400);
+  expect(result.body.matches).toEqual(["Empresa", "Empresa dois"]);
+  expect(calls.some((call) => call.method === "update")).toBe(false);
+});
+test("editar_cliente rejects empty updates, missing searches and oversized fields", async () => {
+  for (const params of [{ client_search: "Empresa" }, { phone: "123" }, { client_search: "Empresa", phone: "x".repeat(51) }]) {
+    expect((await request("editar_cliente", params)).status).toBe(400);
+  }
+  expect(calls).toHaveLength(0);
+});
+test("apagar_registo_horas deletes only the selected employee entry within the full date", async () => {
+  seedWriteFixtures();
+  fixtures.time_entries = [
+    { id: "e1", work_order_id: "ot1", user_id: technicianId, start_time: "2026-10-30T23:59:59Z", duration_hours: 2 },
+    { id: "e2", work_order_id: "ot1", user_id: "other", start_time: "2026-10-30T08:00:00Z", duration_hours: 3 },
+    { id: "e3", work_order_id: "ot1", user_id: technicianId, start_time: "2026-10-31T00:00:00Z", duration_hours: 4 },
+    { id: "e4", work_order_id: "ot2", user_id: technicianId, start_time: "2026-10-30T08:00:00Z", duration_hours: 5 },
+  ];
+  const result = await request("apagar_registo_horas", { reference: "0688", data: "2026-10-30", user_id: technicianId });
+  expect(result.status).toBe(200);
+  expect(result.body.data).toEqual({ reference: "WO-2026-0688", deleted_hours: 2, date: "2026-10-30" });
+  expect(fixtures.time_entries.map((entry) => entry.id)).toEqual(["e2", "e3", "e4"]);
+});
+test("apagar_registo_horas defaults to today", async () => {
+  seedWriteFixtures();
+  const date = new Date().toISOString().slice(0, 10);
+  fixtures.time_entries = [{ id: "e1", work_order_id: "ot1", start_time: `${date}T08:00:00Z`, duration_hours: 1 }];
+  const result = await request("apagar_registo_horas", { reference: "0688" });
+  expect(result.status).toBe(200);
+  expect(result.body.data.date).toBe(date);
+  expect(fixtures.time_entries).toEqual([]);
+});
+test("apagar_registo_horas refuses multiple entries and missing records without deletion", async () => {
+  seedWriteFixtures();
+  expect((await request("apagar_registo_horas", { reference: "0688", date: "2026-10-30" })).status).toBe(404);
+  fixtures.time_entries = [1, 2].map((id) => ({ id, work_order_id: "ot1", start_time: "2026-10-30T08:00:00Z", duration_hours: id, profiles: { name: "Duarte" } }));
+  const result = await request("apagar_registo_horas", { reference: "0688", date: "2026-10-30" });
+  expect(result.status).toBe(400);
+  expect(result.body.entries).toEqual([1, 2].map((id) => ({ id, hours: id, time: "2026-10-30T08:00:00Z", technician: "Duarte" })));
+  expect(calls.some((call) => call.method === "delete")).toBe(false);
+});
+test("apagar_registo_horas rejects invalid input and ambiguous references", async () => {
+  for (const params of [{ date: "2026-02-30" }, { user_id: "invalid" }]) {
+    expect((await request("apagar_registo_horas", { reference: "0688", ...params })).status).toBe(400);
+  }
+  expect(calls).toHaveLength(0);
+  seedWriteFixtures();
+  fixtures.work_orders.push({ id: "ot2", reference: "WO-2025-0688" });
+  expect((await request("apagar_registo_horas", { reference: "0688" })).status).toBe(400);
+  expect(calls.some((call) => call.method === "delete")).toBe(false);
+});
+test("client editing and hour deletion require agent secret and appear in supported actions", async () => {
+  for (const action of ["editar_cliente", "apagar_registo_horas"]) {
+    expect((await request(action, {}, "wrong")).status).toBe(401);
+  }
+  expect(calls).toHaveLength(0);
+  const result = await request("unknown");
+  expect(result.body.supported).toContain("editar_cliente");
+  expect(result.body.supported).toContain("apagar_registo_horas");
+});
