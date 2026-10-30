@@ -1,7 +1,7 @@
 # Current tasks
 
-- [ ] Add editar_ot, adicionar_material_ot and remover_material_ot with validation and unambiguous OT resolution.
-- [ ] Test the three actions without changing live OTs and deploy with authenticated verification.
+- [x] Add editar_ot, adicionar_material_ot and remover_material_ot with validation and unambiguous OT resolution.
+- [x] Test the three actions without changing live OTs and deploy with authenticated verification (26 tests passed; live missing-target, validation and secret-protection checks passed).
 
 - [x] Add equipamentos_cliente, materiais_usados and disponibilidade_equipa to empregado-digital.
 - [x] Test filters, date boundaries and technician workload totals.
