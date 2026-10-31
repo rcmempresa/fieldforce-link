@@ -56,7 +56,7 @@ function Markdown({ text }: { text: string }) {
 const time = (d: Date) => d.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
 
 export default function AssistenteDigital() {
-  const { profile, roles, loading } = useAuth();
+  const { profile, roles, loading: authLoading } = useAuth();
   const isManager = roles.includes("manager");
   const name = profile?.name ?? "";
   const welcome = (): Msg => ({
