@@ -618,6 +618,109 @@ export type Database = {
         }
         Relationships: []
       }
+      quotes: {
+        Row: {
+          accepted_at: string | null
+          client_address: string | null
+          client_email: string | null
+          client_id: string | null
+          client_name: string
+          client_nif: string | null
+          client_phone: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          items: Json
+          notes: string | null
+          reference: string | null
+          requires_visit: boolean
+          sent_at: string | null
+          status: string
+          subtotal: number
+          total: number
+          updated_at: string
+          valid_days: number
+          valid_until: string | null
+          vat_amount: number
+          vat_rate: number
+          work_order_id: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          client_address?: string | null
+          client_email?: string | null
+          client_id?: string | null
+          client_name: string
+          client_nif?: string | null
+          client_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          reference?: string | null
+          requires_visit?: boolean
+          sent_at?: string | null
+          status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+          valid_days?: number
+          valid_until?: string | null
+          vat_amount?: number
+          vat_rate?: number
+          work_order_id?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          client_address?: string | null
+          client_email?: string | null
+          client_id?: string | null
+          client_name?: string
+          client_nif?: string | null
+          client_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          reference?: string | null
+          requires_visit?: boolean
+          sent_at?: string | null
+          status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+          valid_days?: number
+          valid_until?: string | null
+          vat_amount?: number
+          vat_rate?: number
+          work_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_entries: {
         Row: {
           created_at: string
