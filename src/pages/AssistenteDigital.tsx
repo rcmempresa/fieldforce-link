@@ -55,7 +55,8 @@ function Markdown({ text }: { text: string }) {
 const time = (d: Date) => d.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
 
 export default function AssistenteDigital() {
-  const { profile } = useAuth();
+  const { profile, roles, loading } = useAuth();
+  const isManager = roles.includes("manager");
   const name = profile?.name ?? "";
   const welcome = (): Msg => ({
     id: crypto.randomUUID(),
@@ -103,6 +104,23 @@ export default function AssistenteDigital() {
   };
 
   const initial = (name.trim()[0] ?? "U").toUpperCase();
+
+  if (!loading && !isManager) {
+    return (
+      <DashboardLayout title="Assistente Digital">
+        <Card className="flex min-h-[320px] flex-col items-center justify-center gap-3 p-8 text-center">
+          <Lock className="h-8 w-8 text-muted-foreground" />
+          <h2 className="text-lg font-semibold">Acesso restrito</h2>
+          <p className="max-w-md text-sm text-muted-foreground">
+            O Empregado Digital está disponível apenas para gerentes.
+          </p>
+          <Button asChild variant="outline">
+            <Link to="/">Voltar ao painel</Link>
+          </Button>
+        </Card>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="Assistente Digital">
