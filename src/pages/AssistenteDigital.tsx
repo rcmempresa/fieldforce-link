@@ -1,12 +1,13 @@
 import { Fragment, KeyboardEvent, ReactNode, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bot, Pencil, Send } from "lucide-react";
+import { Bot, Lock, Pencil, Send } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -55,7 +56,8 @@ function Markdown({ text }: { text: string }) {
 const time = (d: Date) => d.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
 
 export default function AssistenteDigital() {
-  const { profile } = useAuth();
+  const { profile, roles, loading: authLoading } = useAuth();
+  const isManager = roles.includes("manager");
   const name = profile?.name ?? "";
   const welcome = (): Msg => ({
     id: crypto.randomUUID(),
@@ -103,6 +105,23 @@ export default function AssistenteDigital() {
   };
 
   const initial = (name.trim()[0] ?? "U").toUpperCase();
+
+  if (!authLoading && !isManager) {
+    return (
+      <DashboardLayout title="Assistente Digital">
+        <Card className="flex min-h-[320px] flex-col items-center justify-center gap-3 p-8 text-center">
+          <Lock className="h-8 w-8 text-muted-foreground" />
+          <h2 className="text-lg font-semibold">Acesso restrito</h2>
+          <p className="max-w-md text-sm text-muted-foreground">
+            O Empregado Digital está disponível apenas para gerentes.
+          </p>
+          <Button asChild variant="outline">
+            <Link to="/">Voltar ao painel</Link>
+          </Button>
+        </Card>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="Assistente Digital">

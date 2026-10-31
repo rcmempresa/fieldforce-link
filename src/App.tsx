@@ -40,7 +40,7 @@ const App = () => (
           <Route
             path="/assistente-digital"
             element={
-              <ProtectedRoute allowedRoles={["manager", "employee"]}>
+              <ProtectedRoute allowedRoles={["manager"]}>
                 <AssistenteDigital />
               </ProtectedRoute>
             }

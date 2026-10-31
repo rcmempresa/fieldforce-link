@@ -58,7 +58,6 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
   ],
   employee: [
     { label: "Painel", to: "/employee", icon: LayoutDashboard },
-    { label: "Assistente Digital", to: "/assistente-digital", icon: Bot },
   ],
   client: [{ label: "Painel", to: "/client", icon: LayoutDashboard }],
 };
