@@ -106,7 +106,7 @@ export default function AssistenteDigital() {
 
   const initial = (name.trim()[0] ?? "U").toUpperCase();
 
-  if (!loading && !isManager) {
+  if (!authLoading && !isManager) {
     return (
       <DashboardLayout title="Assistente Digital">
         <Card className="flex min-h-[320px] flex-col items-center justify-center gap-3 p-8 text-center">
