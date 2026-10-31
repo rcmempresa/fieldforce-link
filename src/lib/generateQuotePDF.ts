@@ -187,7 +187,11 @@ export function generateQuotePDF(data: QuoteData): Blob {
     doc.setPage(i);
     doc.setFontSize(8);
     doc.setTextColor(120);
-    doc.text("NR Tech Solution", margin, pageHeight - 8);
+    doc.text(
+      "NR Tech Solution | Estrada Padre Ernesto e Jardim Rc 16, 9400-120 Porto Santo | geral@nrtechsolucion.pt",
+      margin,
+      pageHeight - 8,
+    );
     doc.text(`Pagina ${i} de ${pages}`, pageWidth - margin, pageHeight - 8, { align: "right" });
     doc.setTextColor(0);
   }
