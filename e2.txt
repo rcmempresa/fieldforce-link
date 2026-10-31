@@ -1,0 +1,1 @@
+{"error":"Apenas gerentes podem usar o assistente"}
