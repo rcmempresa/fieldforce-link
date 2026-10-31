@@ -19,8 +19,8 @@ Deno.serve(async (req) => {
 
     const { data: roles } = await admin.from("user_roles").select("role, approved").eq("user_id", user.id);
     const ok = (roles ?? []).filter((r: any) => r.approved !== false).map((r: any) => r.role);
-    const role = ok.includes("manager") ? "manager" : ok.includes("employee") ? "employee" : null;
-    if (!role) return json({ error: "Sem permissão" }, 403);
+    const role = ok.includes("manager") ? "manager" : null;
+    if (!role) return json({ error: "Apenas gerentes podem usar o assistente" }, 403);
 
     const body = await req.json().catch(() => ({}));
     const headers = { "Content-Type": "application/json", "x-agent-secret": Deno.env.get("AGENT_ASSISTANT_SECRET")! };
