@@ -54,6 +54,17 @@ const writeSchemas = {
     time: timeInput.default("09:00"), tecnico_nome: nameInput.optional() }),
   registar_horas_ot: z.object({ reference: referenceInput, user_id: z.string().uuid(),
     horas: z.number().finite().positive(), date: dateInput.default(() => new Date().toISOString().slice(0, 10)) }),
+  criar_orcamento: z.object({ client_search: nameInput,
+    items: z.array(z.object({
+      description: z.string().trim().min(1).max(500),
+      quantity: z.preprocess((v) => typeof v === "string" && v.trim() ? Number(v) : v, z.number().finite().positive()),
+      unit: z.string().trim().min(1).max(20).default("un"),
+      unit_price: z.preprocess((v) => typeof v === "string" && v.trim() ? Number(v) : v, z.number().finite().min(0)),
+    })).min(1).max(100),
+    requires_visit: booleanInput.default(false),
+    valid_days: z.preprocess((v) => typeof v === "string" && v.trim() ? Number(v) : v, z.number().int().min(1).max(365)).default(30),
+    notes: z.string().trim().max(1000).optional(),
+    created_by: z.string().uuid().optional() }),
 };
 
 // Write actions must never choose an arbitrary match for a partial reference.
