@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { z } from "npm:zod@3.25.76";
 
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -13,6 +14,80 @@ function safeEqual(a: string, b: string) {
   let r = 0;
   for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return r === 0;
+}
+
+const dateInput = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((date) => {
+  const timestamp = Date.parse(`${date}T00:00:00Z`);
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === date;
+}, "Invalid calendar date");
+const timeInput = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+const referenceInput = z.string().trim().min(1).max(50);
+const nameInput = z.string().trim().min(1).max(100).refine((name) => !!name.replace(/[%,()_]/g, " ").trim());
+const booleanInput = z.preprocess((value) => value === "true" ? true : value === "false" ? false : value, z.boolean());
+const materialDescriptionInput = z.string().trim().min(1).max(500).refine((value) => !!value.replace(/[%,()_]/g, " ").trim());
+const writeSchemas = {
+  editar_cliente: z.object({ client_search: nameInput,
+    phone: z.string().trim().min(1).max(50).optional(),
+    address: z.string().trim().min(1).max(500).optional(),
+    name: z.string().trim().min(1).max(200).optional(),
+    company_name: z.string().trim().min(1).max(200).optional() }),
+  apagar_registo_horas: z.object({ reference: referenceInput,
+    date: dateInput.default(() => new Date().toISOString().slice(0, 10)),
+    user_id: z.string().uuid().optional() }),
+  editar_ot: z.object({ reference: referenceInput,
+    title: z.string().trim().min(1).max(200).optional(),
+    description: z.string().trim().min(1).max(1000).optional(),
+    service_type: z.enum(["repair", "maintenance", "installation", "warranty"]).optional(),
+    priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
+    address: z.string().trim().min(1).max(500).optional(),
+    is_after_hours: booleanInput.optional(), needs_scheduling: booleanInput.optional() }),
+  adicionar_material_ot: z.object({ reference: referenceInput, description: materialDescriptionInput,
+    quantity: z.preprocess((value) => typeof value === "string" && value.trim() ? Number(value) : value, z.number().finite().positive()).default(1),
+    unit: z.string().trim().min(1).max(20).default("un"), created_by: z.string().uuid().optional() }),
+  remover_material_ot: z.object({ reference: referenceInput, description: materialDescriptionInput }),
+  remover_tecnico_ot: z.object({ reference: referenceInput, tecnico_nome: nameInput }),
+  agendar_ot: z.object({ reference: referenceInput, date: dateInput, time: timeInput.default("09:00") }),
+  criar_ot: z.object({ titulo: z.string().trim().min(1).max(200), client_search: nameInput,
+    service_type: z.enum(["repair", "maintenance", "installation", "warranty"]).default("repair"),
+    priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
+    descricao: z.string().trim().max(1000).optional(), date: dateInput.optional(),
+    time: timeInput.default("09:00"), tecnico_nome: nameInput.optional() }),
+  registar_horas_ot: z.object({ reference: referenceInput, user_id: z.string().uuid(),
+    horas: z.number().finite().positive(), date: dateInput.default(() => new Date().toISOString().slice(0, 10)) }),
+};
+
+// Write actions must never choose an arbitrary match for a partial reference.
+async function findWriteOrder(db: any, reference: string) {
+  const { data: exact, error: exactError } = await db.from("work_orders")
+    .select("id, reference").ilike("reference", reference.replace(/[%_]/g, "")).limit(2);
+  if (exactError) throw exactError;
+  const exactMatch = exact?.find((row: any) => row.reference.toLowerCase() === reference.toLowerCase());
+  if (exactMatch) return { data: exactMatch };
+  const { data: rows, error } = await db.from("work_orders").select("id, reference")
+    .ilike("reference", `%${reference.replace(/[%_]/g, "")}%`).order("reference").limit(6);
+  if (error) throw error;
+  if (!rows?.length) return { response: json({ error: "OT não encontrada" }, 404) };
+  if (rows.length > 1) return { response: json({ error: "Referência ambígua", matches: rows.map((row: any) => row.reference) }, 400) };
+  return { data: rows[0] };
+}
+
+async function findWriteProfile(db: any, search: string, client = false, userId?: string) {
+  const { data: roles, error: roleError } = await db.from("user_roles").select("user_id")
+    .in("role", client ? ["client"] : ["employee", "manager"]);
+  if (roleError) throw roleError;
+  const ids = [...new Set((roles ?? []).map((row: any) => row.user_id))];
+  if (!ids.length || (userId && !ids.includes(userId))) return { response: json({ error: client ? "Cliente não encontrado" : "Técnico não encontrado" }, 404) };
+  let query = db.from("profiles").select("id, name, company_name").in("id", ids);
+  if (userId) query = query.eq("id", userId);
+  else {
+    const term = search.replace(/[%,()_]/g, " ");
+    query = client ? query.or(`name.ilike.%${term}%,company_name.ilike.%${term}%`) : query.ilike("name", `%${term}%`);
+  }
+  const { data: rows, error } = await query.limit(6);
+  if (error) throw error;
+  if (!rows?.length) return { response: json({ error: client ? "Cliente não encontrado" : "Técnico não encontrado" }, 404) };
+  if (rows.length > 1) return { response: json({ error: "Nome ambíguo", matches: rows.map((row: any) => client ? row.company_name || row.name : row.name) }, 400) };
+  return { data: rows[0] };
 }
 
 Deno.serve(async (req) => {
@@ -29,7 +104,9 @@ Deno.serve(async (req) => {
   const p = body?.params && typeof body.params === "object" && !Array.isArray(body.params) ? body.params : {};
   if (!action) return json({ error: "Missing 'action'" }, 400);
 
-  const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const url = Deno.env.get("SUPABASE_URL"), key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) return json({ error: "Server configuration missing" }, 500);
+  const db = createClient(url, key);
   const limit = Math.min(Math.max(Number(p.limit) || 50, 1), 500);
 
   try {
@@ -289,7 +366,7 @@ Deno.serve(async (req) => {
         const reference = str(p.reference, 50);
         const status = str(p.status, 30);
         if (!reference || !status) return json({ error: "reference e status obrigatórios" }, 400);
-        const validStatuses = ["pending", "in_progress", "completed", "paused", "cancelled"];
+        const validStatuses = ["pending", "in_progress", "completed", "paused", "cancelled", "invoiced"];
         if (!validStatuses.includes(status)) return json({ error: "Estado inválido" }, 400);
         const { data: rows, error: findErr } = await db.from("work_orders")
           .select("id, reference").ilike("reference", `%${reference}%`).order("reference").limit(1);
@@ -337,8 +414,157 @@ Deno.serve(async (req) => {
         if (assignErr) throw assignErr;
         return json({ data: { reference: (otRows[0] as any).reference, technician: tecnicoName } });
       }
+      case "remover_tecnico_ot": {
+        const parsed = writeSchemas.remover_tecnico_ot.safeParse(p);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const order = await findWriteOrder(db, parsed.data.reference);
+        if (order.response) return order.response;
+        const technician = await findWriteProfile(db, parsed.data.tecnico_nome);
+        if (technician.response) return technician.response;
+        const { error } = await db.from("work_order_assignments").delete()
+          .eq("work_order_id", order.data.id).eq("user_id", technician.data.id);
+        if (error) throw error;
+        return json({ data: { reference: order.data.reference, technician: technician.data.name } });
+      }
+      case "agendar_ot": {
+        const parsed = writeSchemas.agendar_ot.safeParse({ ...p, date: p.date ?? p.data });
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const order = await findWriteOrder(db, parsed.data.reference);
+        if (order.response) return order.response;
+        const scheduled_date = `${parsed.data.date}T${parsed.data.time}:00Z`;
+        const { error } = await db.from("work_orders").update({ scheduled_date, needs_scheduling: false }).eq("id", order.data.id);
+        if (error) throw error;
+        return json({ data: { reference: order.data.reference, scheduled_date } });
+      }
+      case "criar_ot": {
+        const parsed = writeSchemas.criar_ot.safeParse({ ...p, titulo: p.titulo ?? p.title,
+          descricao: p.descricao ?? p.description, date: p.date ?? p.data });
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const input = parsed.data;
+        const client = await findWriteProfile(db, input.client_search, true);
+        if (client.response) return client.response;
+        const technician = input.tecnico_nome ? await findWriteProfile(db, input.tecnico_nome) : undefined;
+        if (technician?.response) return technician.response;
+        const scheduled_date = input.date ? `${input.date}T${input.time}:00Z` : null;
+        // Omit reference: the database trigger allocates it under an advisory lock.
+        const { data: created, error } = await db.from("work_orders").insert({ title: input.titulo,
+          client_id: client.data.id, service_type: input.service_type, priority: input.priority,
+          description: input.descricao, status: "pending", scheduled_date, needs_scheduling: !scheduled_date })
+          .select("id, reference").single();
+        if (error) throw error;
+        if (technician?.data) {
+          const { error: assignmentError } = await db.from("work_order_assignments")
+            .insert({ work_order_id: created.id, user_id: technician.data.id });
+          if (assignmentError) return json({ data: created, error: "OT criada, mas a atribuição do técnico falhou; não repita a criação." }, 500);
+        }
+        return json({ data: created });
+      }
+      case "registar_horas_ot": {
+        const parsed = writeSchemas.registar_horas_ot.safeParse({ ...p, horas: p.horas ?? p.hours, date: p.date ?? p.data });
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const input = parsed.data;
+        const order = await findWriteOrder(db, input.reference);
+        if (order.response) return order.response;
+        const technician = await findWriteProfile(db, "", false, input.user_id);
+        if (technician.response) return technician.response;
+        const start_time = `${input.date}T08:00:00Z`;
+        const end = new Date(Date.parse(start_time) + input.horas * 3600000);
+        if (!Number.isFinite(end.getTime())) return json({ error: "Número de horas inválido" }, 400);
+        const { data: entry, error } = await db.from("time_entries").insert({ work_order_id: order.data.id,
+          user_id: input.user_id, duration_hours: input.horas, start_time, end_time: end.toISOString(), work_regime: "labor" })
+          .select("id").single();
+        if (error) throw error;
+        return json({ data: { reference: order.data.reference, hours: input.horas, entry_id: entry.id } });
+      }
+      case "editar_ot": {
+        const parsed = writeSchemas.editar_ot.safeParse({ ...p, title: p.titulo ?? p.title,
+          description: p.descricao ?? p.description, address: p.morada ?? p.address });
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const { reference, ...fields } = parsed.data;
+        const update = Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
+        if (!Object.keys(update).length) return json({ error: "Nenhum campo para atualizar" }, 400);
+        const order = await findWriteOrder(db, reference);
+        if (order.response) return order.response;
+        const { data: updated, error } = await db.from("work_orders").update(update).eq("id", order.data.id).select("id").single();
+        if (error) throw error;
+        if (!updated) return json({ error: "OT não encontrada" }, 404);
+        return json({ data: { reference: order.data.reference, updated: Object.keys(update) } });
+      }
+      case "adicionar_material_ot": {
+        const parsed = writeSchemas.adicionar_material_ot.safeParse({ ...p,
+          description: p.descricao ?? p.description, quantity: p.quantidade ?? p.quantity, unit: p.unidade ?? p.unit });
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const { reference, ...material } = parsed.data;
+        const order = await findWriteOrder(db, reference);
+        if (order.response) return order.response;
+        if (material.created_by) {
+          const creator = await findWriteProfile(db, "", false, material.created_by);
+          if (creator.response) return creator.response;
+        }
+        const { data: inserted, error } = await db.from("work_order_materials")
+          .insert({ work_order_id: order.data.id, ...material }).select("id").single();
+        if (error) throw error;
+        return json({ data: { reference: order.data.reference, material_id: inserted.id } });
+      }
+      case "remover_material_ot": {
+        const parsed = writeSchemas.remover_material_ot.safeParse({ ...p, description: p.descricao ?? p.description });
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const order = await findWriteOrder(db, parsed.data.reference);
+        if (order.response) return order.response;
+        const term = parsed.data.description.replace(/[%,()_]/g, " ").trim();
+        const { data: materials, error: findError } = await db.from("work_order_materials")
+          .select("id, description").eq("work_order_id", order.data.id).ilike("description", `%${term}%`).limit(3);
+        if (findError) throw findError;
+        if (!materials?.length) return json({ error: `Material '${parsed.data.description}' não encontrado na OT` }, 404);
+        if (materials.length > 1) return json({ error: "Material ambíguo", matches: materials.map((material) => material.description) }, 400);
+        const material = materials[0];
+        const { data: removed, error } = await db.from("work_order_materials").delete()
+          .eq("id", material.id).eq("work_order_id", order.data.id).select("id").single();
+        if (error) throw error;
+        if (!removed) return json({ error: "Material não encontrado na OT" }, 404);
+        return json({ data: { reference: order.data.reference, removed: material.description } });
+      }
+      case "editar_cliente": {
+        const parsed = writeSchemas.editar_cliente.safeParse({ ...p, phone: p.telefone ?? p.phone,
+          address: p.morada ?? p.address, name: p.nome ?? p.name, company_name: p.empresa ?? p.company_name });
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const { client_search, ...fields } = parsed.data;
+        const update = Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
+        if (!Object.keys(update).length) return json({ error: "Nenhum campo para atualizar" }, 400);
+        const client = await findWriteProfile(db, client_search, true);
+        if (client.response) return client.response;
+        const { data: updated, error } = await db.from("profiles").update(update).eq("id", client.data.id)
+          .select("id, name, company_name").single();
+        if (error) throw error;
+        if (!updated) return json({ error: "Cliente não encontrado" }, 404);
+        return json({ data: { id: updated.id, name: updated.company_name || updated.name, updated: Object.keys(update) } });
+      }
+      case "apagar_registo_horas": {
+        const parsed = writeSchemas.apagar_registo_horas.safeParse({ ...p, date: p.date ?? p.data });
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const input = parsed.data;
+        const order = await findWriteOrder(db, input.reference);
+        if (order.response) return order.response;
+        let query = db.from("time_entries").select("id, duration_hours, start_time, profiles!time_entries_user_id_fkey(name)")
+          .eq("work_order_id", order.data.id).gte("start_time", input.date).lt("start_time", nextDay(input.date))
+          .order("start_time", { ascending: false });
+        if (input.user_id) query = query.eq("user_id", input.user_id);
+        const { data: entries, error: findError } = await query.limit(5);
+        if (findError) throw findError;
+        if (!entries?.length) return json({ error: `Sem registos de horas para ${order.data.reference} em ${input.date}` }, 404);
+        if (entries.length > 1) return json({ error: "Múltiplos registos encontrados", entries: entries.map((entry: any) => ({
+          id: entry.id, hours: entry.duration_hours, time: entry.start_time, technician: entry.profiles?.name })) }, 400);
+        const entry = entries[0];
+        let deletion = db.from("time_entries").delete().eq("id", entry.id).eq("work_order_id", order.data.id)
+          .gte("start_time", input.date).lt("start_time", nextDay(input.date));
+        if (input.user_id) deletion = deletion.eq("user_id", input.user_id);
+        const { data: deleted, error } = await deletion.select("id, duration_hours").single();
+        if (error) throw error;
+        if (!deleted) return json({ error: "Registo de horas não encontrado" }, 404);
+        return json({ data: { reference: order.data.reference, deleted_hours: deleted.duration_hours, date: input.date } });
+      }
       default:
-        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot"] }, 400);
+        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "editar_cliente", "apagar_registo_horas"] }, 400);
     }
   } catch (e: any) {
     console.error(action, e);

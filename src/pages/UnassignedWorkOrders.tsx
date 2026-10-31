@@ -10,7 +10,11 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataPagination } from "@/components/ui/data-pagination";
 import { formatDateTime } from "@/lib/formatDate";
-import { Search, UserX, Eye, Loader2, UserPlus } from "lucide-react";
+import { Search, UserX, Eye, Loader2, UserPlus, Pencil, CalendarIcon } from "lucide-react";
+import { EditWorkOrderDialog } from "@/components/work-orders/EditWorkOrderDialog";
+import { SlotDateTimePicker } from "@/components/work-orders/SlotDateTimePicker";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { getLisbonDateKey, getSlot } from "@/lib/employeeAvailability";
 
 interface Row {
   id: string;
@@ -26,6 +30,9 @@ interface Row {
 const PER_PAGE = 10;
 const STATUS: Record<string, string> = { pending: "Pendente", approved: "Aprovada", in_progress: "Em progresso" };
 
+/** "changed" = data gravada, "unchanged" = já estava igual, "error" = falhou */
+type DateResult = "changed" | "unchanged" | "error";
+
 export default function UnassignedWorkOrders() {
   const [rows, setRows] = useState<Row[]>([]);
   const [employees, setEmployees] = useState<{ id: string; name: string }[]>([]);
@@ -34,6 +41,10 @@ export default function UnassignedWorkOrders() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("recent");
   const [page, setPage] = useState(1);
+  const [editing, setEditing] = useState<Row | null>(null);
+  const [dateTarget, setDateTarget] = useState<Row | null>(null);
+  const [dates, setDates] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -85,17 +96,94 @@ export default function UnassignedWorkOrders() {
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const pageItems = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
-  const assign = async (orderId: string) => {
-    const userId = picked[orderId];
-    if (!userId) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from("work_order_assignments").insert({ work_order_id: orderId, user_id: userId, assigned_by: user?.id });
+  const toInputValue = (iso: string) => {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  /** Abre o diálogo de data com o valor atual da OT já marcado no calendário */
+  const openDate = (r: Row) => {
+    setDates((d) => ({ ...d, [r.id]: d[r.id] ?? (r.scheduled_date ? toInputValue(r.scheduled_date) : "") }));
+    setDateTarget(r);
+  };
+
+  /** Grava a data escolhida, mas só quando é diferente da que a OT já tem */
+  const writeDate = async (orderId: string, date: string): Promise<DateResult> => {
+    const original = rows.find((x) => x.id === orderId)?.scheduled_date;
+    const unchanged =
+      !!original &&
+      getLisbonDateKey(new Date(original)) === getLisbonDateKey(new Date(date)) &&
+      getSlot(new Date(original)) === getSlot(new Date(date));
+    if (unchanged) return "unchanged";
+
+    const { error } = await supabase
+      .from("work_orders")
+      .update({ scheduled_date: date, needs_scheduling: false })
+      .eq("id", orderId);
     if (error) {
-      toast({ title: "Erro", description: "Não foi possível atribuir o técnico.", variant: "destructive" });
+      toast({ title: "Erro", description: "Não foi possível marcar a data.", variant: "destructive" });
+      return "error";
+    }
+    return "changed";
+  };
+
+  const saveDate = async () => {
+    if (!dateTarget) return;
+    const date = dates[dateTarget.id];
+    if (!date) {
+      setDateTarget(null);
       return;
     }
-    toast({ title: "Técnico atribuído" });
-    setRows((prev) => prev.filter((r) => r.id !== orderId));
+    setSaving(dateTarget.id);
+    const result = await writeDate(dateTarget.id, date);
+    setSaving(null);
+    if (result === "changed") {
+      toast({ title: "OT agendada" });
+      load();
+    } else if (result === "unchanged") {
+      toast({ title: "Data já estava marcada" });
+    }
+    if (result !== "error") setDateTarget(null);
+  };
+
+  const assignAndSchedule = async (orderId: string) => {
+    const userId = picked[orderId];
+    const date = dates[orderId];
+    if (!userId && !date) return;
+    setSaving(orderId);
+
+    let result: DateResult = "unchanged";
+    if (date) {
+      result = await writeDate(orderId, date);
+      if (result === "error") {
+        setSaving(null);
+        return;
+      }
+    }
+
+    if (userId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from("work_order_assignments")
+        .insert({ work_order_id: orderId, user_id: userId, assigned_by: user?.id });
+      setSaving(null);
+      if (error) {
+        toast({ title: "Erro", description: "Não foi possível atribuir o técnico.", variant: "destructive" });
+        return;
+      }
+      toast({ title: result === "changed" ? "Técnico atribuído e OT agendada" : "Técnico atribuído" });
+      load();
+      return;
+    }
+
+    setSaving(null);
+    if (result === "changed") {
+      toast({ title: "OT agendada" });
+      load();
+    } else {
+      toast({ title: "Sem alterações", description: "Escolhe um técnico ou uma data diferente." });
+    }
   };
 
   return (
@@ -147,17 +235,38 @@ export default function UnassignedWorkOrders() {
                     </p>
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       <Select value={picked[r.id] || ""} onValueChange={(v) => setPicked((p) => ({ ...p, [r.id]: v }))}>
-                        <SelectTrigger className="sm:w-64"><SelectValue placeholder="Escolher técnico" /></SelectTrigger>
+                        <SelectTrigger className="sm:w-56"><SelectValue placeholder="Escolher técnico" /></SelectTrigger>
                         <SelectContent>
                           {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
+                      <Button size="sm" variant="outline" className="justify-start sm:w-56" onClick={() => openDate(r)}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dates[r.id]
+                          ? formatDateTime(dates[r.id])
+                          : r.scheduled_date
+                            ? formatDateTime(r.scheduled_date)
+                            : "Escolher data e hora"}
+                      </Button>
                       <div className="flex gap-2">
-                        <Button size="sm" className="flex-1 sm:flex-none" disabled={!picked[r.id]} onClick={() => assign(r.id)}>
-                          <UserPlus className="mr-1 h-4 w-4" /> Atribuir
+                        <Button
+                          size="sm"
+                          className="flex-1 sm:flex-none"
+                          disabled={(!picked[r.id] && !dates[r.id]) || saving === r.id}
+                          onClick={() => assignAndSchedule(r.id)}
+                        >
+                          {saving === r.id ? (
+                            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                          ) : (
+                            <UserPlus className="mr-1 h-4 w-4" />
+                          )}
+                          Atribuir e agendar
                         </Button>
-                        <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => navigate(`/work-orders/${r.id}`)}>
-                          <Eye className="mr-1 h-4 w-4" /> Abrir
+                        <Button size="icon" variant="outline" aria-label="Ver OT" title="Ver" onClick={() => navigate(`/work-orders/${r.id}`)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="outline" aria-label="Editar OT" title="Editar" onClick={() => setEditing(r)}>
+                          <Pencil className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -169,6 +278,31 @@ export default function UnassignedWorkOrders() {
           </>
         )}
       </div>
+
+      {dateTarget && (
+        <Dialog open onOpenChange={(o) => !o && setDateTarget(null)}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Data e hora — {dateTarget.reference}</DialogTitle>
+            </DialogHeader>
+            <SlotDateTimePicker
+              value={dates[dateTarget.id] ?? ""}
+              onChange={(v) => setDates((d) => ({ ...d, [dateTarget.id]: v }))}
+              excludeWorkOrderId={dateTarget.id}
+              label="Data e hora da OT"
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setDateTarget(null)}>Cancelar</Button>
+              <Button onClick={saveDate} disabled={!dates[dateTarget.id] || saving === dateTarget.id}>
+                {saving === dateTarget.id && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+                Guardar data
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {editing && <EditWorkOrderDialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)} workOrder={editing} onSuccess={() => { setEditing(null); load(); }} />}
     </DashboardLayout>
   );
 }

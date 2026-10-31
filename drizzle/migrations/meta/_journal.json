@@ -57,6 +57,27 @@
       "when": 1793110276554,
       "tag": "0007_maintenance_contracts",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793294451944,
+      "tag": "0008_add_alarm_categories",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793445086182,
+      "tag": "0009_fix_ot_status_webhook",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793461229818,
+      "tag": "0010_create_quotes",
+      "breakpoints": true
     }
   ]
 }

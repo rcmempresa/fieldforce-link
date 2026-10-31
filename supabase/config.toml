@@ -28,3 +28,6 @@ verify_jwt = false
 
 [functions.empregado-digital]
 verify_jwt = false
+
+[functions.assistente-proxy]
+verify_jwt = false

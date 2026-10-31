@@ -22,6 +22,8 @@ import Equipments from "./pages/Equipments";
 import UnassignedWorkOrders from "./pages/UnassignedWorkOrders";
 import Profile from "./pages/Profile";
 import Contracts from "./pages/Contracts";
+import Quotes from "./pages/Quotes";
+import AssistenteDigital from "./pages/AssistenteDigital";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +38,14 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
+          <Route
+            path="/assistente-digital"
+            element={
+              <ProtectedRoute allowedRoles={["manager"]}>
+                <AssistenteDigital />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/pending-approval" element={<PendingApproval />} />
           <Route
@@ -135,6 +145,7 @@ const App = () => (
             }
           />
           <Route path="/contracts" element={<ProtectedRoute allowedRoles={["manager"]}><Contracts /></ProtectedRoute>} />
+          <Route path="/quotes" element={<ProtectedRoute allowedRoles={["manager"]}><Quotes /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
