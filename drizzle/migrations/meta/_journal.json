@@ -71,6 +71,13 @@
       "when": 1793445086182,
       "tag": "0009_fix_ot_status_webhook",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793461229818,
+      "tag": "0010_create_quotes",
+      "breakpoints": true
     }
   ]
 }
