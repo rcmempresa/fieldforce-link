@@ -353,3 +353,46 @@ test("client editing and hour deletion require agent secret and appear in suppor
   expect(result.body.supported).toContain("editar_cliente");
   expect(result.body.supported).toContain("apagar_registo_horas");
 });
+test("criar_orcamento calcula totais com IVA 22% e insere como rascunho", async () => {
+  seedWriteFixtures();
+  fixtures.profiles[1] = { id: "client1", name: "Cliente", company_name: "Empresa", phone: "910000000", address: "Rua 1" };
+  fixtures.client_emails = [{ user_id: "client1", email: "c@x.pt", created_at: "2026-01-01" }];
+  const result = await request("criar_orcamento", { client_search: "Empresa",
+    items: [{ description: "Mão de obra", quantity: 2, unit: "h", unit_price: 25 }, { description: "Filtro", quantity: "1", unit_price: 10.5 }] });
+  expect(result.status).toBe(200);
+  const insert = calls.find((call) => call.table === "quotes" && call.method === "insert")?.args[0];
+  expect(insert).toMatchObject({ client_id: "client1", client_name: "Empresa", client_phone: "910000000",
+    client_address: "Rua 1", client_email: "c@x.pt", status: "rascunho", requires_visit: false, valid_days: 30,
+    subtotal: 60.5, vat_rate: 0.22, vat_amount: 13.31, total: 73.81 });
+  expect(insert.items[0].total).toBe(50);
+  expect(insert.items[1].total).toBe(10.5);
+  expect(insert).not.toHaveProperty("reference");
+  expect(result.body.data.reference).toBeUndefined();
+});
+test("criar_orcamento rejeita cliente desconhecido, ambíguo e itens inválidos sem inserir", async () => {
+  seedWriteFixtures();
+  expect((await request("criar_orcamento", { client_search: "Ninguém", items: [{ description: "X", quantity: 1, unit_price: 1 }] })).status).toBe(404);
+  fixtures.user_roles.push({ user_id: "client2", role: "client" });
+  fixtures.profiles.push({ id: "client2", name: "Outro", company_name: "Empresa Dois" });
+  expect((await request("criar_orcamento", { client_search: "Empresa", items: [{ description: "X", quantity: 1, unit_price: 1 }] })).status).toBe(400);
+  for (const items of [[], [{ description: "X", quantity: 0, unit_price: 1 }], [{ description: "X", quantity: 1, unit_price: -5 }]]) {
+    expect((await request("criar_orcamento", { client_search: "Empresa", items })).status).toBe(400);
+  }
+  expect(calls.some((call) => call.table === "quotes" && call.method === "insert")).toBe(false);
+});
+test("listar_orcamentos devolve ordenado por created_at desc com limite 10 e filtro de estado", async () => {
+  fixtures.quotes = [
+    { reference: "ORC-2026-0002", client_name: "B", total: 20, status: "enviado", created_at: "2026-10-02" },
+    { reference: "ORC-2026-0001", client_name: "A", total: 10, status: "rascunho", created_at: "2026-10-01" },
+  ];
+  const { body } = await request("listar_orcamentos", { status: "enviado" });
+  expect(body.data).toEqual([{ reference: "ORC-2026-0002", client_name: "B", total: 20, status: "enviado", created_at: "2026-10-02" }]);
+  expect(calls).toContainEqual({ table: "quotes", method: "limit", args: [10] });
+  expect(calls).toContainEqual({ table: "quotes", method: "order", args: ["created_at", { ascending: false }] });
+});
+test("criar_orcamento e listar_orcamentos rejeitam segredo errado sem acesso à base de dados", async () => {
+  for (const action of ["criar_orcamento", "listar_orcamentos"]) {
+    expect((await request(action, {}, "wrong")).status).toBe(401);
+  }
+  expect(calls).toHaveLength(0);
+});
