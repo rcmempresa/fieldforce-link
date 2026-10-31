@@ -54,6 +54,17 @@ const writeSchemas = {
     time: timeInput.default("09:00"), tecnico_nome: nameInput.optional() }),
   registar_horas_ot: z.object({ reference: referenceInput, user_id: z.string().uuid(),
     horas: z.number().finite().positive(), date: dateInput.default(() => new Date().toISOString().slice(0, 10)) }),
+  criar_orcamento: z.object({ client_search: nameInput,
+    items: z.array(z.object({
+      description: z.string().trim().min(1).max(500),
+      quantity: z.preprocess((v) => typeof v === "string" && v.trim() ? Number(v) : v, z.number().finite().positive()),
+      unit: z.string().trim().min(1).max(20).default("un"),
+      unit_price: z.preprocess((v) => typeof v === "string" && v.trim() ? Number(v) : v, z.number().finite().min(0)),
+    })).min(1).max(100),
+    requires_visit: booleanInput.default(false),
+    valid_days: z.preprocess((v) => typeof v === "string" && v.trim() ? Number(v) : v, z.number().int().min(1).max(365)).default(30),
+    notes: z.string().trim().max(1000).optional(),
+    created_by: z.string().uuid().optional() }),
 };
 
 // Write actions must never choose an arbitrary match for a partial reference.
@@ -563,8 +574,61 @@ Deno.serve(async (req) => {
         if (!deleted) return json({ error: "Registo de horas não encontrado" }, 404);
         return json({ data: { reference: order.data.reference, deleted_hours: deleted.duration_hours, date: input.date } });
       }
+      case "criar_orcamento": {
+        const parsed = writeSchemas.criar_orcamento.safeParse(p);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const input = parsed.data;
+        const client = await findWriteProfile(db, input.client_search, true);
+        if (client.response) return client.response;
+        // Same source as the Quotes page: phone/address from profiles, email from client_emails.
+        const { data: clientRow, error: clientError } = await db.from("profiles")
+          .select("id, name, company_name, phone, address").eq("id", client.data.id).single();
+        if (clientError) throw clientError;
+        const { data: emails, error: emailError } = await db.from("client_emails")
+          .select("email").eq("user_id", client.data.id).order("created_at", { ascending: true }).limit(1);
+        if (emailError) throw emailError;
+        if (input.created_by) {
+          const creator = await findWriteProfile(db, "", false, input.created_by);
+          if (creator.response) return creator.response;
+        }
+        const round2 = (v: number) => Math.round(v * 100) / 100;
+        const items = input.items.map((item) => ({ ...item, total: round2(item.quantity * item.unit_price) }));
+        const subtotal = round2(items.reduce((s, item) => s + item.total, 0));
+        const vat_rate = 0.22;
+        const vat_amount = round2(subtotal * vat_rate);
+        const total = round2(subtotal + vat_amount);
+        const valid_until = new Date(Date.now() + input.valid_days * 86400000).toISOString().slice(0, 10);
+        // Omit reference: the database trigger allocates it.
+        const { data: created, error } = await db.from("quotes").insert({
+          client_id: clientRow.id,
+          client_name: clientRow.company_name || clientRow.name,
+          client_nif: null,
+          client_address: clientRow.address,
+          client_phone: clientRow.phone,
+          client_email: emails?.[0]?.email ?? null,
+          items, subtotal, vat_rate, vat_amount, total,
+          valid_days: input.valid_days, valid_until,
+          requires_visit: input.requires_visit,
+          notes: input.notes ?? null,
+          created_by: input.created_by ?? null,
+          status: "rascunho",
+        }).select().single();
+        if (error) throw error;
+        return json({ data: created });
+      }
+      case "listar_orcamentos": {
+        let q = db.from("quotes")
+          .select("reference, client_name, total, status, created_at, valid_until")
+          .order("created_at", { ascending: false })
+          .limit(Math.min(Math.max(Number(p.limit) || 10, 1), 500));
+        const status = str(p.status, 30);
+        if (status) q = q.eq("status", status);
+        const { data, error } = await q;
+        if (error) throw error;
+        return json({ data, count: data.length });
+      }
       default:
-        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "editar_cliente", "apagar_registo_horas"] }, 400);
+        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "editar_cliente", "apagar_registo_horas", "criar_orcamento", "listar_orcamentos"] }, 400);
     }
   } catch (e: any) {
     console.error(action, e);
