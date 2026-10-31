@@ -29,6 +29,7 @@ import {
   Moon,
   Sun,
   FileSignature,
+  Bot,
 } from "lucide-react";
 
 interface DashboardLayoutProps {
@@ -53,8 +54,12 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
     { label: "Funcionários", to: "/employees", icon: UserCog },
     { label: "Materiais", to: "/material-catalog", icon: Package },
     { label: "Emails", to: "/email-logs", icon: Mail },
+    { label: "Assistente Digital", to: "/assistente-digital", icon: Bot },
   ],
-  employee: [{ label: "Painel", to: "/employee", icon: LayoutDashboard }],
+  employee: [
+    { label: "Painel", to: "/employee", icon: LayoutDashboard },
+    { label: "Assistente Digital", to: "/assistente-digital", icon: Bot },
+  ],
   client: [{ label: "Painel", to: "/client", icon: LayoutDashboard }],
 };
 
