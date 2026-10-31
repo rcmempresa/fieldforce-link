@@ -22,6 +22,7 @@ import Equipments from "./pages/Equipments";
 import UnassignedWorkOrders from "./pages/UnassignedWorkOrders";
 import Profile from "./pages/Profile";
 import Contracts from "./pages/Contracts";
+import AssistenteDigital from "./pages/AssistenteDigital";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,14 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
+          <Route
+            path="/assistente-digital"
+            element={
+              <ProtectedRoute allowedRoles={["manager", "employee"]}>
+                <AssistenteDigital />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/pending-approval" element={<PendingApproval />} />
           <Route
