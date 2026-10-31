@@ -7,12 +7,20 @@ let roles: Array<{ role: string; approved: boolean }> = [];
 let user: { id: string } | null = { id: "u1" };
 const fetched: string[] = [];
 
+function makeQuery(rows: any[]) {
+  const query: any = {
+    select: () => query,
+    eq: () => query,
+    then: (resolve: any) => resolve({ data: rows }),
+    maybeSingle: async () => ({ data: rows[0] ?? null }),
+  };
+  return query;
+}
+
 function createClient() {
   return {
     auth: { getUser: async () => ({ data: { user } }) },
-    from: () => ({
-      select: () => ({ eq: async () => ({ data: roles }) }),
-    }),
+    from: () => makeQuery(roles),
   };
 }
 
