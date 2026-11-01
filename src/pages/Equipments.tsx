@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { DataPagination } from "@/components/ui/data-pagination";
 import { EquipmentHistory } from "@/components/equipments/EquipmentHistory";
 import { EquipmentKnowledge } from "@/components/equipments/EquipmentKnowledge";
+import { CreateEquipmentDialog } from "@/components/equipments/CreateEquipmentDialog";
+import { EditEquipmentDialog } from "@/components/equipments/EditEquipmentDialog";
 import {
   Select,
   SelectContent,
@@ -16,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { EQUIPMENT_CATEGORY_LABEL, equipmentCategoryLabel, type EquipmentCategory } from "@/lib/equipmentLabel";
-import { Search, Loader2, HardDrive, MapPin, Building2 } from "lucide-react";
+import { Search, Loader2, HardDrive, MapPin, Building2, Plus, Pencil } from "lucide-react";
 
 interface EquipmentRow {
   id: string;
@@ -50,36 +53,40 @@ export default function Equipments() {
   const [catFilter, setCatFilter] = useState("all");
   const [sortBy, setSortBy] = useState("recent");
   const [page, setPage] = useState(1);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editing, setEditing] = useState<EquipmentRow | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      const [eqRes, clientRolesRes] = await Promise.all([
-        supabase
-          .from("equipments")
-          .select(
-            "id, client_id, name, brand, model, manufacture_year, serial_number, location, notes, category, created_at"
-          )
-          .order("created_at", { ascending: false }),
-        supabase.from("user_roles").select("user_id").eq("role", "client"),
-      ]);
+  const load = useCallback(async () => {
+    setLoading(true);
+    const [eqRes, clientRolesRes] = await Promise.all([
+      supabase
+        .from("equipments")
+        .select(
+          "id, client_id, name, brand, model, manufacture_year, serial_number, location, notes, category, created_at"
+        )
+        .order("created_at", { ascending: false }),
+      supabase.from("user_roles").select("user_id").eq("role", "client"),
+    ]);
 
-      const clientIds = (clientRolesRes.data || []).map((r: any) => r.user_id);
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, name, company_name, address")
-        .in("id", clientIds.length ? clientIds : ["00000000-0000-0000-0000-000000000000"]);
+    const clientIds = (clientRolesRes.data || []).map((r: any) => r.user_id);
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, name, company_name, address")
+      .in("id", clientIds.length ? clientIds : ["00000000-0000-0000-0000-000000000000"]);
 
-      const map: Record<string, ClientRow> = {};
-      (profiles || []).forEach((p: any) => (map[p.id] = p));
+    const map: Record<string, ClientRow> = {};
+    (profiles || []).forEach((p: any) => (map[p.id] = p));
 
-      setClients(map);
-      setEquipments((eqRes.data as any) || []);
-      setLoading(false);
-    };
-    load();
+    setClients(map);
+    setEquipments((eqRes.data as any) || []);
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const changeCategory = async (id: string, category: string) => {
     const prev = equipments;
@@ -105,6 +112,14 @@ export default function Equipments() {
       .map((id) => ({ id, label: clientLabel(id) }))
       .sort((a, b) => a.label.localeCompare(b.label, "pt"));
   }, [equipments, clients]);
+
+  const clientChoices = useMemo(
+    () =>
+      Object.values(clients)
+        .map((c) => ({ id: c.id, label: c.company_name || c.name }))
+        .sort((a, b) => a.label.localeCompare(b.label, "pt")),
+    [clients]
+  );
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -148,11 +163,17 @@ export default function Equipments() {
   return (
     <DashboardLayout title="Equipamentos">
       <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold">Equipamentos</h2>
-          <p className="text-sm text-muted-foreground">
-            Pesquise por cliente ou equipamento e consulte o histórico de intervenções.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-bold">Equipamentos</h2>
+            <p className="text-sm text-muted-foreground">
+              Pesquise por cliente ou equipamento e consulte o histórico de intervenções.
+            </p>
+          </div>
+          <Button onClick={() => setCreateOpen(true)} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Equipamento
+          </Button>
         </div>
 
         <Card>
@@ -236,7 +257,19 @@ export default function Equipments() {
                           )}
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 gap-1 px-2 text-xs"
+                          onClick={() => {
+                            setEditing(eq);
+                            setEditOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Editar
+                        </Button>
                         <Select value={eq.category || "other"} onValueChange={(v) => changeCategory(eq.id, v)}>
                           <SelectTrigger className="h-7 w-[150px] text-xs" aria-label="Categoria">
                             <SelectValue />
@@ -282,6 +315,22 @@ export default function Equipments() {
           </>
         )}
       </div>
+
+      <CreateEquipmentDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onSuccess={load}
+        clients={clientChoices}
+      />
+
+      {editing && (
+        <EditEquipmentDialog
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          equipment={editing}
+          onSuccess={load}
+        />
+      )}
     </DashboardLayout>
   );
 }
