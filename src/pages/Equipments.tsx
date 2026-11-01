@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { DataPagination } from "@/components/ui/data-pagination";
 import { EquipmentHistory } from "@/components/equipments/EquipmentHistory";
+import { EquipmentKnowledge } from "@/components/equipments/EquipmentKnowledge";
 import {
   Select,
   SelectContent,
@@ -260,6 +261,7 @@ export default function Equipments() {
                       <p className="mb-3 text-sm text-muted-foreground">{eq.notes}</p>
                     )}
                     <EquipmentHistory equipmentId={eq.id} />
+                    <div className="mt-3"><EquipmentKnowledge brand={eq.brand} model={eq.model} /></div>
                   </CardContent>
                 </Card>
               ))}

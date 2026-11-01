@@ -22,6 +22,7 @@ import {
 import { WorkOrderAttachments } from "@/components/work-orders/WorkOrderAttachments";
 import { MaintenanceReportsList } from "@/components/work-orders/MaintenanceReportsList";
 import { EquipmentAttachments } from "@/components/equipments/EquipmentAttachments";
+import { EquipmentKnowledge } from "@/components/equipments/EquipmentKnowledge";
 import { ManageWorkOrderEquipmentsDialog } from "@/components/work-orders/ManageWorkOrderEquipmentsDialog";
 import { WorkOrderMaterials } from "@/components/work-orders/WorkOrderMaterials";
 import { EditTimeEntriesDialog } from "@/components/work-orders/EditTimeEntriesDialog";
@@ -929,6 +930,7 @@ export default function WorkOrderDetails() {
                       </div>
                     </AccordionTrigger>
                     <AccordionContent>
+                      <div className="mb-3"><EquipmentKnowledge brand={equipment.brand} model={equipment.model} /></div>
                       <EquipmentAttachments
                         equipmentId={equipment.id}
                         currentUserId={user?.id || ""}
