@@ -20,6 +20,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfMonth, endOfMonth, isSameMonth } from "date-fns";
 import { formatHours } from "@/lib/formatHours";
+import { daysOpenLabel, daysOpenBadgeClass, isOpenStatus } from "@/lib/daysOpenWorkOrder";
 import { ptBR } from "date-fns/locale";
 import { Notifications } from "@/components/Notifications";
 import { MaintenanceReportForm } from "@/components/work-orders/MaintenanceReportForm";
@@ -34,6 +35,7 @@ interface WorkOrder {
   priority: string;
   scheduled_date: string;
   status: string;
+  created_at?: string;
   client_name?: string;
   active_time_entry_id?: string;
   active_time_entry_start?: string;
@@ -115,6 +117,7 @@ export default function EmployeeDashboard() {
               priority,
               scheduled_date,
               status,
+              created_at,
               total_hours,
               time_entries (pause_reason, start_time),
               profiles:client_id (
@@ -722,6 +725,11 @@ export default function EmployeeDashboard() {
                         <div className="flex flex-wrap items-center gap-2 min-w-0">
                           <p className="font-medium text-sm">{order.reference}</p>
                           {order.missing_material && <Badge variant="destructive"><PackageX className="mr-1 h-3 w-3" />Sem material</Badge>}
+                          {isOpenStatus(order.status) && order.created_at && (
+                            <span title={`Criada em ${formatDate(order.created_at)}`} className={`rounded-full px-2 py-0.5 text-xs font-medium ${daysOpenBadgeClass(order.created_at)}`}>
+                              {daysOpenLabel(order.created_at)}
+                            </span>
+                          )}
                           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
                             {getStatusLabel(order.status)}
                           </span>
@@ -878,6 +886,11 @@ export default function EmployeeDashboard() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-medium text-sm">{order.reference}</p>
                               {order.missing_material && <Badge variant="destructive"><PackageX className="mr-1 h-3 w-3" />Sem material</Badge>}
+                              {isOpenStatus(order.status) && order.created_at && (
+                                <span title={`Criada em ${formatDate(order.created_at)}`} className={`rounded-full px-2 py-0.5 text-xs font-medium ${daysOpenBadgeClass(order.created_at)}`}>
+                                  {daysOpenLabel(order.created_at)}
+                                </span>
+                              )}
                               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(order.priority)}`}>
                                 {getPriorityLabel(order.priority)}
                               </span>
@@ -948,6 +961,11 @@ export default function EmployeeDashboard() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-medium text-sm">{order.reference}</p>
                               {order.missing_material && <Badge variant="destructive"><PackageX className="mr-1 h-3 w-3" />Sem material</Badge>}
+                              {isOpenStatus(order.status) && order.created_at && (
+                                <span title={`Criada em ${formatDate(order.created_at)}`} className={`rounded-full px-2 py-0.5 text-xs font-medium ${daysOpenBadgeClass(order.created_at)}`}>
+                                  {daysOpenLabel(order.created_at)}
+                                </span>
+                              )}
                               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(order.priority)}`}>
                                 {getPriorityLabel(order.priority)}
                               </span>
