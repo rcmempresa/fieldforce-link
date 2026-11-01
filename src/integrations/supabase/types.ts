@@ -213,6 +213,72 @@ export type Database = {
           },
         ]
       }
+      equipment_model_faults: {
+        Row: {
+          brand_key: string
+          causes: string[]
+          created_at: string
+          created_by: string | null
+          id: string
+          model_key: string
+          symptom: string
+          updated_at: string
+        }
+        Insert: {
+          brand_key?: string
+          causes?: string[]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          model_key: string
+          symptom: string
+          updated_at?: string
+        }
+        Update: {
+          brand_key?: string
+          causes?: string[]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          model_key?: string
+          symptom?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      equipment_model_manuals: {
+        Row: {
+          brand_key: string
+          created_at: string
+          filename: string
+          id: string
+          kind: string
+          model_key: string
+          uploaded_by: string | null
+          url: string
+        }
+        Insert: {
+          brand_key?: string
+          created_at?: string
+          filename: string
+          id?: string
+          kind: string
+          model_key: string
+          uploaded_by?: string | null
+          url: string
+        }
+        Update: {
+          brand_key?: string
+          created_at?: string
+          filename?: string
+          id?: string
+          kind?: string
+          model_key?: string
+          uploaded_by?: string | null
+          url?: string
+        }
+        Relationships: []
+      }
       equipments: {
         Row: {
           brand: string | null
