@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataPagination } from "@/components/ui/data-pagination";
-import { formatDateTime } from "@/lib/formatDate";
+import { formatDateTime, formatDate } from "@/lib/formatDate";
+import { daysOpenLabel, daysOpenBadgeClass } from "@/lib/daysOpenWorkOrder";
 import { Search, UserX, Eye, Loader2, UserPlus, Pencil, CalendarIcon } from "lucide-react";
 import { EditWorkOrderDialog } from "@/components/work-orders/EditWorkOrderDialog";
 import { SlotDateTimePicker } from "@/components/work-orders/SlotDateTimePicker";
@@ -228,6 +229,12 @@ export default function UnassignedWorkOrders() {
                       <span className="font-semibold">{r.reference}</span>
                       <Badge variant="outline">{STATUS[r.status] || r.status}</Badge>
                       {!r.scheduled_date && <Badge variant="secondary">Sem data</Badge>}
+                      <span
+                        title={`Criada em ${formatDate(r.created_at)}`}
+                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${daysOpenBadgeClass(r.created_at)}`}
+                      >
+                        {daysOpenLabel(r.created_at)}
+                      </span>
                     </div>
                     <p className="break-words text-sm">{r.title}</p>
                     <p className="text-xs text-muted-foreground">
