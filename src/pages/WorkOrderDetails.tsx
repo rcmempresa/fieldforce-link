@@ -90,6 +90,7 @@ interface Equipment {
   id: string;
   name: string;
   model: string | null;
+  brand?: string | null;
   serial_number: string | null;
   location: string | null;
 }
@@ -335,6 +336,7 @@ export default function WorkOrderDetails() {
           id,
           name,
           model,
+          brand,
           serial_number,
           location
         )
