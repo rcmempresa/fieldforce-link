@@ -627,8 +627,74 @@ Deno.serve(async (req) => {
         if (error) throw error;
         return json({ data, count: data.length });
       }
+      case "buscar_orcamento": {
+        const ref = str(p.reference, 50);
+        if (!ref) return json({ error: "reference obrigatório" }, 400);
+        let { data, error } = await db.from("quotes").select("*").eq("reference", ref).maybeSingle();
+        if (error) throw error;
+        if (!data) {
+          const r = await db.from("quotes").select("*").ilike("reference", `%${ref.replace(/[%_]/g, "")}%`).order("created_at", { ascending: false }).limit(2);
+          if (r.error) throw r.error;
+          if ((r.data?.length ?? 0) > 1) return json({ error: "Referência ambígua", matches: r.data!.map((q: any) => q.reference) }, 409);
+          data = r.data?.[0] ?? null;
+        }
+        if (!data) return json({ error: "Orçamento não encontrado" }, 404);
+        return json({ data });
+      }
+      case "marcar_orcamento_enviado": {
+        const ref = str(p.reference, 50);
+        if (!ref) return json({ error: "reference obrigatório" }, 400);
+        const { data, error } = await db.from("quotes").update({ status: "enviado", sent_at: new Date().toISOString() })
+          .eq("reference", ref).select("reference");
+        if (error) throw error;
+        if (!data?.length) return json({ error: "Orçamento não encontrado" }, 404);
+        return json({ data: { reference: data[0].reference } });
+      }
+      case "enviar_email_orcamento": {
+        const parsed = z.object({
+          reference: z.string().trim().min(1).max(50),
+          client_email: z.string().trim().email(),
+          client_name: z.string().trim().max(200).optional(),
+          pdf_base64: z.string().min(10).max(15_000_000),
+          filename: z.string().trim().max(150).optional(),
+          subtotal: z.coerce.number().finite().optional(),
+          vat_amount: z.coerce.number().finite().optional(),
+          total: z.coerce.number().finite().optional(),
+          valid_until: z.string().trim().max(30).optional(),
+        }).safeParse(p);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const i = parsed.data;
+        const key = Deno.env.get("RESEND_API_KEY");
+        if (!key) return json({ error: "Serviço de email não configurado" }, 500);
+        const esc = (v: string) => v.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+        const eur = (v?: number) => v == null ? "-" : `${v.toFixed(2).replace(".", ",")} €`;
+        const content = i.pdf_base64.replace(/^data:[^,]*,/, "");
+        const filename = (i.filename || `${i.reference}.pdf`).replace(/[^\w.\-]/g, "_");
+        const html = `<div style="font-family:Arial,sans-serif;color:#222">
+<p>Olá ${esc(i.client_name || "")},</p>
+<p>Segue em anexo o orçamento <strong>${esc(i.reference)}</strong>.</p>
+<table style="border-collapse:collapse">
+<tr><td style="padding:4px 12px 4px 0">Subtotal</td><td>${eur(i.subtotal)}</td></tr>
+<tr><td style="padding:4px 12px 4px 0">IVA</td><td>${eur(i.vat_amount)}</td></tr>
+<tr><td style="padding:4px 12px 4px 0"><strong>Total</strong></td><td><strong>${eur(i.total)}</strong></td></tr>
+${i.valid_until ? `<tr><td style="padding:4px 12px 4px 0">Válido até</td><td>${esc(i.valid_until)}</td></tr>` : ""}
+</table>
+<p>Para qualquer esclarecimento, responda a este email.</p>
+<p>Cumprimentos,<br/>NR Tech Solution</p></div>`;
+        const res = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            from: "NR Tech Solution <geral@nrtechsolucion.pt>", to: [i.client_email],
+            subject: `Orçamento ${i.reference} — NR Tech Solution`, html,
+            attachments: [{ filename, content }],
+          }),
+        });
+        if (!res.ok) return json({ error: `Falha no envio do email: ${(await res.text()).slice(0, 300)}` }, 502);
+        return json({ data: { sent: true } });
+      }
       default:
-        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "editar_cliente", "apagar_registo_horas", "criar_orcamento", "listar_orcamentos"] }, 400);
+        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "editar_cliente", "apagar_registo_horas", "criar_orcamento", "listar_orcamentos", "buscar_orcamento", "marcar_orcamento_enviado", "enviar_email_orcamento"] }, 400);
     }
   } catch (e: any) {
     console.error(action, e);
