@@ -41,6 +41,7 @@ interface Equipment {
   name: string;
   brand: string | null;
   model: string | null;
+  manufacture_year: number | null;
   serial_number: string | null;
   location: string | null;
   notes: string | null;
@@ -776,6 +777,7 @@ export default function Clients() {
                                 eq.name.toLowerCase().includes(term) ||
                                 (eq.brand || "").toLowerCase().includes(term) ||
                                 (eq.model || "").toLowerCase().includes(term) ||
+                                (eq.manufacture_year ? String(eq.manufacture_year).includes(term) : false) ||
                                 (eq.serial_number || "").toLowerCase().includes(term) ||
                                 (eq.location || "").toLowerCase().includes(term)
                               );
@@ -807,6 +809,12 @@ export default function Clients() {
                                           <div className="flex items-start gap-2">
                                             <span className="font-medium min-w-[80px]">Modelo:</span>
                                             <span className="flex-1">{equipment.model}</span>
+                                          </div>
+                                        )}
+                                        {equipment.manufacture_year && (
+                                          <div className="flex items-start gap-2">
+                                            <span className="font-medium min-w-[80px]">Ano Fabrico:</span>
+                                            <span className="flex-1">{equipment.manufacture_year}</span>
                                           </div>
                                         )}
                                         {equipment.serial_number && (

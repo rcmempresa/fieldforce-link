@@ -11,6 +11,7 @@ export interface EquipmentFormData {
   name: string;
   brand: string;
   model: string;
+  manufacture_year: string;
   serial_number: string;
   outdoor_model: string;
   outdoor_serial_number: string;
@@ -24,12 +25,21 @@ export const emptyEquipmentForm: EquipmentFormData = {
   name: "",
   brand: "",
   model: "",
+  manufacture_year: "",
   serial_number: "",
   outdoor_model: "",
   outdoor_serial_number: "",
   location: "",
   notes: "",
 };
+
+export function parseManufactureYear(raw: string): number | null {
+  const trimmed = (raw || "").trim();
+  if (!trimmed) return null;
+  const year = Number.parseInt(trimmed, 10);
+  if (!Number.isFinite(year) || year < 1900 || year > 2100) return null;
+  return year;
+}
 
 export function equipmentPayload(f: EquipmentFormData) {
   const isAc = f.equipment_type === "ac";
@@ -39,6 +49,7 @@ export function equipmentPayload(f: EquipmentFormData) {
     name: f.name.trim(),
     brand: f.brand || null,
     model: f.model || null,
+    manufacture_year: parseManufactureYear(f.manufacture_year),
     serial_number: f.serial_number || null,
     outdoor_model: isAc ? f.outdoor_model || null : null,
     outdoor_serial_number: isAc ? f.outdoor_serial_number || null : null,
@@ -100,7 +111,7 @@ export function EquipmentFormFields({ value, onChange }: Props) {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="space-y-2">
           <Label htmlFor="eq-name">Nome *</Label>
           <Input id="eq-name" value={value.name} onChange={(e) => set("name", e.target.value)} placeholder={isAc ? "Ex: AC Sala de reuniões" : "Ex: Quadro elétrico piso 1"} required />
@@ -108,6 +119,20 @@ export function EquipmentFormFields({ value, onChange }: Props) {
         <div className="space-y-2">
           <Label htmlFor="eq-brand">Marca</Label>
           <Input id="eq-brand" value={value.brand} onChange={(e) => set("brand", e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="eq-year">Ano de Fabrico</Label>
+          <Input
+            id="eq-year"
+            type="number"
+            inputMode="numeric"
+            step="1"
+            min="1900"
+            max="2100"
+            placeholder="Ex: 2019"
+            value={value.manufacture_year}
+            onChange={(e) => set("manufacture_year", e.target.value)}
+          />
         </div>
       </div>
 

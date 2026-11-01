@@ -35,6 +35,7 @@ export function EditEquipmentDialog({ open, onOpenChange, equipment, onSuccess }
         name: e.name || "",
         brand: e.brand || "",
         model: e.model || "",
+        manufacture_year: e.manufacture_year ? String(e.manufacture_year) : "",
         serial_number: e.serial_number || "",
         outdoor_model: e.outdoor_model || "",
         outdoor_serial_number: e.outdoor_serial_number || "",
