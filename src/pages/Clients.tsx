@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Search, Mail, Phone, Trash2, Edit, Building2, MapPin, Package, ChevronDown, ChevronUp, Plus, CalendarIcon, Briefcase, ArrowLeft, Clock, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { EquipmentAttachments } from "@/components/equipments/EquipmentAttachments";
 import { EquipmentHistory } from "@/components/equipments/EquipmentHistory";
+import { EquipmentKnowledge } from "@/components/equipments/EquipmentKnowledge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CreateEmployeeDialog } from "@/components/employees/CreateEmployeeDialog";
@@ -854,6 +855,7 @@ export default function Clients() {
                                    <div className="mt-4">
                                      <EquipmentHistory equipmentId={equipment.id} />
                                    </div>
+                                   <div className="mt-4"><EquipmentKnowledge brand={equipment.brand} model={equipment.model} /></div>
                                    {currentUserId && (
                                      <div className="mt-4">
                             <EquipmentAttachments 
