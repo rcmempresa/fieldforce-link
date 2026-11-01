@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Eye, Pencil, Trash2, ArrowLeft, Wrench, Users } from "lucide-react";
 import { fetchMissingMaterialIds } from "@/lib/missingMaterial";
-import { daysOpenLabel, daysOpenBadgeClass, isOpenStatus } from "@/lib/daysOpenWorkOrder";
+import { DaysOpenBadge } from "@/components/work-orders/DaysOpenBadge";
 import { equipmentLinkLabel } from "@/lib/equipmentLabel";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -345,14 +345,7 @@ export default function WorkOrders() {
                         >
                           {getPriorityLabel(order.priority)}
                         </span>
-                        {isOpenStatus(order.status) && (
-                          <span
-                            title={`Criada em ${formatDate(order.created_at)}`}
-                            className={`rounded-full px-2 py-0.5 text-xs font-medium ${daysOpenBadgeClass(order.created_at)}`}
-                          >
-                            {daysOpenLabel(order.created_at)}
-                          </span>
-                        )}
+                        <DaysOpenBadge createdAt={order.created_at} status={order.status} />
                         {order.needs_scheduling && (
                           <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-amber-500/15 text-amber-600 border border-amber-500/30">
                             Aguarda data
