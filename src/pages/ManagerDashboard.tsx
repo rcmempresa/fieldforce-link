@@ -3,6 +3,8 @@ import { formatDate, formatDateTime } from "@/lib/formatDate";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchMissingMaterialIds } from "@/lib/missingMaterial";
+import { DaysOpenBadge } from "@/components/work-orders/DaysOpenBadge";
+import { daysOpen, isOpenStatus } from "@/lib/daysOpenWorkOrder";
 import { PackageX } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -685,6 +687,7 @@ export default function ManagerDashboard() {
         title, 
         status, 
         scheduled_date,
+        created_at,
         client_id,
         profiles!work_orders_client_id_fkey (
           name,
@@ -1654,14 +1657,35 @@ export default function ManagerDashboard() {
                     hasOrders: (date) => hasOrdersOnDate(date)
                   }}
                   modifiersStyles={{
-                    hasOrders: { 
+                    hasOrders: {
                       fontWeight: 'bold',
                       backgroundColor: 'hsl(var(--primary) / 0.15)',
                       color: 'hsl(var(--primary))',
                       borderRadius: '0.375rem'
                     }
                   }}
+                  components={{
+                    DayContent: ({ date }) => {
+                      const oldest = getOrdersForDate(date)
+                        .filter((o) => isOpenStatus(o.status))
+                        .reduce((max, o) => Math.max(max, daysOpen(o.created_at)), 0);
+                      return (
+                        <div className="flex flex-col items-center leading-none">
+                          <span>{date.getDate()}</span>
+                          {oldest >= 14 ? (
+                            <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-destructive" title="Há OT aberta há 14+ dias" />
+                          ) : oldest >= 7 ? (
+                            <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-amber-500" title="Há OT aberta há 7+ dias" />
+                          ) : null}
+                        </div>
+                      );
+                    },
+                  }}
                 />
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500" /> OT aberta há 7+ dias</span>
+                  <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-destructive" /> OT aberta há 14+ dias</span>
+                </div>
               </div>
               <div>
                 <div className="mb-4 pb-3 border-b">
@@ -1684,7 +1708,10 @@ export default function ManagerDashboard() {
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
-                            <p className="font-semibold text-sm">{order.reference}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-semibold text-sm">{order.reference}</p>
+                              <DaysOpenBadge createdAt={order.created_at} status={order.status} />
+                            </div>
                             <p className="text-xs text-muted-foreground mt-0.5">{order.title}</p>
                             {order.client_name && (
                               <p className="text-xs text-muted-foreground">
