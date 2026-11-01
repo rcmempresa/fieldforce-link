@@ -24,6 +24,7 @@ interface EquipmentRow {
   name: string;
   brand: string | null;
   model: string | null;
+  manufacture_year: number | null;
   serial_number: string | null;
   location: string | null;
   notes: string | null;
@@ -58,7 +59,7 @@ export default function Equipments() {
         supabase
           .from("equipments")
           .select(
-            "id, client_id, name, brand, model, serial_number, location, notes, category, created_at"
+            "id, client_id, name, brand, model, manufacture_year, serial_number, location, notes, category, created_at"
           )
           .order("created_at", { ascending: false }),
         supabase.from("user_roles").select("user_id").eq("role", "client"),
@@ -115,6 +116,7 @@ export default function Equipments() {
         e.name,
         e.brand,
         e.model,
+        e.manufacture_year ? String(e.manufacture_year) : null,
         e.serial_number,
         e.location,
         clientLabel(e.client_id),
@@ -250,6 +252,9 @@ export default function Equipments() {
                         </Select>
                         {eq.brand && <Badge variant="secondary">{eq.brand}</Badge>}
                         {eq.model && <Badge variant="outline">{eq.model}</Badge>}
+                        {eq.manufacture_year && (
+                          <Badge variant="outline">Ano {eq.manufacture_year}</Badge>
+                        )}
                         {eq.serial_number && (
                           <Badge variant="outline">Nº {eq.serial_number}</Badge>
                         )}

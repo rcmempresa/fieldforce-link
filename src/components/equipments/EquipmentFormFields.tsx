@@ -111,7 +111,7 @@ export function EquipmentFormFields({ value, onChange }: Props) {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="space-y-2">
           <Label htmlFor="eq-name">Nome *</Label>
           <Input id="eq-name" value={value.name} onChange={(e) => set("name", e.target.value)} placeholder={isAc ? "Ex: AC Sala de reuniões" : "Ex: Quadro elétrico piso 1"} required />
