@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format, startOfMonth, endOfMonth, isSameMonth } from "date-fns";
 import { formatHours } from "@/lib/formatHours";
 import { DaysOpenBadge } from "@/components/work-orders/DaysOpenBadge";
+import { daysOpen, isOpenStatus } from "@/lib/daysOpenWorkOrder";
 import { ptBR } from "date-fns/locale";
 import { Notifications } from "@/components/Notifications";
 import { MaintenanceReportForm } from "@/components/work-orders/MaintenanceReportForm";
@@ -700,6 +701,27 @@ export default function EmployeeDashboard() {
                     fontWeight: "bold",
                     textDecoration: "underline",
                     color: "hsl(var(--primary))",
+                  },
+                }}
+                components={{
+                  DayContent: ({ date }) => {
+                    const oldest = assignedOrders
+                      .filter((o) => {
+                        if (!o.scheduled_date || !isOpenStatus(o.status)) return false;
+                        const d = new Date(o.scheduled_date);
+                        return d.getDate() === date.getDate() && d.getMonth() === date.getMonth() && d.getFullYear() === date.getFullYear();
+                      })
+                      .reduce((max, o) => Math.max(max, daysOpen(o.created_at)), 0);
+                    return (
+                      <div className="flex flex-col items-center leading-none">
+                        <span>{date.getDate()}</span>
+                        {oldest >= 14 ? (
+                          <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-destructive" />
+                        ) : oldest >= 7 ? (
+                          <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-amber-500" />
+                        ) : null}
+                      </div>
+                    );
                   },
                 }}
               />
