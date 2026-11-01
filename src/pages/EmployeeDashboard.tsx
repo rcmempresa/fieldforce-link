@@ -1028,6 +1028,11 @@ export default function EmployeeDashboard() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-medium text-sm">{order.reference}</p>
                               {order.missing_material && <Badge variant="destructive"><PackageX className="mr-1 h-3 w-3" />Sem material</Badge>}
+                              {isOpenStatus(order.status) && order.created_at && (
+                                <span title={`Criada em ${formatDate(order.created_at)}`} className={`rounded-full px-2 py-0.5 text-xs font-medium ${daysOpenBadgeClass(order.created_at)}`}>
+                                  {daysOpenLabel(order.created_at)}
+                                </span>
+                              )}
                               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(order.priority)}`}>
                                 {getPriorityLabel(order.priority)}
                               </span>
