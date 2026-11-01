@@ -11,6 +11,7 @@ export interface EquipmentFormData {
   name: string;
   brand: string;
   model: string;
+  manufacture_year: string;
   serial_number: string;
   outdoor_model: string;
   outdoor_serial_number: string;
