@@ -20,7 +20,8 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfMonth, endOfMonth, isSameMonth } from "date-fns";
 import { formatHours } from "@/lib/formatHours";
-import { daysOpenLabel, daysOpenBadgeClass, isOpenStatus } from "@/lib/daysOpenWorkOrder";
+import { DaysOpenBadge } from "@/components/work-orders/DaysOpenBadge";
+import { daysOpen, isOpenStatus } from "@/lib/daysOpenWorkOrder";
 import { ptBR } from "date-fns/locale";
 import { Notifications } from "@/components/Notifications";
 import { MaintenanceReportForm } from "@/components/work-orders/MaintenanceReportForm";
@@ -702,6 +703,27 @@ export default function EmployeeDashboard() {
                     color: "hsl(var(--primary))",
                   },
                 }}
+                components={{
+                  DayContent: ({ date }) => {
+                    const oldest = assignedOrders
+                      .filter((o) => {
+                        if (!o.scheduled_date || !isOpenStatus(o.status)) return false;
+                        const d = new Date(o.scheduled_date);
+                        return d.getDate() === date.getDate() && d.getMonth() === date.getMonth() && d.getFullYear() === date.getFullYear();
+                      })
+                      .reduce((max, o) => Math.max(max, daysOpen(o.created_at)), 0);
+                    return (
+                      <div className="flex flex-col items-center leading-none">
+                        <span>{date.getDate()}</span>
+                        {oldest >= 14 ? (
+                          <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-destructive" />
+                        ) : oldest >= 7 ? (
+                          <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-amber-500" />
+                        ) : null}
+                      </div>
+                    );
+                  },
+                }}
               />
             </CardContent>
           </Card>
@@ -725,11 +747,7 @@ export default function EmployeeDashboard() {
                         <div className="flex flex-wrap items-center gap-2 min-w-0">
                           <p className="font-medium text-sm">{order.reference}</p>
                           {order.missing_material && <Badge variant="destructive"><PackageX className="mr-1 h-3 w-3" />Sem material</Badge>}
-                          {isOpenStatus(order.status) && order.created_at && (
-                            <span title={`Criada em ${formatDate(order.created_at)}`} className={`rounded-full px-2 py-0.5 text-xs font-medium ${daysOpenBadgeClass(order.created_at)}`}>
-                              {daysOpenLabel(order.created_at)}
-                            </span>
-                          )}
+                          <DaysOpenBadge createdAt={order.created_at} status={order.status} />
                           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
                             {getStatusLabel(order.status)}
                           </span>
@@ -886,11 +904,7 @@ export default function EmployeeDashboard() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-medium text-sm">{order.reference}</p>
                               {order.missing_material && <Badge variant="destructive"><PackageX className="mr-1 h-3 w-3" />Sem material</Badge>}
-                              {isOpenStatus(order.status) && order.created_at && (
-                                <span title={`Criada em ${formatDate(order.created_at)}`} className={`rounded-full px-2 py-0.5 text-xs font-medium ${daysOpenBadgeClass(order.created_at)}`}>
-                                  {daysOpenLabel(order.created_at)}
-                                </span>
-                              )}
+                              <DaysOpenBadge createdAt={order.created_at} status={order.status} />
                               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(order.priority)}`}>
                                 {getPriorityLabel(order.priority)}
                               </span>
@@ -961,11 +975,7 @@ export default function EmployeeDashboard() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-medium text-sm">{order.reference}</p>
                               {order.missing_material && <Badge variant="destructive"><PackageX className="mr-1 h-3 w-3" />Sem material</Badge>}
-                              {isOpenStatus(order.status) && order.created_at && (
-                                <span title={`Criada em ${formatDate(order.created_at)}`} className={`rounded-full px-2 py-0.5 text-xs font-medium ${daysOpenBadgeClass(order.created_at)}`}>
-                                  {daysOpenLabel(order.created_at)}
-                                </span>
-                              )}
+                              <DaysOpenBadge createdAt={order.created_at} status={order.status} />
                               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(order.priority)}`}>
                                 {getPriorityLabel(order.priority)}
                               </span>
@@ -1028,11 +1038,7 @@ export default function EmployeeDashboard() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-medium text-sm">{order.reference}</p>
                               {order.missing_material && <Badge variant="destructive"><PackageX className="mr-1 h-3 w-3" />Sem material</Badge>}
-                              {isOpenStatus(order.status) && order.created_at && (
-                                <span title={`Criada em ${formatDate(order.created_at)}`} className={`rounded-full px-2 py-0.5 text-xs font-medium ${daysOpenBadgeClass(order.created_at)}`}>
-                                  {daysOpenLabel(order.created_at)}
-                                </span>
-                              )}
+                              <DaysOpenBadge createdAt={order.created_at} status={order.status} />
                               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(order.priority)}`}>
                                 {getPriorityLabel(order.priority)}
                               </span>

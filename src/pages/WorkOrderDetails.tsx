@@ -9,7 +9,8 @@ import { ArrowLeft, Calendar, User, Clock, FileText, Users, Plus, X, Wrench, Pac
 import { entryRegime } from "@/lib/workRegime";
 import { formatHoursDetailed } from "@/lib/formatHours";
 import { fetchMissingMaterialIds } from "@/lib/missingMaterial";
-import { daysOpenLabel, daysOpenBadgeClass, isOpenStatus } from "@/lib/daysOpenWorkOrder";
+import { daysOpenLabel, isOpenStatus } from "@/lib/daysOpenWorkOrder";
+import { DaysOpenBadge } from "@/components/work-orders/DaysOpenBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -624,14 +625,7 @@ export default function WorkOrderDetails() {
                 >
                   {getStatusLabel(workOrder.status)}
                 </span>
-                {isOpenStatus(workOrder.status) && (
-                  <span
-                    title={`Criada em ${formatDate(workOrder.created_at)}`}
-                    className={`rounded-full px-3 py-1 text-sm font-medium ${daysOpenBadgeClass(workOrder.created_at)}`}
-                  >
-                    {daysOpenLabel(workOrder.created_at)}
-                  </span>
-                )}
+                <DaysOpenBadge createdAt={workOrder.created_at} status={workOrder.status} size="lg" />
                 {missingMaterial && (
                   <span className="rounded-full px-3 py-1 text-sm font-medium bg-destructive/10 text-destructive border border-destructive/30">
                     Sem material
