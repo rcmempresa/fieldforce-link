@@ -288,6 +288,7 @@ export type Database = {
           equipment_type: string
           id: string
           location: string | null
+          manufacture_year: number | null
           model: string | null
           name: string
           notes: string | null
@@ -304,6 +305,7 @@ export type Database = {
           equipment_type?: string
           id?: string
           location?: string | null
+          manufacture_year?: number | null
           model?: string | null
           name: string
           notes?: string | null
@@ -320,6 +322,7 @@ export type Database = {
           equipment_type?: string
           id?: string
           location?: string | null
+          manufacture_year?: number | null
           model?: string | null
           name?: string
           notes?: string | null

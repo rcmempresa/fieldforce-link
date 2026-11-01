@@ -85,6 +85,13 @@
       "when": 1793540898402,
       "tag": "0011_equipment_model_knowledge",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793541117309,
+      "tag": "0012_add_equipment_manufacture_year",
+      "breakpoints": true
     }
   ]
 }
