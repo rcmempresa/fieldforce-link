@@ -91,6 +91,7 @@ interface Equipment {
   name: string;
   model: string | null;
   brand?: string | null;
+  manufacture_year?: number | null;
   serial_number: string | null;
   location: string | null;
 }
@@ -337,6 +338,7 @@ export default function WorkOrderDetails() {
           name,
           model,
           brand,
+          manufacture_year,
           serial_number,
           location
         )
@@ -915,10 +917,12 @@ export default function WorkOrderDetails() {
                         <Wrench className="h-4 w-4" />
                         <div className="text-left">
                           <p className="font-medium">{equipment.name}</p>
-                          {(equipment.model || equipment.serial_number) && (
+                          {(equipment.model || equipment.manufacture_year || equipment.serial_number) && (
                             <p className="text-xs text-muted-foreground">
                               {equipment.model && `Modelo: ${equipment.model}`}
-                              {equipment.model && equipment.serial_number && " | "}
+                              {equipment.model && equipment.manufacture_year && " | "}
+                              {equipment.manufacture_year && `Ano: ${equipment.manufacture_year}`}
+                              {(equipment.model || equipment.manufacture_year) && equipment.serial_number && " | "}
                               {equipment.serial_number && `S/N: ${equipment.serial_number}`}
                             </p>
                           )}
