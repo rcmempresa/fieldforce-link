@@ -11,6 +11,7 @@ export interface PickerEquipment {
   name: string;
   brand?: string | null;
   model: string | null;
+  manufacture_year?: number | null;
   serial_number: string | null;
   location: string | null;
   equipment_type?: string | null;
@@ -29,7 +30,7 @@ interface Props {
 }
 
 export const EQUIPMENT_SELECT =
-  "id, name, brand, model, serial_number, location, equipment_type, outdoor_model, outdoor_serial_number, category";
+  "id, name, brand, model, manufacture_year, serial_number, location, equipment_type, outdoor_model, outdoor_serial_number, category";
 
 export function EquipmentPicker({ equipments, selected, parts, onToggle, onPartChange, label = "Equipamento *" }: Props) {
   const [search, setSearch] = useState("");
@@ -38,7 +39,7 @@ export function EquipmentPicker({ equipments, selected, parts, onToggle, onPartC
   const cats = Array.from(new Set(equipments.map((e) => e.category || "other")));
   const list = equipments.filter((eq) => (cat === "all" || (eq.category || "other") === cat)).filter((eq) =>
     !term ||
-    [eq.name, eq.brand, eq.model, eq.serial_number, eq.outdoor_model, eq.outdoor_serial_number, eq.location]
+    [eq.name, eq.brand, eq.model, eq.manufacture_year ? String(eq.manufacture_year) : null, eq.serial_number, eq.outdoor_model, eq.outdoor_serial_number, eq.location]
       .filter(Boolean).join(" ").toLowerCase().includes(term),
   );
 
@@ -84,8 +85,8 @@ export function EquipmentPicker({ equipments, selected, parts, onToggle, onPartC
                         {isAc && <Badge variant="secondary" className="gap-1"><Snowflake className="h-3 w-3" />AC</Badge>}
                       </div>
                       <div className="space-y-0.5 text-xs text-muted-foreground">
-                        {(eq.model || eq.serial_number) && (
-                          <div>{isAc && "Interior: "}{eq.model && `Modelo ${eq.model}`}{eq.model && eq.serial_number && " • "}{eq.serial_number && `S/N ${eq.serial_number}`}</div>
+                        {(eq.model || eq.manufacture_year || eq.serial_number) && (
+                          <div>{isAc && "Interior: "}{eq.model && `Modelo ${eq.model}`}{(eq.model || eq.manufacture_year) && eq.serial_number && " • "}{eq.serial_number && `S/N ${eq.serial_number}`}{eq.manufacture_year && ` • Ano ${eq.manufacture_year}`}</div>
                         )}
                         {isAc && (eq.outdoor_model || eq.outdoor_serial_number) && (
                           <div>Exterior: {eq.outdoor_model && `Modelo ${eq.outdoor_model}`}{eq.outdoor_model && eq.outdoor_serial_number && " • "}{eq.outdoor_serial_number && `S/N ${eq.outdoor_serial_number}`}</div>
