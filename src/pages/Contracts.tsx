@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { FileSignature, Plus, Search } from "lucide-react";
+import { ContractScheduleFields, scheduleToIso } from "@/components/contracts/ContractScheduleFields";
 
 export const CONTRACT_TYPE_LABEL: Record<string, string> = {
   hvac: "Manutenção AVAC",
@@ -60,6 +61,8 @@ export default function Contracts() {
   const [form, setForm] = useState({ client_id: "", contract_type: "hvac", frequency: "monthly", start_date: new Date().toISOString().slice(0, 10), notes: "" });
   const [selected, setSelected] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [schedule, setSchedule] = useState("");
+  const [technician, setTechnician] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -107,10 +110,15 @@ export default function Contracts() {
       toast({ title: "Escolha o cliente e pelo menos um equipamento", variant: "destructive" });
       return;
     }
+    if (!schedule) {
+      toast({ title: "Escolha o dia e a hora da primeira intervenção", variant: "destructive" });
+      return;
+    }
+    const startDate = schedule.slice(0, 10);
     setSaving(true);
     const { data: c, error } = await supabase.from("maintenance_contracts").insert({
       client_id: form.client_id, contract_type: form.contract_type, frequency: form.frequency,
-      start_date: form.start_date, next_date: form.start_date, notes: form.notes || null, created_by: user?.id,
+      start_date: startDate, next_date: startDate, notes: form.notes || null, created_by: user?.id,
     }).select("id").single();
     if (error || !c) {
       setSaving(false);
@@ -118,12 +126,15 @@ export default function Contracts() {
       return;
     }
     await supabase.from("maintenance_contract_equipments").insert(
-      selected.map((id) => ({ contract_id: c.id, equipment_id: id, unit_part: equipments.find((e) => e.id === id)?.equipment_type ? "both" : "both" })),
+      selected.map((id) => ({ contract_id: c.id, equipment_id: id, unit_part: "both" })),
     );
-    const { error: woErr } = await supabase.rpc("create_contract_work_order", { _contract: c.id });
+    const { error: woErr } = await supabase.rpc("create_contract_work_order", {
+      _contract: c.id, _scheduled: scheduleToIso(schedule), _technician: technician || null,
+    } as any);
     setSaving(false);
     if (woErr) toast({ title: "Contrato criado, mas a OT falhou", description: woErr.message, variant: "destructive" });
-    else toast({ title: "Contrato criado", description: "A primeira OT ficou pendente a aguardar data e técnico." });
+    else toast({ title: "Contrato criado", description: "A primeira OT ficou agendada no calendário." });
+    setSchedule(""); setTechnician("");
     setOpen(false);
     setForm({ ...form, client_id: "", notes: "" });
     load();
@@ -226,10 +237,13 @@ export default function Contracts() {
                 )}
               </div>
             )}
-            <div className="space-y-1">
-              <Label>Data da primeira intervenção</Label>
-              <Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
-            </div>
+            <ContractScheduleFields
+              label="Data e hora da primeira intervenção"
+              value={schedule}
+              onChange={setSchedule}
+              technician={technician}
+              onTechnicianChange={setTechnician}
+            />
             <div className="space-y-1">
               <Label>Notas</Label>
               <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />

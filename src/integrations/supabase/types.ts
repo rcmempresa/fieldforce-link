@@ -1143,11 +1143,16 @@ export type Database = {
     }
     Functions: {
       create_contract_work_order: {
-        Args: { _contract: string }
+        Args: { _contract: string; _scheduled?: string; _technician?: string }
         Returns: string
       }
       decide_contract: {
-        Args: { _continue: boolean; _wo: string }
+        Args: {
+          _continue: boolean
+          _scheduled?: string
+          _technician?: string
+          _wo: string
+        }
         Returns: string
       }
       employee_visible_profile_ids: {
