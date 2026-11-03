@@ -261,6 +261,21 @@ async function sendMissingMaterialToManagers(supabaseAdmin: any, data: any): Pro
   });
 }
 
+const COMPANY_INBOX = "geral@nrtechsolucion.pt";
+
+async function getManagerEmails(supabaseAdmin: any): Promise<string[]> {
+  const { data: managers } = await supabaseAdmin
+    .from("user_roles").select("user_id").eq("role", "manager").eq("approved", true);
+  const out: string[] = [];
+  for (const m of managers || []) {
+    const { data: p } = await supabaseAdmin.from("profiles").select("notification_email").eq("id", m.user_id).maybeSingle();
+    if (p?.notification_email) { out.push(p.notification_email); continue; }
+    const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(m.user_id);
+    if (user?.email) out.push(user.email);
+  }
+  return out;
+}
+
 // Helper function to send new work order emails to all managers
 async function sendWorkOrderCreatedToManagers(supabaseAdmin: any, data: any): Promise<Response> {
   console.log("Sending new work order emails to all managers");
@@ -778,6 +793,14 @@ const handler = async (req: Request): Promise<Response> => {
     // for this user (used for clients with multiple contact addresses).
     const extraRecipients = await fetchExtraClientEmails(supabaseAdmin, userId, to);
     const allRecipients = [to, ...extraRecipients];
+
+    // Company inbox always receives a copy of created/completed OTs. Only the
+    // non-manager call adds it, and only if no manager already resolves to it.
+    if ((type === "work_order_completed" || type === "work_order_created") && !data.isManager) {
+      const managerEmails = await getManagerEmails(supabaseAdmin);
+      const already = [...allRecipients, ...managerEmails].some((e) => e?.toLowerCase() === COMPANY_INBOX);
+      if (!already) allRecipients.push(COMPANY_INBOX);
+    }
 
     let anySuccess = false;
     let lastError: string | null = null;
