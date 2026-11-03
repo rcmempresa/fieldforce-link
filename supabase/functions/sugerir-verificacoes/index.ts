@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
     if (!equipmentId || desc.length < 5) return json({ error: "Descreva a avaria (mínimo 5 caracteres)." }, 400);
 
     // Authorization check happens inside the RPC (manager, owner client or assigned technician)
-    const { data: hist, error: hErr } = await userClient.rpc("get_equipment_history", { _equipment_id: equipmentId } as never);
+    const { data: hist, error: hErr } = await userClient.rpc("get_equipment_history", { _equipment: equipmentId } as never);
     if (hErr) return json({ error: "Sem acesso ao histórico deste equipamento." }, 403);
 
     const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
