@@ -595,7 +595,7 @@ export default function WorkOrderDetails() {
   return (
     <DashboardLayout title="Detalhes da Ordem">
       <div className="space-y-6">
-        {isManager && id && <ContractDecisions workOrderId={id} />}
+        {isManager && id && <ContractDecisions key={workOrder?.status} workOrderId={id} />}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Button variant="ghost" onClick={() => navigate("/work-orders")}>
             <ArrowLeft className="mr-2 h-4 w-4" />
