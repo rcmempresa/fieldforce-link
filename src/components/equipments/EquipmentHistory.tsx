@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
@@ -66,10 +66,14 @@ const reportTypeLabels: Record<string, string> = {
 
 interface Props {
   equipmentId: string;
+  defaultOpen?: boolean;
+  previewLimit?: number;
+  excludeWorkOrderId?: string;
 }
 
-export function EquipmentHistory({ equipmentId }: Props) {
-  const [open, setOpen] = useState(false);
+export function EquipmentHistory({ equipmentId, defaultOpen = false, previewLimit, excludeWorkOrderId }: Props) {
+  const [open, setOpen] = useState(defaultOpen);
+  const [showAll, setShowAll] = useState(!previewLimit);
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [orders, setOrders] = useState<WorkOrderRow[]>([]);
@@ -89,16 +93,24 @@ export function EquipmentHistory({ equipmentId }: Props) {
     const ordersRes = { data: data?.orders };
     const reportsRes = { data: data?.reports };
     const attachmentsRes = { data: data?.attachments };
-    setOrders((ordersRes.data as any) || []);
-    setReports((reportsRes.data as any) || []);
+    const notCurrent = (woId: string) => !excludeWorkOrderId || woId !== excludeWorkOrderId;
+    setOrders(((ordersRes.data as any) || []).filter((o: WorkOrderRow) => notCurrent(o.id)));
+    setReports(((reportsRes.data as any) || []).filter((r: ReportRow) => notCurrent(r.work_order_id)));
     setAttachments(
       ((attachmentsRes.data as any) || []).filter((a: AttachmentRow) =>
-        a.filename.toLowerCase().endsWith(".pdf")
+        a.filename.toLowerCase().endsWith(".pdf") && notCurrent(a.work_order_id)
       )
     );
     setLoaded(true);
     setLoading(false);
   };
+
+  useEffect(() => {
+    if (defaultOpen) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [equipmentId]);
+
+  const visibleOrders = showAll || !previewLimit ? orders : orders.slice(0, previewLimit);
 
   const handleToggle = (next: boolean) => {
     setOpen(next);
@@ -131,6 +143,7 @@ export function EquipmentHistory({ equipmentId }: Props) {
           <span className="flex items-center gap-2">
             <History className="h-4 w-4" />
             Histórico de intervenções
+            {loaded && <Badge variant="secondary">{orders.length}</Badge>}
           </span>
           {open ? (
             <ChevronUp className="h-4 w-4" />
@@ -155,7 +168,7 @@ export function EquipmentHistory({ equipmentId }: Props) {
                   Ainda não há ordens de trabalho neste equipamento.
                 </p>
               ) : (
-                orders.map((order) => (
+                visibleOrders.map((order) => (
                   <Link
                     key={order.id}
                     to={`/work-orders/${order.id}`}
@@ -179,8 +192,14 @@ export function EquipmentHistory({ equipmentId }: Props) {
                   </Link>
                 ))
               )}
+              {!showAll && (orders.length > visibleOrders.length || reports.length > 0 || attachments.length > 0) && (
+                <Button variant="ghost" size="sm" className="w-full" onClick={() => setShowAll(true)}>
+                  Ver todas ({orders.length} OTs, {reports.length} relatórios)
+                </Button>
+              )}
             </div>
 
+            {showAll && <>
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase text-muted-foreground">
                 Relatórios de manutenção ({reports.length})
@@ -253,6 +272,7 @@ export function EquipmentHistory({ equipmentId }: Props) {
                 ))}
               </div>
             )}
+            </>}
           </>
         )}
       </CollapsibleContent>

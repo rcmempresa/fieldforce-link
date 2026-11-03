@@ -943,13 +943,18 @@ export default function WorkOrderDetails() {
                     </AccordionTrigger>
                     <AccordionContent>
                       <div className="mb-3"><EquipmentKnowledge brand={equipment.brand} model={equipment.model} /></div>
-                      {(isManager || roles.includes("employee")) && <div className="mb-3 space-y-3"><FaultAssistant equipmentId={equipment.id} /><EquipmentHistory equipmentId={equipment.id} /></div>}
+                      {(isManager || roles.includes("employee")) && <div className="mb-3 space-y-3"><FaultAssistant equipmentId={equipment.id} /></div>}
                       <EquipmentAttachments
                         equipmentId={equipment.id}
                         currentUserId={user?.id || ""}
                         canEdit={roles.includes("manager") || roles.includes("employee")}
                       />
                     </AccordionContent>
+                    {(isManager || roles.includes("employee")) && (
+                      <div className="pb-3">
+                        <EquipmentHistory equipmentId={equipment.id} defaultOpen previewLimit={5} excludeWorkOrderId={id} />
+                      </div>
+                    )}
                   </AccordionItem>
                 ))}
               </Accordion>
