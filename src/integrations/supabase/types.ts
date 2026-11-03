@@ -1163,6 +1163,7 @@ export type Database = {
         Args: { _client_id: string; _year: number }
         Returns: number
       }
+      get_equipment_history: { Args: { _equipment: string }; Returns: Json }
       get_user_roles: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]
