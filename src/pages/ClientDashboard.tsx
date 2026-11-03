@@ -67,7 +67,7 @@ export default function ClientDashboard() {
   const [allWorkOrders, setAllWorkOrders] = useState<WorkOrderWithDetails[]>([]);
   const [stats, setStats] = useState<Stats>({ activeRequests: 0, myEquipments: 0, completedServices: 0 });
   const [equipments, setEquipments] = useState<Equipment[]>([]);
-  const [showEquipments, setShowEquipments] = useState(false);
+  const [showEquipments, setShowEquipments] = useState(() => new URLSearchParams(window.location.search).has("equipamentos"));
   const [createEquipmentDialogOpen, setCreateEquipmentDialogOpen] = useState(false);
   const [createWorkOrderDialogOpen, setCreateWorkOrderDialogOpen] = useState(false);
   const [editEquipmentDialogOpen, setEditEquipmentDialogOpen] = useState(false);
@@ -95,6 +95,10 @@ export default function ClientDashboard() {
     fetchEquipments();
     fetchContractedHours();
   }, []);
+  useEffect(() => {
+    const onPop = () => { if (new URLSearchParams(window.location.search).has("equipamentos")) setShowEquipments(true); };
+    onPop();
+  });
 
   const fetchWorkOrders = async () => {
     const { data: { user } } = await supabase.auth.getUser();
