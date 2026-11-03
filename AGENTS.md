@@ -9,3 +9,4 @@
 - Maintenance contracts generate their OTs through SECURITY DEFINER RPCs (create_contract_work_order, decide_contract); the next OT is only created after a manager decides on the completed one, so contracts never auto-spawn unattended work.
 - Agent write actions validate inputs and resolve unique role-filtered profiles and OT references before mutation; OT creation relies on the existing reference trigger to avoid collisions.
 - Equipment manuals and frequent faults are keyed by normalized brand+model (src/lib/equipmentModelKey.ts), not by equipment id, so knowledge is shared across identical machines of every client.
+- AI fault diagnosis runs in the sugerir-verificacoes edge function via @lovable.dev/ai-gateway, authorizing through get_equipment_history; keeps prompts and history access server-side.
