@@ -12,3 +12,4 @@
 - [x] Add remover_tecnico_ot, agendar_ot, criar_ot and registar_horas_ot with validated inputs.
 - [x] Test the four write actions without changing live OTs, deploy and verify access protection (17 local tests; authenticated missing-target requests and incorrect-secret rejection).
 - [x] Restrict /assistente-digital to managers: route guard, sidebar item removed for employees, page shows access denied, and assistente-proxy rejects non-managers (6 tests passed; live 403 for employee, manager reaches message handling).
+- [ ] Email de nova solicitação chega a geral@nrenergias.pt — descobrir qual conta de gerente usa esse email e corrigir o destinatário.
