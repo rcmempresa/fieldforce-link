@@ -80,42 +80,15 @@ export function EquipmentHistory({ equipmentId }: Props) {
   const load = async () => {
     setLoading(true);
 
-    const { data: links } = await supabase
-      .from("work_order_equipments")
-      .select("work_order_id")
-      .eq("equipment_id", equipmentId);
-
-    const ids = (links || []).map((l: any) => l.work_order_id);
-
-    if (ids.length === 0) {
-      setOrders([]);
-      setReports([]);
-      setAttachments([]);
-      setLoaded(true);
+    const { data, error } = await (supabase.rpc as any)("get_equipment_history", { _equipment: equipmentId });
+    if (error) {
+      toast({ title: "Erro ao carregar histórico", description: error.message, variant: "destructive" });
       setLoading(false);
       return;
     }
-
-    const [ordersRes, reportsRes, attachmentsRes] = await Promise.all([
-      supabase
-        .from("work_orders")
-        .select("id, reference, title, status, scheduled_date, created_at")
-        .in("id", ids)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("maintenance_reports")
-        .select(
-          "id, work_order_id, report_type, report_date, technician_name, status, pdf_url, created_at"
-        )
-        .in("work_order_id", ids)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("attachments")
-        .select("id, work_order_id, filename, url, uploaded_at")
-        .in("work_order_id", ids)
-        .order("uploaded_at", { ascending: false }),
-    ]);
-
+    const ordersRes = { data: data?.orders };
+    const reportsRes = { data: data?.reports };
+    const attachmentsRes = { data: data?.attachments };
     setOrders((ordersRes.data as any) || []);
     setReports((reportsRes.data as any) || []);
     setAttachments(
