@@ -23,8 +23,8 @@ export default function ContractDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { userRole } = useAuth() as any;
-  const isManager = userRole === "manager";
+  const { roles } = useAuth();
+  const isManager = roles.includes("manager");
   const [contract, setContract] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
