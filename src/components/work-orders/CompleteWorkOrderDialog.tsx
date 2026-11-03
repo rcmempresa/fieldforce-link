@@ -135,6 +135,10 @@ export function CompleteWorkOrderDialog({
 
   const handleCompleteWithCheck = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!note.trim()) {
+      toast({ title: "Observação obrigatória", description: "Escreva uma observação antes de fechar a OT", variant: "destructive" });
+      return;
+    }
     if (signatureEmpty || !signatureRef.current) {
       toast({
         title: "Erro",
@@ -648,7 +652,7 @@ export function CompleteWorkOrderDialog({
               </p>
 
               <div className="space-y-2">
-                <Label htmlFor="note-complete">Notas (opcional)</Label>
+                <Label htmlFor="note-complete">Observação *</Label>
                 <Textarea
                   id="note-complete"
                   placeholder="Adicione observações sobre o trabalho realizado..."

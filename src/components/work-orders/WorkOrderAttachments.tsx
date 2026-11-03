@@ -179,7 +179,7 @@ export function WorkOrderAttachments({ workOrderId, isManager, currentUserId }: 
   };
 
   const canDelete = (attachment: Attachment) => {
-    return isManager || attachment.uploaded_by === currentUserId;
+    return isManager;
   };
 
   return (

@@ -63,6 +63,7 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
   ],
   client: [
     { label: "Painel", to: "/client", icon: LayoutDashboard },
+    { label: "Equipamentos", to: "/client?equipamentos=1", icon: HardDrive },
     { label: "Contratos", to: "/my-contracts", icon: FileSignature },
   ],
 };

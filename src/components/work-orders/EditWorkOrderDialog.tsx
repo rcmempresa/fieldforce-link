@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { uploadWorkOrderAttachments } from "@/lib/uploadWorkOrderAttachments";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +54,7 @@ export function EditWorkOrderDialog({
   onSuccess,
 }: EditWorkOrderDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [newFiles, setNewFiles] = useState<File[]>([]);
   const [eqOpen, setEqOpen] = useState(false);
   const [eqCount, setEqCount] = useState(0);
   const loadEqCount = async () => {
@@ -362,6 +364,7 @@ export function EditWorkOrderDialog({
       title: "Sucesso",
       description: "Ordem de trabalho atualizada com sucesso",
     });
+    if (newFiles.length) { await uploadWorkOrderAttachments(workOrder.id, newFiles); setNewFiles([]); }
     onOpenChange(false);
     onSuccess();
   };
@@ -520,6 +523,12 @@ export function EditWorkOrderDialog({
             canRemove
             onSaved={() => { loadEqCount(); onSuccess(); }}
           />
+
+          <div className="space-y-2">
+            <Label htmlFor="wo-new-files">Anexos</Label>
+            <Input id="wo-new-files" type="file" multiple onChange={(e) => setNewFiles(Array.from(e.target.files || []))} />
+            {newFiles.length > 0 && <p className="text-xs text-muted-foreground">{newFiles.length} ficheiro(s) selecionado(s)</p>}
+          </div>
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
