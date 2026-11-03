@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +14,8 @@ import { DataPagination } from "@/components/ui/data-pagination";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { FileSignature, Plus, Search } from "lucide-react";
+import { FileSignature, Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ContractScheduleFields, scheduleToIso } from "@/components/contracts/ContractScheduleFields";
 
 export const CONTRACT_TYPE_LABEL: Record<string, string> = {
@@ -38,7 +39,7 @@ interface Contract {
   status: string;
   notes: string | null;
   profiles: { name: string; company_name: string | null } | null;
-  maintenance_contract_equipments: { equipments: { name: string } | null }[];
+  maintenance_contract_equipments: { equipment_id: string; equipments: { name: string } | null }[];
 }
 
 const PAGE = 10;
@@ -63,12 +64,57 @@ export default function Contracts() {
   const [saving, setSaving] = useState(false);
   const [schedule, setSchedule] = useState("");
   const [technician, setTechnician] = useState("");
+  const [editing, setEditing] = useState<Contract | null>(null);
+  const [editExtra, setEditExtra] = useState({ next_date: "", status: "active" });
+  const [toDelete, setToDelete] = useState<Contract | null>(null);
+  const pendingSel = useRef<string[] | null>(null);
+
+  const openNew = () => {
+    setEditing(null); pendingSel.current = null;
+    setForm({ client_id: "", contract_type: "hvac", frequency: "monthly", start_date: new Date().toISOString().slice(0, 10), notes: "" });
+    setSchedule(""); setTechnician(""); setOpen(true);
+  };
+  const openEdit = (c: Contract) => {
+    setEditing(c);
+    pendingSel.current = c.maintenance_contract_equipments.map((e) => e.equipment_id);
+    setForm({ client_id: c.client_id, contract_type: c.contract_type, frequency: c.frequency, start_date: c.start_date, notes: c.notes || "" });
+    setEditExtra({ next_date: c.next_date, status: c.status });
+    setSelected(pendingSel.current);
+    setOpen(true);
+  };
+  const saveEdit = async () => {
+    if (!editing) return;
+    if (!selected.length) { toast({ title: "Escolha pelo menos um equipamento", variant: "destructive" }); return; }
+    setSaving(true);
+    const { error } = await supabase.from("maintenance_contracts").update({
+      contract_type: form.contract_type, frequency: form.frequency, notes: form.notes || null,
+      next_date: editExtra.next_date || editing.next_date, status: editExtra.status,
+    }).eq("id", editing.id);
+    if (!error) {
+      const before = editing.maintenance_contract_equipments.map((e) => e.equipment_id);
+      const removed = before.filter((id) => !selected.includes(id));
+      const added = selected.filter((id) => !before.includes(id));
+      if (removed.length) await supabase.from("maintenance_contract_equipments").delete().eq("contract_id", editing.id).in("equipment_id", removed);
+      if (added.length) await supabase.from("maintenance_contract_equipments").insert(added.map((id) => ({ contract_id: editing.id, equipment_id: id, unit_part: "both" })));
+    }
+    setSaving(false);
+    if (error) { toast({ title: "Erro ao guardar", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Contrato atualizado" });
+    setOpen(false); setEditing(null); load();
+  };
+  const confirmDelete = async () => {
+    if (!toDelete) return;
+    const { error } = await supabase.from("maintenance_contracts").delete().eq("id", toDelete.id);
+    if (error) toast({ title: "Erro ao eliminar", description: error.message, variant: "destructive" });
+    else toast({ title: "Contrato eliminado", description: "As OTs já criadas mantêm-se." });
+    setToDelete(null); load();
+  };
 
   const load = async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("maintenance_contracts")
-      .select("*, profiles!maintenance_contracts_client_id_fkey(name, company_name), maintenance_contract_equipments(equipments(name))")
+      .select("*, profiles!maintenance_contracts_client_id_fkey(name, company_name), maintenance_contract_equipments(equipment_id, equipments(name))")
       .order("created_at", { ascending: false });
     if (error) toast({ title: "Erro ao carregar contratos", description: error.message, variant: "destructive" });
     setContracts((data as any) || []);
@@ -87,7 +133,7 @@ export default function Contracts() {
   }, []);
 
   useEffect(() => {
-    setSelected([]);
+    if (pendingSel.current) { setSelected(pendingSel.current); pendingSel.current = null; } else setSelected([]);
     if (!form.client_id) return setEquipments([]);
     supabase.from("equipments").select("id, name, serial_number, equipment_type").eq("client_id", form.client_id).order("name")
       .then(({ data }) => setEquipments(data || []));
@@ -147,7 +193,7 @@ export default function Contracts() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
           <CardTitle className="flex items-center gap-2"><FileSignature className="h-5 w-5" /> Contratos de manutenção</CardTitle>
-          <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" /> Novo contrato</Button>
+          <Button onClick={openNew}><Plus className="h-4 w-4 mr-1" /> Novo contrato</Button>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-2 sm:grid-cols-3">
@@ -182,6 +228,10 @@ export default function Contracts() {
                     <Badge variant="secondary">{CONTRACT_TYPE_LABEL[c.contract_type]}</Badge>
                     <Badge variant="outline">{FREQUENCY_LABEL[c.frequency]}</Badge>
                     <Badge variant={c.status === "active" ? "default" : "outline"}>{c.status === "active" ? "Ativo" : "Terminado"}</Badge>
+                    <div className="ml-auto flex gap-1">
+                      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); openEdit(c); }}><Pencil className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Editar</span></Button>
+                      <Button size="sm" variant="outline" className="text-destructive" onClick={(e) => { e.stopPropagation(); setToDelete(c); }}><Trash2 className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Eliminar</span></Button>
+                    </div>
                   </div>
                   <p className="text-sm text-muted-foreground break-words">
                     {c.maintenance_contract_equipments.map((e) => e.equipments?.name).filter(Boolean).join(", ") || "Sem equipamentos"}
@@ -199,7 +249,7 @@ export default function Contracts() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Novo contrato de manutenção</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? "Editar contrato de manutenção" : "Novo contrato de manutenção"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
               <Label>Tipo</Label>
@@ -217,7 +267,7 @@ export default function Contracts() {
             </div>
             <div className="space-y-1">
               <Label>Cliente</Label>
-              <Select value={form.client_id} onValueChange={(v) => setForm({ ...form, client_id: v })}>
+              <Select value={form.client_id} disabled={!!editing} onValueChange={(v) => setForm({ ...form, client_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Escolher cliente" /></SelectTrigger>
                 <SelectContent>{clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent>
               </Select>
@@ -237,6 +287,21 @@ export default function Contracts() {
                 )}
               </div>
             )}
+            {editing ? (
+              <>
+                <div className="space-y-1">
+                  <Label>Próxima intervenção</Label>
+                  <Input type="date" value={editExtra.next_date} onChange={(e) => setEditExtra({ ...editExtra, next_date: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Estado</Label>
+                  <Select value={editExtra.status} onValueChange={(v) => setEditExtra({ ...editExtra, status: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="active">Ativo</SelectItem><SelectItem value="ended">Terminado</SelectItem></SelectContent>
+                  </Select>
+                </div>
+              </>
+            ) : (
             <ContractScheduleFields
               label="Data e hora da primeira intervenção"
               value={schedule}
@@ -244,6 +309,7 @@ export default function Contracts() {
               technician={technician}
               onTechnicianChange={setTechnician}
             />
+            )}
             <div className="space-y-1">
               <Label>Notas</Label>
               <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
@@ -251,10 +317,23 @@ export default function Contracts() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button onClick={save} disabled={saving}>{saving ? "A guardar..." : "Criar contrato"}</Button>
+            <Button onClick={editing ? saveEdit : save} disabled={saving}>{saving ? "A guardar..." : editing ? "Guardar" : "Criar contrato"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar contrato?</AlertDialogTitle>
+            <AlertDialogDescription>O contrato de {toDelete?.profiles?.company_name || toDelete?.profiles?.name} é apagado. As OTs já criadas continuam a existir, mas deixam de estar ligadas ao contrato.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={confirmDelete}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

@@ -61,7 +61,10 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
   employee: [
     { label: "Painel", to: "/employee", icon: LayoutDashboard },
   ],
-  client: [{ label: "Painel", to: "/client", icon: LayoutDashboard }],
+  client: [
+    { label: "Painel", to: "/client", icon: LayoutDashboard },
+    { label: "Contratos", to: "/my-contracts", icon: FileSignature },
+  ],
 };
 
 export function DashboardLayout({ children, title }: DashboardLayoutProps) {
