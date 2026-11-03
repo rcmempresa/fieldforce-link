@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { uploadWorkOrderAttachments } from "@/lib/uploadWorkOrderAttachments";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +63,7 @@ export function CreateWorkOrderDialog({
   const [busyEmployeeIds, setBusyEmployeeIds] = useState<Set<string>>(new Set());
   const [overbookingConfirm, setOverbookingConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [newFiles, setNewFiles] = useState<File[]>([]);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -386,6 +388,7 @@ export function CreateWorkOrderDialog({
       scheduled_date: "",
       address: "",
     });
+    if (newFiles.length) { await uploadWorkOrderAttachments(workOrder.id, newFiles); setNewFiles([]); }
     onOpenChange(false);
     onSuccess();
   };
@@ -548,6 +551,12 @@ export function CreateWorkOrderDialog({
               })()}
             </div>
           )}
+
+          <div className="space-y-2">
+            <Label htmlFor="wo-new-files">Anexos</Label>
+            <Input id="wo-new-files" type="file" multiple onChange={(e) => setNewFiles(Array.from(e.target.files || []))} />
+            {newFiles.length > 0 && <p className="text-xs text-muted-foreground">{newFiles.length} ficheiro(s) selecionado(s)</p>}
+          </div>
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
