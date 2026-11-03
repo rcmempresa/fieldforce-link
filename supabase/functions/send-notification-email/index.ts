@@ -370,6 +370,25 @@ async function sendWorkOrderCreatedToManagers(supabaseAdmin: any, data: any): Pr
     }
   }
 
+  // Always copy the company inbox, unless a manager already received it there.
+  try {
+    const managerEmails = await getManagerEmails(supabaseAdmin);
+    if (!managerEmails.some((e) => e.toLowerCase() === COMPANY_INBOX)) {
+      const html = `<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+        <h1 style="color: #f59e0b; font-size: 24px;">Nova Solicitação de Serviço</h1>
+        <p><strong>${data.workOrderReference}</strong> - ${data.workOrderTitle}</p>
+        <p>Cliente: ${data.clientName || 'N/A'}</p>
+        <p style="color: #8898aa; font-size: 12px;">Este é um email automático.</p></div>`;
+      const r = await sendEmailViaResend(COMPANY_INBOX, subject, html);
+      await supabaseAdmin.from('email_logs').insert({
+        email: COMPANY_INBOX, subject, notification_type: 'work_order_created',
+        status: r.ok ? 'sent' : 'failed', error_message: r.ok ? null : await r.text(), work_order_id: workOrderId,
+      });
+    }
+  } catch (e) {
+    console.error("Error sending company copy:", e);
+  }
+
   return new Response(JSON.stringify({ success: true }), {
     status: 200,
     headers: { "Content-Type": "application/json", ...corsHeaders },
