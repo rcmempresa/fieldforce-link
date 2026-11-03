@@ -166,7 +166,7 @@ async function sendMissingMaterialToManagers(supabaseAdmin: any, data: any): Pro
     try {
       const { data: managerProfile } = await supabaseAdmin
         .from("profiles")
-        .select("name")
+        .select("name, notification_email")
         .eq("id", manager.user_id)
         .single();
 
@@ -176,6 +176,8 @@ async function sendMissingMaterialToManagers(supabaseAdmin: any, data: any): Pro
         console.error("Failed to get manager email for:", manager.user_id);
         continue;
       }
+
+      const to = managerProfile?.notification_email || user.email;
 
       const html = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
@@ -197,7 +199,7 @@ async function sendMissingMaterialToManagers(supabaseAdmin: any, data: any): Pro
         </div>
       `;
 
-      const response = await sendEmailViaResend(user.email, subject, html, materialAttachments);
+      const response = await sendEmailViaResend(to, subject, html, materialAttachments);
 
       if (!response.ok) {
         const result = await response.text();
@@ -205,7 +207,7 @@ async function sendMissingMaterialToManagers(supabaseAdmin: any, data: any): Pro
         
         await supabaseAdmin.from('email_logs').insert({
           user_id: manager.user_id,
-          email: user.email,
+          email: to,
           subject,
           notification_type: 'work_order_missing_material',
           status: 'failed',
@@ -214,11 +216,11 @@ async function sendMissingMaterialToManagers(supabaseAdmin: any, data: any): Pro
         });
       } else {
         const result = await response.json();
-        console.log("Email sent successfully to manager:", user.email, result);
+        console.log("Email sent successfully to manager:", to, result);
         
         await supabaseAdmin.from('email_logs').insert({
           user_id: manager.user_id,
-          email: user.email,
+          email: to,
           subject,
           notification_type: 'work_order_missing_material',
           status: 'sent',
@@ -291,7 +293,7 @@ async function sendWorkOrderCreatedToManagers(supabaseAdmin: any, data: any): Pr
     try {
       const { data: managerProfile } = await supabaseAdmin
         .from("profiles")
-        .select("name")
+        .select("name, notification_email")
         .eq("id", manager.user_id)
         .single();
 
@@ -301,6 +303,8 @@ async function sendWorkOrderCreatedToManagers(supabaseAdmin: any, data: any): Pr
         console.error("Failed to get manager email for:", manager.user_id);
         continue;
       }
+
+      const to = managerProfile?.notification_email || user.email;
 
       const html = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 20px;">
@@ -318,7 +322,7 @@ async function sendWorkOrderCreatedToManagers(supabaseAdmin: any, data: any): Pr
         </div>
       `;
 
-      const response = await sendEmailViaResend(user.email, subject, html);
+      const response = await sendEmailViaResend(to, subject, html);
 
       if (!response.ok) {
         const result = await response.text();
@@ -326,7 +330,7 @@ async function sendWorkOrderCreatedToManagers(supabaseAdmin: any, data: any): Pr
         
         await supabaseAdmin.from('email_logs').insert({
           user_id: manager.user_id,
-          email: user.email,
+          email: to,
           subject,
           notification_type: 'work_order_created',
           status: 'failed',
@@ -335,11 +339,11 @@ async function sendWorkOrderCreatedToManagers(supabaseAdmin: any, data: any): Pr
         });
       } else {
         const result = await response.json();
-        console.log("Email sent successfully to manager:", user.email, result);
+        console.log("Email sent successfully to manager:", to, result);
         
         await supabaseAdmin.from('email_logs').insert({
           user_id: manager.user_id,
-          email: user.email,
+          email: to,
           subject,
           notification_type: 'work_order_created',
           status: 'sent',
@@ -410,7 +414,13 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Failed to get user email");
     }
 
-    const to = user.email;
+    const { data: recipientProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("notification_email")
+      .eq("id", userId)
+      .maybeSingle();
+
+    const to = recipientProfile?.notification_email || user.email;
 
     let html: string;
     let subject: string;
