@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -68,6 +68,14 @@ export default function Contracts() {
   const [editExtra, setEditExtra] = useState({ next_date: "", status: "active" });
   const [toDelete, setToDelete] = useState<Contract | null>(null);
   const pendingSel = useRef<string[] | null>(null);
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    const e = params.get("edit"), d = params.get("delete");
+    if ((!e && !d) || !contracts.length) return;
+    const c = contracts.find((x) => x.id === (e || d));
+    if (c) { e ? openEdit(c) : setToDelete(c); }
+    setParams({}, { replace: true });
+  }, [contracts, params]);
 
   const openNew = () => {
     setEditing(null); pendingSel.current = null;
@@ -222,7 +230,7 @@ export default function Contracts() {
           ) : (
             <div className="space-y-2">
               {rows.map((c) => (
-                <div key={c.id} className="rounded-lg border p-3 space-y-1 cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/work-orders?contract=${c.id}`)}>
+                <div key={c.id} className="rounded-lg border p-3 space-y-1 cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/contracts/${c.id}`)}>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{c.profiles?.company_name || c.profiles?.name}</span>
                     <Badge variant="secondary">{CONTRACT_TYPE_LABEL[c.contract_type]}</Badge>

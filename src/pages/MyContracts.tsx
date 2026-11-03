@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,7 @@ const fmt = (d: string) => d.split("-").reverse().join("/");
 
 export default function MyContracts() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,7 +36,7 @@ export default function MyContracts() {
           {loading ? <p className="text-sm text-muted-foreground">A carregar...</p> : rows.length === 0 ? (
             <p className="text-sm text-muted-foreground">Não tem contratos de manutenção.</p>
           ) : rows.map((c) => (
-            <div key={c.id} className="rounded-lg border p-3 space-y-1">
+            <div key={c.id} className="rounded-lg border p-3 space-y-1 cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/contracts/${c.id}`)}>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">{CONTRACT_TYPE_LABEL[c.contract_type]}</Badge>
                 <Badge variant="outline">{FREQUENCY_LABEL[c.frequency]}</Badge>
