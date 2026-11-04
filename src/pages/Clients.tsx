@@ -4,7 +4,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Mail, Phone, Trash2, Edit, Building2, MapPin, Package, ChevronDown, ChevronUp, Plus, CalendarIcon, Briefcase, ArrowLeft, Clock, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Search, Mail, Phone, Trash2, Edit, Building2, MapPin, Package, ChevronDown, ChevronUp, Plus, CalendarIcon, Briefcase, ArrowLeft, Clock, ChevronLeft, ChevronRight, X, Hash } from "lucide-react";
 import { EquipmentAttachments } from "@/components/equipments/EquipmentAttachments";
 import { EquipmentHistory } from "@/components/equipments/EquipmentHistory";
 import { EquipmentKnowledge } from "@/components/equipments/EquipmentKnowledge";
@@ -57,6 +57,7 @@ interface Client {
   created_at: string;
   company_name?: string | null;
   address?: string | null;
+  nif?: string | null;
   equipments?: Equipment[];
 }
 
@@ -237,7 +238,8 @@ export default function Clients() {
             client.email.toLowerCase().includes(q) ||
             (client.company_name || "").toLowerCase().includes(q) ||
             (client.phone || "").toLowerCase().includes(q) ||
-            (client.address || "").toLowerCase().includes(q)
+            (client.address || "").toLowerCase().includes(q) ||
+            (client.nif || "").toLowerCase().includes(q)
         )
       : [...clients];
     setFilteredClients(filtered);
@@ -666,6 +668,12 @@ export default function Clients() {
                               <div className="flex items-center gap-2">
                                 <MapPin className="h-4 w-4 flex-shrink-0" />
                                 <span>{client.address}</span>
+                              </div>
+                            )}
+                            {client.nif && (
+                              <div className="flex items-center gap-2">
+                                <Hash className="h-4 w-4 flex-shrink-0" />
+                                <span>NIF: {client.nif}</span>
                               </div>
                             )}
                           </div>
