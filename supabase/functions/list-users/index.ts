@@ -176,6 +176,7 @@ serve(async (req) => {
         phone: profile?.phone || null,
         company_name: profile?.company_name || null,
         address: profile?.address || null,
+        nif: profile?.nif || null,
         role: userRole.role,
         approved: userRole.approved,
         created_at: userRole.created_at,

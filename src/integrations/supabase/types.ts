@@ -664,6 +664,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          nif: string | null
           notification_email: string | null
           phone: string | null
           updated_at: string
@@ -674,6 +675,7 @@ export type Database = {
           created_at?: string
           id: string
           name: string
+          nif?: string | null
           notification_email?: string | null
           phone?: string | null
           updated_at?: string
@@ -684,6 +686,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          nif?: string | null
           notification_email?: string | null
           phone?: string | null
           updated_at?: string

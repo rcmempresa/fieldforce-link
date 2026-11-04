@@ -64,7 +64,7 @@ serve(async (req) => {
     }
 
     // Parse request body
-    const { email, password, name, phone, company_name, address, role } = await req.json();
+    const { email, password, name, phone, company_name, address, nif, role } = await req.json();
 
     if (!email || !password || !name || !role) {
       return new Response(
@@ -109,6 +109,7 @@ serve(async (req) => {
         phone: phone || null,
         company_name: company_name || null,
         address: address || null,
+        nif: nif || null,
       })
       .eq('id', newUserId);
 
