@@ -18,6 +18,7 @@ interface Employee {
   approved: boolean;
   company_name?: string | null;
   address?: string | null;
+  nif?: string | null;
 }
 
 interface EditEmployeeDialogProps {
@@ -34,6 +35,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, onSuccess }: 
     phone: "",
     company_name: "",
     address: "",
+    nif: "",
     role: "employee" as "employee" | "client",
   });
   const { toast } = useToast();
@@ -45,6 +47,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, onSuccess }: 
         phone: employee.phone || "",
         company_name: employee.company_name || "",
         address: employee.address || "",
+        nif: employee.nif || "",
         role: employee.role as "employee" | "client",
       });
     }
@@ -65,6 +68,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, onSuccess }: 
           phone: formData.phone || null,
           company_name: formData.company_name || null,
           address: formData.address || null,
+          nif: formData.nif || null,
         })
         .eq("id", employee.id);
 
@@ -169,6 +173,18 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, onSuccess }: 
               id="edit-address"
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="edit-nif">NIF</Label>
+            <Input
+              id="edit-nif"
+              value={formData.nif}
+              onChange={(e) => setFormData({ ...formData, nif: e.target.value })}
+              inputMode="numeric"
+              maxLength={9}
+              placeholder="9 dígitos"
             />
           </div>
 

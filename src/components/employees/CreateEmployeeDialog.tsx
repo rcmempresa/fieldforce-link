@@ -175,6 +175,18 @@ export function CreateEmployeeDialog({ onSuccess }: CreateEmployeeDialogProps) {
             />
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="nif">NIF</Label>
+            <Input
+              id="nif"
+              value={formData.nif}
+              onChange={(e) => setFormData({ ...formData, nif: e.target.value })}
+              inputMode="numeric"
+              maxLength={9}
+              placeholder="9 dígitos"
+            />
+          </div>
+
           <div className="flex gap-2 justify-end">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancelar
