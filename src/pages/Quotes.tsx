@@ -88,6 +88,7 @@ interface ClientOption {
   name: string;
   phone: string | null;
   address: string | null;
+  nif: string | null;
 }
 
 interface WorkOrderOption {
@@ -156,10 +157,10 @@ export default function Quotes() {
       const { data: roles } = await supabase.from("user_roles").select("user_id").eq("role", "client").eq("approved", true);
       const ids = (roles ?? []).map((r) => r.user_id);
       if (!ids.length) return;
-      const { data } = await supabase.from("profiles").select("id, name, company_name, phone, address").in("id", ids);
+      const { data } = await supabase.from("profiles").select("id, name, company_name, phone, address, nif").in("id", ids);
       setClients(
         (data ?? [])
-          .map((p) => ({ id: p.id, label: p.company_name || p.name, name: p.company_name || p.name, phone: p.phone, address: p.address }))
+          .map((p) => ({ id: p.id, label: p.company_name || p.name, name: p.company_name || p.name, phone: p.phone, address: p.address, nif: p.nif }))
           .sort((a, b) => a.label.localeCompare(b.label)),
       );
     };
@@ -259,6 +260,7 @@ export default function Quotes() {
       client_name: c?.name ?? f.client_name,
       client_phone: c?.phone ?? "",
       client_address: c?.address ?? "",
+      client_nif: c?.nif ?? f.client_nif,
     }));
     if (id) {
       void supabase

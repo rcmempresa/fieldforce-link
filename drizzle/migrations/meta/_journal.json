@@ -113,6 +113,13 @@
       "when": 1793715199794,
       "tag": "0015_equipment_history_allow_owner",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793796307112,
+      "tag": "0016_add_profiles_nif",
+      "breakpoints": true
     }
   ]
 }

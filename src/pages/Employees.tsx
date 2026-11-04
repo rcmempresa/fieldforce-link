@@ -40,6 +40,7 @@ interface Employee {
   created_at: string;
   company_name?: string | null;
   address?: string | null;
+  nif?: string | null;
   workOrdersCount?: number;
 }
 

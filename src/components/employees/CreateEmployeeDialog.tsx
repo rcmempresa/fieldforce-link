@@ -22,6 +22,7 @@ export function CreateEmployeeDialog({ onSuccess }: CreateEmployeeDialogProps) {
     phone: "",
     company_name: "",
     address: "",
+    nif: "",
     role: "employee" as "employee" | "client",
   });
   const { toast } = useToast();
@@ -40,6 +41,7 @@ export function CreateEmployeeDialog({ onSuccess }: CreateEmployeeDialogProps) {
           phone: formData.phone || null,
           company_name: formData.company_name || null,
           address: formData.address || null,
+          nif: formData.nif || null,
           role: formData.role,
         },
       });
@@ -67,6 +69,7 @@ export function CreateEmployeeDialog({ onSuccess }: CreateEmployeeDialogProps) {
         phone: "",
         company_name: "",
         address: "",
+        nif: "",
         role: "employee",
       });
       onSuccess();
@@ -169,6 +172,18 @@ export function CreateEmployeeDialog({ onSuccess }: CreateEmployeeDialogProps) {
               id="address"
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="nif">NIF</Label>
+            <Input
+              id="nif"
+              value={formData.nif}
+              onChange={(e) => setFormData({ ...formData, nif: e.target.value })}
+              inputMode="numeric"
+              maxLength={9}
+              placeholder="9 dígitos"
             />
           </div>
 

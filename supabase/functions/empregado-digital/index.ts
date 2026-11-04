@@ -30,6 +30,7 @@ const writeSchemas = {
     phone: z.string().trim().min(1).max(50).optional(),
     address: z.string().trim().min(1).max(500).optional(),
     name: z.string().trim().min(1).max(200).optional(),
+    nif: z.string().trim().min(1).max(20).optional(),
     company_name: z.string().trim().min(1).max(200).optional() }),
   apagar_registo_horas: z.object({ reference: referenceInput,
     date: dateInput.default(() => new Date().toISOString().slice(0, 10)),
@@ -193,7 +194,7 @@ Deno.serve(async (req) => {
         if (rErr) throw rErr;
         const ids = (roles ?? []).map((r) => r.user_id);
         if (!ids.length) return json({ data: [], count: 0 });
-        let q = db.from("profiles").select("id, name, company_name, phone, address").in("id", ids).order("company_name", { ascending: true, nullsFirst: false }).limit(limit);
+        let q = db.from("profiles").select("id, name, company_name, phone, address, nif").in("id", ids).order("company_name", { ascending: true, nullsFirst: false }).limit(limit);
         const search = str(p.search ?? p.nome ?? p.query, 100);
         if (search) {
           const s = search.replace(/[%,()]/g, " ");
