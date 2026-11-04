@@ -498,6 +498,7 @@ export default function ManagerDashboard() {
         )
       `)
       .eq("needs_scheduling", true)
+      .is("scheduled_date", null)
       .neq("status", "cancelled")
       .neq("status", "completed")
       .order("created_at", { ascending: false });
@@ -884,7 +885,7 @@ export default function ManagerDashboard() {
     }
 
     const updateData: any = {
-      status: "approved",
+      status: "pending",
       scheduled_date: new Date(scheduledDate).toISOString(),
       needs_scheduling: false,
     };
