@@ -149,7 +149,7 @@ export default function WorkOrders() {
       if (statusFilter === "missing_material") {
         filtered = filtered.filter((order) => missingIds.has(order.id));
       } else if (statusFilter === "needs_scheduling") {
-        filtered = filtered.filter((order) => order.needs_scheduling);
+        filtered = filtered.filter((order) => order.needs_scheduling && !order.scheduled_date);
       } else {
         filtered = filtered.filter((order) => order.status === statusFilter);
       }
@@ -350,7 +350,7 @@ export default function WorkOrders() {
                           {getPriorityLabel(order.priority)}
                         </span>
                         <DaysOpenBadge createdAt={order.created_at} status={order.status} />
-                        {order.needs_scheduling && (
+                        {order.needs_scheduling && !order.scheduled_date && (
                           <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-amber-500/15 text-amber-600 border border-amber-500/30">
                             Aguarda data
                           </span>
