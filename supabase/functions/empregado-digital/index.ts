@@ -224,7 +224,7 @@ Deno.serve(async (req) => {
         const today = new Date().toISOString().slice(0, 10);
         const { data, error } = await db.from("work_orders")
           .select("id, reference, title, status, priority, scheduled_date, client:profiles!work_orders_client_id_fkey(id, name, company_name), work_order_assignments(user_id, profiles!work_order_assignments_user_id_fkey(name))")
-          .in("status", ["pending", "in_progress"])
+          .in("status", ["pending", "approved", "in_progress"])
           .lt("scheduled_date", today)
           .order("scheduled_date", { ascending: true })
           .limit(limit);
@@ -313,7 +313,7 @@ Deno.serve(async (req) => {
         for (let offset = 0; ; offset += 1000) {
           const { data: assignments, error } = await db.from("work_order_assignments")
             .select("user_id, work_orders!inner(status)")
-            .in("work_orders.status", ["pending", "in_progress"])
+            .in("work_orders.status", ["pending", "approved", "in_progress"])
             .order("id", { ascending: true }).range(offset, offset + 999);
           if (error) throw error;
           for (const assignment of assignments as any[]) {

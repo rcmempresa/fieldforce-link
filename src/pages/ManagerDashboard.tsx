@@ -988,6 +988,8 @@ export default function ManagerDashboard() {
         return "bg-orange-500/10 text-orange-500";
       case "pending":
         return "bg-warning/10 text-warning";
+      case "approved":
+        return "bg-accent/15 text-accent";
       case "in_progress":
         return "bg-primary/10 text-primary";
       case "completed":
@@ -1007,6 +1009,8 @@ export default function ManagerDashboard() {
         return "Aguarda Aprovação";
       case "pending":
         return "Pendente";
+      case "approved":
+        return "Aprovada";
       case "in_progress":
         return "Em Progresso";
       case "completed":
