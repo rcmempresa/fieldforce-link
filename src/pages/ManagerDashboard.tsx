@@ -865,6 +865,15 @@ export default function ManagerDashboard() {
     const scheduledDate = scheduledDates[requestId];
     const request = pendingRequests.find(r => r.id === requestId);
 
+    if (!scheduledDate || (orderTechs[requestId] ?? []).length === 0) {
+      toast({
+        title: "Falta informação",
+        description: "Escolhe data e técnico para aprovar. Para aprovar sem data usa «Marcar como Pendente».",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Verificar se todos os funcionários estão ocupados naquele slot
     if (!force && scheduledDate && employees.length > 0) {
       const busy = busyByRequest[requestId] ?? new Set();
@@ -874,10 +883,11 @@ export default function ManagerDashboard() {
       }
     }
 
-    const updateData: any = { status: "pending" };
-    if (scheduledDate) {
-      updateData.scheduled_date = new Date(scheduledDate).toISOString();
-    }
+    const updateData: any = {
+      status: "approved",
+      scheduled_date: new Date(scheduledDate).toISOString(),
+      needs_scheduling: false,
+    };
 
     // Get client info for email
     const { data: workOrderData } = await supabase
@@ -927,9 +937,11 @@ export default function ManagerDashboard() {
       
       toast({
         title: "Sucesso",
-        description: scheduledDate ? "Solicitação aprovada e agendada" : "Solicitação aprovada",
+        description: "Solicitação aprovada e agendada",
       });
       fetchPendingRequests();
+      fetchPendingScheduling();
+      fetchUnassignedOrders();
       fetchStats();
       fetchRecentOrders();
       fetchCalendarOrders();
@@ -988,6 +1000,8 @@ export default function ManagerDashboard() {
         return "bg-orange-500/10 text-orange-500";
       case "pending":
         return "bg-warning/10 text-warning";
+      case "approved":
+        return "bg-accent/15 text-accent";
       case "in_progress":
         return "bg-primary/10 text-primary";
       case "completed":
@@ -1007,6 +1021,8 @@ export default function ManagerDashboard() {
         return "Aguarda Aprovação";
       case "pending":
         return "Pendente";
+      case "approved":
+        return "Aprovada";
       case "in_progress":
         return "Em Progresso";
       case "completed":
