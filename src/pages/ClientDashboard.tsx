@@ -150,7 +150,7 @@ export default function ClientDashboard() {
       .from("work_orders")
       .select("*", { count: "exact", head: true })
       .eq("client_id", user.id)
-      .in("status", ["pending", "in_progress"]);
+      .in("status", ["pending", "approved", "in_progress"]);
 
     // My equipments
     const { count: equipmentsCount } = await supabase
