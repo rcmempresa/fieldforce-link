@@ -127,6 +127,13 @@
       "when": 1793876633152,
       "tag": "0017_add_awaiting_purchase_order_status",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793885048486,
+      "tag": "0018_employees_update_faults",
+      "breakpoints": true
     }
   ]
 }

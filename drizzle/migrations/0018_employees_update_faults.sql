@@ -1,0 +1,1 @@
+CREATE POLICY "Employees update faults" ON public.equipment_model_faults FOR UPDATE TO authenticated USING (public.has_role(auth.uid(), 'employee'::app_role)) WITH CHECK (public.has_role(auth.uid(), 'employee'::app_role));

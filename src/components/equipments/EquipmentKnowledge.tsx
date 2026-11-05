@@ -131,7 +131,7 @@ export function EquipmentKnowledge({ brand, model }: { brand?: string | null; mo
         <TabsContent value="faults" className="space-y-2 pt-2">
           <div className="flex gap-2">
             <Input placeholder="Pesquisar avaria ou causa..." value={search} onChange={(e) => setSearch(e.target.value)} />
-            <Button size="sm" onClick={() => setEditing({ symptom: "", causes: "" })}><Plus className="mr-1 h-4 w-4" />{isManager ? "Avaria" : "Sugerir"}</Button>
+            <Button size="sm" onClick={() => setEditing({ symptom: "", causes: "" })}><Plus className="mr-1 h-4 w-4" />Avaria</Button>
           </div>
           {editing && (
             <div className="space-y-2 rounded-md border bg-muted/40 p-2">
@@ -152,11 +152,11 @@ export function EquipmentKnowledge({ brand, model }: { brand?: string | null; mo
                   <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${open === f.id ? "rotate-180" : ""}`} />
                   <span className="min-w-0">{f.symptom}</span>
                 </button>
+                {isStaff && (
+                  <Button size="icon" variant="ghost" onClick={() => setEditing({ id: f.id, symptom: f.symptom, causes: f.causes.join("\n") })} aria-label="Editar"><Pencil className="h-4 w-4" /></Button>
+                )}
                 {isManager && (
-                  <>
-                    <Button size="icon" variant="ghost" onClick={() => setEditing({ id: f.id, symptom: f.symptom, causes: f.causes.join("\n") })} aria-label="Editar"><Pencil className="h-4 w-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => removeFault(f.id)} aria-label="Apagar"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                  </>
+                  <Button size="icon" variant="ghost" onClick={() => removeFault(f.id)} aria-label="Apagar"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 )}
               </div>
               {open === f.id && (
