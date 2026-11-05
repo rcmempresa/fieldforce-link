@@ -24,6 +24,7 @@ interface WorkOrderData {
   completed_at: string;
   labor_hours_worked?: number;
   after_hours_worked?: number;
+  equipments?: Array<{ name?: string | null; brand?: string | null; model?: string | null; serial_number?: string | null; location?: string | null; unit_part?: string | null }>;
 }
 
 
@@ -85,14 +86,40 @@ export async function generateWorkOrderPDF(
   doc.text(`Nome: ${workOrderData.client_name}`, 20, sectionY + 8);
   doc.text(`Email: ${workOrderData.client_email}`, 20, sectionY + 16);
   
+  // Equipments
+  let eqY = sectionY + 28;
+  const eqs = workOrderData.equipments || [];
+  if (eqs.length) {
+    doc.setFont("helvetica", "bold");
+    doc.text("Equipamentos Intervencionados:", 20, eqY);
+    eqY += 8;
+    doc.setFont("helvetica", "normal");
+    for (const e of eqs) {
+      const part = e.unit_part === "indoor" ? " (Unidade interior)" : e.unit_part === "outdoor" ? " (Unidade exterior)" : "";
+      const head = [e.name, [e.brand, e.model].filter(Boolean).join(" ")].filter(Boolean).join(" - ") || "Equipamento";
+      const extra = [e.serial_number ? `N.º série: ${e.serial_number}` : "", e.location ? `Local: ${e.location}` : ""].filter(Boolean).join("  |  ");
+      const lines = doc.splitTextToSize(`• ${head}${part}`, 165);
+      doc.text(lines, 25, eqY);
+      eqY += lines.length * 6;
+      if (extra) {
+        doc.setFontSize(9);
+        doc.text(extra, 30, eqY);
+        doc.setFontSize(11);
+        eqY += 6;
+      }
+      eqY += 1;
+    }
+    eqY += 5;
+  }
+
   // Completion Details
   doc.setFont("helvetica", "bold");
-  doc.text("Detalhes da Conclusão:", 20, sectionY + 28);
+  doc.text("Detalhes da Conclusão:", 20, eqY);
   
   doc.setFont("helvetica", "normal");
   
   // Per-employee breakdown
-  let empY = sectionY + 36;
+  let empY = eqY + 8;
   for (const emp of employeeHoursList) {
     doc.text(`• ${emp.name}: ${formatDecimalHoursToTime(emp.hours)}`, 25, empY);
     empY += 6;

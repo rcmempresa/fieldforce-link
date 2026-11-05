@@ -364,6 +364,14 @@ export function CompleteWorkOrderDialog({
       const laborHours = employeeHoursList.reduce((s, e) => s + e.laborHours, 0);
       const afterHours = employeeHoursList.reduce((s, e) => s + e.afterHours, 0);
 
+      const { data: eqLinks } = await supabase
+        .from("work_order_equipments")
+        .select("unit_part, equipments(name, brand, model, serial_number, location)")
+        .eq("work_order_id", workOrderId);
+      const pdfEquipments = (eqLinks || [])
+        .filter((l: any) => l.equipments)
+        .map((l: any) => ({ ...l.equipments, unit_part: l.unit_part }));
+
       // Generate PDF with work order details
       const pdfBlob = await generateWorkOrderPDF(
         {
@@ -382,6 +390,7 @@ export function CompleteWorkOrderDialog({
           completed_at: now.toISOString(),
           labor_hours_worked: laborHours,
           after_hours_worked: afterHours,
+          equipments: pdfEquipments,
         },
 
         signatureDataUrl,
