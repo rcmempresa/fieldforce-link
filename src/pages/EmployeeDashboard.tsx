@@ -347,6 +347,8 @@ export default function EmployeeDashboard() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case "awaiting_purchase_order":
+        return "bg-purple-500/10 text-purple-500";
       case "pending":
         return "bg-warning/10 text-warning";
       case "approved":
@@ -364,6 +366,8 @@ export default function EmployeeDashboard() {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
+      case "awaiting_purchase_order":
+        return "Aguarda Nota de Encomenda";
       case "pending":
         return "Pendente";
       case "approved":

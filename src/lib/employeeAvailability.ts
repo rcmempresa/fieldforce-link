@@ -18,6 +18,7 @@ export const BLOCKING_STATUSES = [
   "approved",
   "in_progress",
   "awaiting_approval",
+  "awaiting_purchase_order",
 ] as const;
 
 export interface BusyAssignment {

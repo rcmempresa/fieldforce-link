@@ -54,6 +54,7 @@ const statusLabels: Record<string, string> = {
   completed: "Concluída",
   cancelled: "Cancelada",
   awaiting_approval: "Aguarda Aprovação",
+  awaiting_purchase_order: "Aguarda Nota de Encomenda",
   invoiced: "Faturada",
 };
 

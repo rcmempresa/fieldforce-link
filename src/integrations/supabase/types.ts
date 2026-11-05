@@ -1221,6 +1221,7 @@ export type Database = {
         | "cancelled"
         | "awaiting_approval"
         | "invoiced"
+        | "awaiting_purchase_order"
       work_regime: "labor" | "after"
     }
     CompositeTypes: {
@@ -1374,6 +1375,7 @@ export const Constants = {
         "cancelled",
         "awaiting_approval",
         "invoiced",
+        "awaiting_purchase_order",
       ],
       work_regime: ["labor", "after"],
     },

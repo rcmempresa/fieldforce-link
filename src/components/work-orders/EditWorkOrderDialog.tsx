@@ -408,6 +408,7 @@ export function EditWorkOrderDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="pending">Pendente</SelectItem>
+                  <SelectItem value="awaiting_purchase_order">Aguarda Nota de Encomenda</SelectItem>
                   <SelectItem value="approved">Aprovada</SelectItem>
                   <SelectItem value="in_progress">Em Progresso</SelectItem>
                   <SelectItem value="completed">Concluída</SelectItem>

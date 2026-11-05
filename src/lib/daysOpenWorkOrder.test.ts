@@ -36,6 +36,7 @@ describe("isOpenStatus", () => {
     expect(isOpenStatus("pending")).toBe(true);
     expect(isOpenStatus("in_progress")).toBe(true);
     expect(isOpenStatus("awaiting_approval")).toBe(true);
+    expect(isOpenStatus("awaiting_purchase_order")).toBe(true);
   });
 });
 

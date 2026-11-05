@@ -378,7 +378,7 @@ Deno.serve(async (req) => {
         const reference = str(p.reference, 50);
         const status = str(p.status, 30);
         if (!reference || !status) return json({ error: "reference e status obrigatórios" }, 400);
-        const validStatuses = ["pending", "in_progress", "completed", "paused", "cancelled", "invoiced"];
+        const validStatuses = ["pending", "in_progress", "completed", "paused", "cancelled", "invoiced", "awaiting_purchase_order"];
         if (!validStatuses.includes(status)) return json({ error: "Estado inválido" }, 400);
         const { data: rows, error: findErr } = await db.from("work_orders")
           .select("id, reference").ilike("reference", `%${reference}%`).order("reference").limit(1);

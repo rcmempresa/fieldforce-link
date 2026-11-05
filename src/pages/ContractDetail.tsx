@@ -17,6 +17,7 @@ const fmt = (d: string) => d.split("-").reverse().join("/");
 const STATUS: Record<string, string> = {
   pending: "Pendente", approved: "Aprovada", in_progress: "Em execução", completed: "Concluída",
   cancelled: "Cancelada", awaiting_approval: "A aguardar aprovação", invoiced: "Faturada",
+  awaiting_purchase_order: "Aguarda nota de encomenda",
 };
 
 export default function ContractDetail() {

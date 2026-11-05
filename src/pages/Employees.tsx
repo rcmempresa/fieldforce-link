@@ -265,6 +265,8 @@ export default function Employees() {
     switch (status) {
       case "awaiting_approval":
         return "bg-orange-500/10 text-orange-500";
+      case "awaiting_purchase_order":
+        return "bg-purple-500/10 text-purple-500";
       case "pending":
         return "bg-warning/10 text-warning";
       case "in_progress":
@@ -284,6 +286,8 @@ export default function Employees() {
     switch (status) {
       case "awaiting_approval":
         return "Aguarda Aprovação";
+      case "awaiting_purchase_order":
+        return "Aguarda Nota de Encomenda";
       case "pending":
         return "Pendente";
       case "in_progress":

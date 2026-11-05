@@ -32,6 +32,7 @@ const STATUS_OPTIONS = [
   { value: "in_progress", label: "Em Progresso" },
   { value: "pending", label: "Pendentes" },
   { value: "awaiting_approval", label: "Aguarda Aprovação" },
+  { value: "awaiting_purchase_order", label: "Aguarda Nota de Encomenda" },
   { value: "cancelled", label: "Canceladas" },
 ];
 
@@ -41,6 +42,8 @@ const getStatusLabel = (status: string) => {
   switch (status) {
     case "awaiting_approval":
       return "Aguarda Aprovação";
+    case "awaiting_purchase_order":
+      return "Aguarda Nota de Encomenda";
     case "pending":
       return "Pendente";
     case "in_progress":
@@ -69,6 +72,8 @@ const getStatusClass = (status: string) => {
       return "bg-destructive/10 text-destructive";
     case "awaiting_approval":
       return "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400";
+    case "awaiting_purchase_order":
+      return "bg-purple-500/10 text-purple-500";
     default:
       return "bg-muted text-muted-foreground";
   }

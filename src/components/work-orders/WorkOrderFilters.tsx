@@ -52,6 +52,7 @@ export function WorkOrderFilters({
             <SelectItem value="needs_scheduling">Aguarda data</SelectItem>
             <SelectItem value="missing_material">Sem material</SelectItem>
             <SelectItem value="awaiting_approval">Aguarda Aprovação</SelectItem>
+            <SelectItem value="awaiting_purchase_order">Aguarda Nota de Encomenda</SelectItem>
             <SelectItem value="approved">Aprovada</SelectItem>
             <SelectItem value="in_progress">Em Progresso</SelectItem>
             <SelectItem value="completed">Concluída</SelectItem>
