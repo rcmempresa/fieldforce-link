@@ -366,11 +366,15 @@ export function CompleteWorkOrderDialog({
 
       const { data: eqLinks } = await supabase
         .from("work_order_equipments")
-        .select("unit_part, equipments(name, brand, model, serial_number, location)")
+        .select("unit_part, equipments(name, brand, model, serial_number, outdoor_serial_number, location)")
         .eq("work_order_id", workOrderId);
       const pdfEquipments = (eqLinks || [])
         .filter((l: any) => l.equipments)
-        .map((l: any) => ({ ...l.equipments, unit_part: l.unit_part }));
+        .map((l: any) => ({
+          ...l.equipments,
+          serial_number: l.unit_part === "outdoor" ? l.equipments.outdoor_serial_number : l.equipments.serial_number,
+          unit_part: l.unit_part,
+        }));
 
       // Generate PDF with work order details
       const pdfBlob = await generateWorkOrderPDF(
