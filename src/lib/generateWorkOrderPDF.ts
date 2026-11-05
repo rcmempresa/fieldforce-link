@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import { supabase } from "@/integrations/supabase/client";
+import logoAsset from "@/assets/nr-techsolucion-logo.png.asset.json";
 
 interface EmployeeHours {
   name: string;
@@ -46,6 +47,21 @@ export async function generateWorkOrderPDF(
   notes: string | null
 ): Promise<Blob> {
   const doc = new jsPDF();
+
+  // Company logo (top-left)
+  try {
+    const res = await fetch(logoAsset.url);
+    const blob = await res.blob();
+    const dataUrl: string = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result as string);
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+    doc.addImage(dataUrl, "PNG", 10, 4, 42, 24.6);
+  } catch (e) {
+    console.warn("Logo not loaded for WO PDF", e);
+  }
   
   // Header
   doc.setFontSize(20);
