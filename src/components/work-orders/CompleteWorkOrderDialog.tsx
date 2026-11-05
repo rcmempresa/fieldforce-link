@@ -472,6 +472,8 @@ export function CompleteWorkOrderDialog({
         }));
         await supabase.from("notifications").insert(managerNotifications);
 
+        // Company inbox copy rides on the first manager email when no client email is sent
+        let companyCopyPending = !(workOrder.client_id && (workOrder.client as any)?.name);
         // Send emails to managers with PDF attachment
         for (const manager of managers) {
           const managerProfile = manager.profiles as any;
@@ -488,10 +490,12 @@ export function CompleteWorkOrderDialog({
                   completedBy: currentProfile?.name || user.email || "Funcionário",
                   clientName: (workOrder.client as any)?.name,
                   isManager: true,
+                  includeCompanyCopy: companyCopyPending,
                   pdfUrl: pdfUrl,
                 },
               },
             });
+            companyCopyPending = false;
           }
         }
       }
