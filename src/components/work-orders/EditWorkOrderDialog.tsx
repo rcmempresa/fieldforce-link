@@ -246,6 +246,31 @@ export function EditWorkOrderDialog({
       .eq("id", workOrder.id)
       .single();
 
+    // Completed via edit: send the completion email (client copy carries geral@)
+    if (workOrderData && formData.status === "completed" && workOrder.status !== "completed") {
+      const cp = workOrderData.profiles as any;
+      const { data: { user: me } } = await supabase.auth.getUser();
+      const toClient = !!(workOrderData.client_id && cp?.name);
+      const targetId = toClient ? workOrderData.client_id : me?.id;
+      if (targetId) {
+        supabase.functions.invoke("send-notification-email", {
+          body: {
+            type: "work_order_completed",
+            userId: targetId,
+            data: {
+              recipientName: toClient ? cp.name : "Gerente",
+              workOrderReference: workOrderData.reference || "",
+              workOrderTitle: formData.title,
+              completedBy: "Gerente",
+              clientName: cp?.name,
+              isManager: !toClient,
+              includeCompanyCopy: !toClient,
+            },
+          },
+        });
+      }
+    }
+
     if (workOrderData) {
       const clientProfile = workOrderData.profiles as any;
 
