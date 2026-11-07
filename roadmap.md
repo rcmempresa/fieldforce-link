@@ -1,5 +1,8 @@
 # Current tasks
 
+- [x] Add criar_cliente to empregado-digital with validated profile/contact fields and approved client access.
+- [x] Test, deploy and verify client creation with temporary data, then remove the test account (45 tests passed; live creation and client-page readback verified; temporary account removed).
+
 - [x] Support invoiced in atualizar_estado_ot and add editar_cliente and apagar_registo_horas.
 - [x] Test and deploy the changes, then verify authenticated requests without modifying live records (35 tests passed; live missing-target, validation and secret-protection checks passed).
 

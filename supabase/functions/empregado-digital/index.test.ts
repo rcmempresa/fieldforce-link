@@ -6,11 +6,28 @@ import { z } from "zod";
 let handler: (request: Request) => Promise<Response>;
 let fixtures: Record<string, any[]> = {};
 let calls: Array<{ table: string; method: string; args: any[] }> = [];
+let authCalls: Array<{ method: string; input: any }> = [];
+let authError: any = null;
+let failingTable: string | undefined;
+const newClientId = "33333333-3333-4333-8333-333333333333";
 function createClient() {
-  return { from(table: string) {
+  return { auth: { admin: {
+    async createUser(input: any) {
+      authCalls.push({ method: "createUser", input });
+      if (authError) return { data: null, error: authError };
+      fixtures.profiles = [...(fixtures.profiles ?? []), { id: newClientId, name: input.user_metadata.name }];
+      fixtures.user_roles = [...(fixtures.user_roles ?? []), { user_id: newClientId, role: "client", approved: false }];
+      return { data: { user: { id: newClientId } }, error: null };
+    },
+    async deleteUser(id: string) {
+      authCalls.push({ method: "deleteUser", input: id });
+      for (const table of ["profiles", "user_roles"]) fixtures[table] = (fixtures[table] ?? []).filter(row => row.id !== id && row.user_id !== id);
+      return { error: null };
+    },
+  } }, from(table: string) {
     const operations: Array<{ method: string; args: any[] }> = [];
     const query: any = {};
-    for (const method of ["select", "in", "order", "limit", "gte", "lt", "range", "ilike", "update", "eq", "or", "insert", "delete", "single"]) {
+    for (const method of ["select", "in", "order", "limit", "gte", "lt", "range", "ilike", "update", "eq", "or", "insert", "upsert", "delete", "single"]) {
       query[method] = (...args: any[]) => {
         operations.push({ method, args });
         calls.push({ table, method, args });
@@ -18,6 +35,7 @@ function createClient() {
       };
     }
     query.then = (resolve: any, reject: any) => {
+      if (table === failingTable) return Promise.resolve({ data: null, error: { message: "Test persistence failure" } }).then(resolve, reject);
       let data = [...(fixtures[table] ?? [])];
       const get = (row: any, path: string) => path.split(".").reduce((value, key) => value?.[key], row);
       for (const { method, args } of operations) {
@@ -35,6 +53,12 @@ function createClient() {
       }
       const update = operations.find((operation) => operation.method === "update");
       if (update) for (const row of data) Object.assign(row, update.args[0]);
+      const upsert = operations.find(operation => operation.method === "upsert");
+      if (upsert) {
+        const row = data.find(row => row.user_id === upsert.args[0].user_id && row.role === upsert.args[0].role);
+        if (row) Object.assign(row, upsert.args[0]);
+        else fixtures[table] = [...(fixtures[table] ?? []), upsert.args[0]];
+      }
       if (operations.some((operation) => operation.method === "delete")) fixtures[table] = (fixtures[table] ?? []).filter((row) => !data.includes(row));
       const insert = operations.find((operation) => operation.method === "insert");
       if (insert) {
@@ -57,7 +81,7 @@ const Deno = {
 new Function("createClient", "corsHeaders", "Deno", "z", new Bun.Transpiler({ loader: "ts" }).transformSync(source))(
   createClient, { "Access-Control-Allow-Origin": "*" }, Deno, z);
 
-beforeEach(() => { fixtures = {}; calls = []; });
+beforeEach(() => { fixtures = {}; calls = []; authCalls = []; authError = null; failingTable = undefined; });
 async function request(action: string, params = {}, secret = "test-only-secret") {
   const response = await handler(new Request("https://example.invalid", {
     method: "POST", headers: { "x-agent-secret": secret, "Content-Type": "application/json" },
@@ -395,4 +419,50 @@ test("criar_orcamento e listar_orcamentos rejeitam segredo errado sem acesso à 
     expect((await request(action, {}, "wrong")).status).toBe(401);
   }
   expect(calls).toHaveLength(0);
+});
+
+test("criar_cliente saves trimmed contact fields and assigns approved client only", async () => {
+  const result = await request("criar_cliente", { name: " Ana ", company_name: " Empresa ", phone: " 910000000 ",
+    email: " ana@example.pt ", address: " Rua 1 ", role: "manager" });
+  expect(result.status).toBe(200);
+  expect(result.body.data).toEqual({ id: newClientId, name: "Ana", company_name: "Empresa" });
+  expect(authCalls[0].input).toEqual({ email: "ana@example.pt", email_confirm: true, user_metadata: { name: "Ana" } });
+  expect(fixtures.profiles[0]).toMatchObject({ name: "Ana", company_name: "Empresa", phone: "910000000", address: "Rua 1" });
+  expect(fixtures.user_roles).toEqual([{ user_id: newClientId, role: "client", approved: true }]);
+  expect(fixtures.client_emails[0]).toMatchObject({ user_id: newClientId, email: "ana@example.pt" });
+});
+test("criar_cliente without email creates distinct placeholders but no contact email", async () => {
+  await request("criar_cliente", { name: "Cliente" });
+  await request("criar_cliente", { name: "Outro" });
+  expect(authCalls[0].input.email).toMatch(/^cliente_[a-f0-9-]+@placeholder\.nrtechsolucion\.pt$/);
+  expect(authCalls[0].input.email).not.toBe(authCalls[1].input.email);
+  expect(fixtures.client_emails).toBeUndefined();
+  expect(fixtures.profiles[0]).toMatchObject({ company_name: null, phone: null, address: null });
+});
+test("criar_cliente rejects missing names and invalid or oversized fields before account creation", async () => {
+  for (const params of [{}, { name: " " }, { name: "Cliente", email: "invalid" }, { name: "Cliente", company_name: "x".repeat(201) },
+    { name: "Cliente", phone: "x".repeat(51) }, { name: "Cliente", address: "x".repeat(501) }]) {
+    expect((await request("criar_cliente", params)).status).toBe(400);
+  }
+  expect(authCalls).toHaveLength(0);
+  expect(calls).toHaveLength(0);
+});
+test("criar_cliente returns 409 for an existing email without modifying profiles", async () => {
+  authError = { code: "email_exists", message: "Email already registered" };
+  expect((await request("criar_cliente", { name: "Cliente", email: "ana@example.pt" })).status).toBe(409);
+  expect(calls).toHaveLength(0);
+});
+test("criar_cliente removes its new account if profile, role or email persistence fails", async () => {
+  for (const table of ["profiles", "user_roles", "client_emails"]) {
+    failingTable = table;
+    expect((await request("criar_cliente", { name: "Cliente", email: "ana@example.pt" })).status).toBe(500);
+    expect(authCalls.at(-1)).toEqual({ method: "deleteUser", input: newClientId });
+    expect(fixtures.profiles).toEqual([]);
+    expect(fixtures.user_roles).toEqual([]);
+  }
+});
+test("criar_cliente requires the agent secret and is advertised in supported actions", async () => {
+  expect((await request("criar_cliente", { name: "Cliente" }, "wrong")).status).toBe(401);
+  expect(authCalls).toHaveLength(0);
+  expect((await request("unknown")).body.supported).toContain("criar_cliente");
 });

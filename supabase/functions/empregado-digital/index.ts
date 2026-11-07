@@ -26,6 +26,11 @@ const nameInput = z.string().trim().min(1).max(100).refine((name) => !!name.repl
 const booleanInput = z.preprocess((value) => value === "true" ? true : value === "false" ? false : value, z.boolean());
 const materialDescriptionInput = z.string().trim().min(1).max(500).refine((value) => !!value.replace(/[%,()_]/g, " ").trim());
 const writeSchemas = {
+  criar_cliente: z.object({ name: nameInput,
+    company_name: z.string().trim().min(1).max(200).optional(),
+    phone: z.string().trim().min(1).max(50).optional(),
+    email: z.string().trim().email().optional(),
+    address: z.string().trim().min(1).max(500).optional() }),
   editar_cliente: z.object({ client_search: nameInput,
     phone: z.string().trim().min(1).max(50).optional(),
     address: z.string().trim().min(1).max(500).optional(),
@@ -536,6 +541,44 @@ Deno.serve(async (req) => {
         if (!removed) return json({ error: "Material não encontrado na OT" }, 404);
         return json({ data: { reference: order.data.reference, removed: material.description } });
       }
+      case "criar_cliente": {
+        const parsed = writeSchemas.criar_cliente.safeParse(p);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const input = parsed.data;
+        const email = input.email ?? `cliente_${crypto.randomUUID()}@placeholder.nrtechsolucion.pt`;
+        const { data: authData, error: authError } = await db.auth.admin.createUser({
+          email, email_confirm: true, user_metadata: { name: input.name },
+        });
+        if (authError) {
+          if (["email_exists", "user_already_exists"].includes(authError.code) || authError.message?.toLowerCase().includes("already")) {
+            return json({ error: "Email já registado" }, 409);
+          }
+          throw authError;
+        }
+        const uid = authData?.user?.id;
+        if (!uid) throw new Error("Falha ao criar a conta do cliente");
+        try {
+          const { data: profile, error: profileError } = await db.from("profiles").update({
+            name: input.name, company_name: input.company_name ?? null,
+            phone: input.phone ?? null, address: input.address ?? null,
+          }).eq("id", uid).select("id").single();
+          if (profileError) throw profileError;
+          if (!profile) throw new Error("Perfil do cliente não encontrado");
+          const { error: roleError } = await db.from("user_roles").upsert({
+            user_id: uid, role: "client", approved: true,
+          }, { onConflict: "user_id,role" });
+          if (roleError) throw roleError;
+          if (input.email) {
+            const { error: emailError } = await db.from("client_emails").insert({ user_id: uid, email: input.email });
+            if (emailError) throw emailError;
+          }
+        } catch (error) {
+          const { error: cleanupError } = await db.auth.admin.deleteUser(uid);
+          if (cleanupError) console.error("criar_cliente cleanup failed", { user_id: uid, code: cleanupError.code });
+          throw error;
+        }
+        return json({ data: { id: uid, name: input.name, company_name: input.company_name ?? null } });
+      }
       case "editar_cliente": {
         const parsed = writeSchemas.editar_cliente.safeParse({ ...p, phone: p.telefone ?? p.phone,
           address: p.morada ?? p.address, name: p.nome ?? p.name, company_name: p.empresa ?? p.company_name });
@@ -695,7 +738,7 @@ ${i.valid_until ? `<tr><td style="padding:4px 12px 4px 0">Válido até</td><td>$
         return json({ data: { sent: true } });
       }
       default:
-        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "editar_cliente", "apagar_registo_horas", "criar_orcamento", "listar_orcamentos", "buscar_orcamento", "marcar_orcamento_enviado", "enviar_email_orcamento"] }, 400);
+        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "criar_cliente", "editar_cliente", "apagar_registo_horas", "criar_orcamento", "listar_orcamentos", "buscar_orcamento", "marcar_orcamento_enviado", "enviar_email_orcamento"] }, 400);
     }
   } catch (e: any) {
     console.error(action, e);
