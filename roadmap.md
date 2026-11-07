@@ -1,5 +1,9 @@
 # Current tasks
 
+- [x] Add listar_contratos and historico_equipamento with validated filters and existing report linkage.
+- [x] Complete criar_cliente duplicate checks for contact email and phone without email.
+- [x] Test, deploy and verify the three uploaded actions without changing live records (54 tests passed; live contracts, equipment orders/reports, duplicate email and secret protection verified).
+
 - [x] Add criar_cliente to empregado-digital with validated profile/contact fields and approved client access.
 - [x] Test, deploy and verify client creation with temporary data, then remove the test account (45 tests passed; live creation and client-page readback verified; temporary account removed).
 

@@ -25,6 +25,10 @@ const referenceInput = z.string().trim().min(1).max(50);
 const nameInput = z.string().trim().min(1).max(100).refine((name) => !!name.replace(/[%,()_]/g, " ").trim());
 const booleanInput = z.preprocess((value) => value === "true" ? true : value === "false" ? false : value, z.boolean());
 const materialDescriptionInput = z.string().trim().min(1).max(500).refine((value) => !!value.replace(/[%,()_]/g, " ").trim());
+const readSchemas = {
+  listar_contratos: z.object({ status: z.enum(["active", "ended"]).optional(), client_search: nameInput.optional() }),
+  historico_equipamento: z.object({ equipment_id: z.string().uuid().optional(), equipment_search: nameInput.optional(), client_search: nameInput.optional() }),
+};
 const writeSchemas = {
   criar_cliente: z.object({ name: nameInput,
     company_name: z.string().trim().min(1).max(200).optional(),
@@ -193,6 +197,76 @@ Deno.serve(async (req) => {
         const response: any = { data };
         if (!exact && found.length > 1) response.matches = found.map((r: any) => r.reference);
         return json(response);
+      }
+      case "listar_contratos": {
+        const parsed = readSchemas.listar_contratos.safeParse(p);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const input = parsed.data;
+        const clientJoin = input.client_search ? "!inner" : "";
+        let query = db.from("maintenance_contracts").select(`id, contract_type, frequency, status, next_date, notes, client:profiles!maintenance_contracts_client_id_fkey${clientJoin}(company_name, name), maintenance_contract_equipments(equipments(name))`)
+          .order("next_date", { ascending: true }).order("id");
+        if (input.status) query = query.eq("status", input.status);
+        if (input.client_search) {
+          const term = input.client_search.replace(/[%,()_]/g, " ");
+          query = query.or(`company_name.ilike.%${term}%,name.ilike.%${term}%`, { referencedTable: "client" });
+        }
+        const data: any[] = [];
+        for (let offset = 0; ; offset += 1000) {
+          const page = await query.range(offset, offset + 999);
+          if (page.error) throw page.error;
+          data.push(...(page.data ?? []));
+          if ((page.data?.length ?? 0) < 1000) break;
+        }
+        return json({ data });
+      }
+      case "historico_equipamento": {
+        const parsed = readSchemas.historico_equipamento.safeParse(p);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const input = parsed.data;
+        if (!input.equipment_id && !input.equipment_search && !input.client_search) {
+          return json({ error: "Fornece equipment_id, equipment_search ou client_search" }, 400);
+        }
+        let candidates = db.from("equipments").select("id, name").order("name").order("id");
+        if (input.equipment_id) candidates = candidates.eq("id", input.equipment_id);
+        else if (input.equipment_search) candidates = candidates.ilike("name", `%${input.equipment_search.replace(/[%,()_]/g, " ")}%`);
+        if (input.client_search) {
+          const term = input.client_search.replace(/[%,()_]/g, " ");
+          const equipmentIds = new Set<string>();
+          for (let offset = 0; ; offset += 1000) {
+            const page = await db.from("work_order_equipments").select("equipment_id, work_orders!inner(client:profiles!work_orders_client_id_fkey!inner(name, company_name))")
+              .or(`name.ilike.%${term}%,company_name.ilike.%${term}%`, { referencedTable: "work_orders.client" })
+              .order("id").range(offset, offset + 999);
+            if (page.error) throw page.error;
+            for (const row of page.data ?? []) equipmentIds.add(row.equipment_id);
+            if ((page.data?.length ?? 0) < 1000) break;
+          }
+          if (!equipmentIds.size) return json({ error: "Equipamento não encontrado" }, 404);
+          candidates = candidates.in("id", [...equipmentIds]);
+        }
+        const { data: equipments, error: equipmentError } = await candidates.limit(2);
+        if (equipmentError) throw equipmentError;
+        if (!equipments?.length) return json({ error: "Equipamento não encontrado" }, 404);
+        if (equipments.length > 1) return json({ error: "Equipamento ambíguo; fornece equipment_id", matches: equipments }, 409);
+        const equipment = equipments[0];
+        const ids = new Set<string>();
+        for (let offset = 0; ; offset += 1000) {
+          const page = await db.from("work_order_equipments").select("work_order_id").eq("equipment_id", equipment.id)
+            .order("id").range(offset, offset + 999);
+          if (page.error) throw page.error;
+          for (const row of page.data ?? []) ids.add(row.work_order_id);
+          if ((page.data?.length ?? 0) < 1000) break;
+        }
+        if (!ids.size) return json({ data: { equipment_name: equipment.name, orders: [], reports: [] } });
+        // Reports belong to OTs, not an equipment_id column; use the same linkage as the app's history.
+        const [orders, reports] = await Promise.all([
+          db.from("work_orders").select("reference, title, status, scheduled_date, created_at").in("id", [...ids])
+            .order("created_at", { ascending: false }).order("id").limit(20),
+          db.from("maintenance_reports").select("report_type, report_date, technician_name").in("work_order_id", [...ids])
+            .order("report_date", { ascending: false, nullsFirst: false }).order("id").limit(20),
+        ]);
+        if (orders.error) throw orders.error;
+        if (reports.error) throw reports.error;
+        return json({ data: { equipment_name: equipment.name, orders: orders.data ?? [], reports: reports.data ?? [] } });
       }
       case "listar_clientes": {
         const { data: roles, error: rErr } = await db.from("user_roles").select("user_id").eq("role", "client");
@@ -545,6 +619,21 @@ Deno.serve(async (req) => {
         const parsed = writeSchemas.criar_cliente.safeParse(p);
         if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
         const input = parsed.data;
+        if (input.email) {
+          const { data: existing, error } = await db.from("client_emails").select("id")
+            .ilike("email", input.email.replace(/[%_]/g, (value) => `\\${value}`)).limit(1);
+          if (error) throw error;
+          if (existing?.length) return json({ error: "Email já registado" }, 409);
+        } else if (input.phone) {
+          const { data: roles, error: roleError } = await db.from("user_roles").select("user_id").eq("role", "client");
+          if (roleError) throw roleError;
+          const ids = [...new Set((roles ?? []).map((role: any) => role.user_id))];
+          if (ids.length) {
+            const { data: existing, error } = await db.from("profiles").select("id").in("id", ids).eq("phone", input.phone).limit(1);
+            if (error) throw error;
+            if (existing?.length) return json({ error: "Telefone já registado" }, 409);
+          }
+        }
         const email = input.email ?? `cliente_${crypto.randomUUID()}@placeholder.nrtechsolucion.pt`;
         const { data: authData, error: authError } = await db.auth.admin.createUser({
           email, email_confirm: true, user_metadata: { name: input.name },
@@ -738,7 +827,7 @@ ${i.valid_until ? `<tr><td style="padding:4px 12px 4px 0">Válido até</td><td>$
         return json({ data: { sent: true } });
       }
       default:
-        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "criar_cliente", "editar_cliente", "apagar_registo_horas", "criar_orcamento", "listar_orcamentos", "buscar_orcamento", "marcar_orcamento_enviado", "enviar_email_orcamento"] }, 400);
+        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "listar_contratos", "historico_equipamento", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "criar_cliente", "editar_cliente", "apagar_registo_horas", "criar_orcamento", "listar_orcamentos", "buscar_orcamento", "marcar_orcamento_enviado", "enviar_email_orcamento"] }, 400);
     }
   } catch (e: any) {
     console.error(action, e);

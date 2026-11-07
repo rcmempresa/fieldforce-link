@@ -43,14 +43,27 @@ function createClient() {
         if (method === "ilike") data = data.filter((row) => String(get(row, args[0])).toLowerCase().includes(args[1].replace(/%/g, "").toLowerCase()));
         if (method === "or") data = data.filter((row) => args[0].split(",").some((condition: string) => {
           const [field, , value] = condition.split(".");
-          return String(row[field] ?? "").toLowerCase().includes(value.replace(/%/g, "").toLowerCase());
+          const target = args[1]?.referencedTable ? get(row, args[1].referencedTable) : row;
+          return String(target?.[field] ?? "").toLowerCase().includes(value.replace(/%/g, "").toLowerCase());
         }));
         if (method === "in") data = data.filter((row) => args[1].includes(get(row, args[0])));
         if (method === "gte") data = data.filter((row) => get(row, args[0]) >= args[1]);
         if (method === "lt") data = data.filter((row) => get(row, args[0]) < args[1]);
-        if (method === "limit") data = data.slice(0, args[0]);
-        if (method === "range") data = data.slice(args[0], args[1] + 1);
       }
+      data.sort((a, b) => {
+        for (const { args } of operations.filter(op => op.method === "order")) {
+          const left = get(a, args[0]), right = get(b, args[0]);
+          const result = left == null || right == null
+            ? (left == right ? 0 : (left == null ? 1 : -1) * (args[1]?.nullsFirst ? -1 : 1))
+            : String(left).localeCompare(String(right)) * (args[1]?.ascending === false ? -1 : 1);
+          if (result) return result;
+        }
+        return 0;
+      });
+      const range = operations.filter(op => op.method === "range").at(-1);
+      if (range) data = data.slice(range.args[0], range.args[1] + 1);
+      const limit = operations.filter(op => op.method === "limit").at(-1);
+      if (limit) data = data.slice(0, limit.args[0]);
       const update = operations.find((operation) => operation.method === "update");
       if (update) for (const row of data) Object.assign(row, update.args[0]);
       const upsert = operations.find(operation => operation.method === "upsert");
@@ -108,7 +121,7 @@ test("materiais_usados includes the whole end day and excludes the next day", as
   fixtures.work_order_materials = ["2026-10-26T23:59:00Z", "2026-10-27T00:00:00Z", "2026-10-27T23:59:59Z", "2026-10-28T00:00:00Z"]
     .map((scheduled_date, id) => ({ id, work_orders: { scheduled_date } }));
   const { body } = await request("materiais_usados", { date_from: "2026-10-27", date_to: "2026-10-27" });
-  expect(body.data.map((row: any) => row.id)).toEqual([1, 2]);
+  expect(body.data.map((row: any) => row.id)).toEqual([2, 1]);
   expect(body.count).toBe(2);
   expect(calls).toContainEqual({ table: "work_order_materials", method: "limit", args: [200] });
 });
@@ -450,19 +463,95 @@ test("criar_cliente rejects missing names and invalid or oversized fields before
 test("criar_cliente returns 409 for an existing email without modifying profiles", async () => {
   authError = { code: "email_exists", message: "Email already registered" };
   expect((await request("criar_cliente", { name: "Cliente", email: "ana@example.pt" })).status).toBe(409);
-  expect(calls).toHaveLength(0);
+  expect(calls.some(call => ["insert", "update", "upsert"].includes(call.method))).toBe(false);
 });
 test("criar_cliente removes its new account if profile, role or email persistence fails", async () => {
   for (const table of ["profiles", "user_roles", "client_emails"]) {
     failingTable = table;
     expect((await request("criar_cliente", { name: "Cliente", email: "ana@example.pt" })).status).toBe(500);
     expect(authCalls.at(-1)).toEqual({ method: "deleteUser", input: newClientId });
-    expect(fixtures.profiles).toEqual([]);
-    expect(fixtures.user_roles).toEqual([]);
+    expect(fixtures.profiles ?? []).toEqual([]);
+    expect(fixtures.user_roles ?? []).toEqual([]);
   }
 });
 test("criar_cliente requires the agent secret and is advertised in supported actions", async () => {
   expect((await request("criar_cliente", { name: "Cliente" }, "wrong")).status).toBe(401);
   expect(authCalls).toHaveLength(0);
   expect((await request("unknown")).body.supported).toContain("criar_cliente");
+});
+
+test("listar_contratos filters active/ended and searches client company or name", async () => {
+  fixtures.maintenance_contracts = [
+    { id: "a", status: "active", next_date: "2026-11-10", client: { name: "Ana", company_name: "NR Lda" }, maintenance_contract_equipments: [{ equipments: { name: "AC" } }] },
+    { id: "b", status: "ended", next_date: "2026-11-01", client: { name: "NR Pessoa" } },
+    { id: "c", status: "active", client: { name: "Outro" } },
+  ];
+  expect((await request("listar_contratos", { status: "active", client_search: "nr" })).body.data.map((r: any) => r.id)).toEqual(["a"]);
+  expect((await request("listar_contratos", { status: "ended", client_search: "nr" })).body.data.map((r: any) => r.id)).toEqual(["b"]);
+  expect((await request("listar_contratos", { client_search: "nr" })).body.data).toHaveLength(2);
+});
+test("listar_contratos reads past 1000 contracts and rejects invalid status", async () => {
+  fixtures.maintenance_contracts = Array.from({ length: 1001 }, (_, id) => ({ id: String(id), status: "active" }));
+  expect((await request("listar_contratos")).body.data).toHaveLength(1001);
+  expect((await request("listar_contratos", { status: "invalid" })).status).toBe(400);
+});
+const equipmentId = "44444444-4444-4444-8444-444444444444";
+function seedHistory() {
+  fixtures.equipments = [{ id: equipmentId, name: "Ar condicionado" }];
+  fixtures.work_order_equipments = Array.from({ length: 25 }, (_, id) => ({ id: String(id), equipment_id: equipmentId, work_order_id: `ot${id}`, work_orders: { client: { name: "Ana", company_name: "Empresa NR" } } }));
+  fixtures.work_orders = Array.from({ length: 25 }, (_, id) => ({ id: `ot${id}`, reference: `WO-${id}`, created_at: `2026-11-${String(id + 1).padStart(2, "0")}` }));
+  fixtures.maintenance_reports = Array.from({ length: 25 }, (_, id) => ({ id: String(id), work_order_id: `ot${id}`, report_type: "climatizacao", report_date: `2026-11-${String(id + 1).padStart(2, "0")}`, technician_name: "Duarte" }));
+}
+test("historico_equipamento by UUID returns latest 20 orders and reports", async () => {
+  seedHistory();
+  const result = await request("historico_equipamento", { equipment_id: equipmentId });
+  expect(result.status).toBe(200);
+  expect(result.body.data.equipment_name).toBe("Ar condicionado");
+  expect(result.body.data.orders).toHaveLength(20);
+  expect(result.body.data.orders[0].reference).toBe("WO-24");
+  expect(result.body.data.orders.at(-1).reference).toBe("WO-5");
+  expect(result.body.data.reports).toHaveLength(20);
+  expect(result.body.data.reports[0].report_date).toBe("2026-11-25");
+  expect(calls.filter(c => c.table === "maintenance_reports" && c.method === "in")[0].args[0]).toBe("work_order_id");
+});
+test("historico_equipamento supports equipment name and client via linked OTs", async () => {
+  seedHistory();
+  expect((await request("historico_equipamento", { equipment_search: "CONDICIONADO" })).body.data.orders).toHaveLength(20);
+  expect((await request("historico_equipamento", { client_search: "empresa nr" })).body.data.equipment_name).toBe("Ar condicionado");
+  expect((await request("historico_equipamento", { client_search: "ana" })).status).toBe(200);
+  expect((await request("historico_equipamento", { equipment_id: equipmentId, client_search: "outro" })).status).toBe(404);
+});
+test("historico_equipamento rejects missing parameters and invalid UUID", async () => {
+  const result = await request("historico_equipamento");
+  expect(result.status).toBe(400);
+  expect(result.body.error).toBe("Fornece equipment_id, equipment_search ou client_search");
+  expect((await request("historico_equipamento", { equipment_id: "bad" })).status).toBe(400);
+  expect((await request("historico_equipamento", { equipment_search: " " })).status).toBe(400);
+  expect(calls).toHaveLength(0);
+});
+test("historico_equipamento returns empty history and rejects ambiguous searches", async () => {
+  fixtures.equipments = [{ id: equipmentId, name: "AC" }];
+  expect((await request("historico_equipamento", { equipment_id: equipmentId })).body.data).toEqual({ equipment_name: "AC", orders: [], reports: [] });
+  fixtures.equipments.push({ id: "other", name: "AC segundo" });
+  expect((await request("historico_equipamento", { equipment_search: "AC" })).status).toBe(409);
+});
+test("criar_cliente rejects existing contact email case-insensitively before creating account", async () => {
+  fixtures.client_emails = [{ id: "email1", email: "ANA@example.pt" }];
+  expect((await request("criar_cliente", { name: "Ana", email: "ana@example.pt" })).status).toBe(409);
+  expect(authCalls).toHaveLength(0);
+});
+test("criar_cliente rejects existing client phone only when email is absent", async () => {
+  fixtures.user_roles = [{ user_id: "client1", role: "client" }, { user_id: "employee1", role: "employee" }];
+  fixtures.profiles = [{ id: "client1", phone: "910000000" }, { id: "employee1", phone: "920000000" }];
+  expect((await request("criar_cliente", { name: "Ana", phone: "910000000" })).status).toBe(409);
+  expect(authCalls).toHaveLength(0);
+  expect((await request("criar_cliente", { name: "Ana", phone: "910000000", email: "new@example.pt" })).status).toBe(200);
+  expect((await request("criar_cliente", { name: "Bruno", phone: "920000000" })).status).toBe(200);
+});
+test("uploaded actions require secret and are advertised", async () => {
+  for (const action of ["listar_contratos", "historico_equipamento", "criar_cliente"]) {
+    expect((await request(action, {}, "wrong")).status).toBe(401);
+    expect((await request("unknown")).body.supported).toContain(action);
+  }
+  expect(calls).toHaveLength(0);
 });
