@@ -565,21 +565,24 @@ export default function EmployeeDashboard() {
   const ordersForSelectedDate = getOrdersForSelectedDate();
 
   // Separate orders into categories based on THE EMPLOYEE's state (not global status)
+  // Closed: work is done — completed, invoiced, or awaiting purchase order (stays in "Concluídas")
+  const isClosed = (status: string) =>
+    status === "completed" || status === "invoiced" || status === "awaiting_purchase_order";
   // Active: employee has an active session (time entry without end_time)
   const activeOrders = assignedOrders.filter(
-    (order) => order.active_time_entry_id && order.status !== "completed" && order.status !== "invoiced"
+    (order) => order.active_time_entry_id && !isClosed(order.status)
   );
   // Started/Paused: employee has worked on this before but doesn't have an active session
   // OTs paradas por falta de material pertencem apenas ao separador "Sem Material".
   const startedOrders = assignedOrders.filter(
-    (order) => order.has_been_started && !order.active_time_entry_id && order.status !== "completed" && order.status !== "invoiced" && !order.missing_material
+    (order) => order.has_been_started && !order.active_time_entry_id && !isClosed(order.status) && !order.missing_material
   );
   // New: employee has never worked on this order
   const newOrders = assignedOrders.filter(
-    (order) => !order.has_been_started && order.status !== "completed" && order.status !== "invoiced"
+    (order) => !order.has_been_started && !isClosed(order.status)
   );
   const completedOrders = assignedOrders.filter(
-    (order) => (order.status === "completed" || order.status === "invoiced")
+    (order) => isClosed(order.status)
   );
 
   return (

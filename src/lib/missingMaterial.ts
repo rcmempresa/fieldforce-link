@@ -13,7 +13,7 @@ export async function fetchMissingMaterialIds(): Promise<Set<string>> {
     if (seen.has(row.work_order_id)) continue;
     seen.add(row.work_order_id);
     const status = row.work_orders?.status;
-    if (row.pause_reason === "falta_material" && !["completed", "invoiced", "cancelled", "in_progress"].includes(status)) {
+    if (row.pause_reason === "falta_material" && !["completed", "invoiced", "cancelled", "in_progress", "awaiting_purchase_order"].includes(status)) {
       ids.add(row.work_order_id);
     }
   }
