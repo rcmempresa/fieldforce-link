@@ -358,7 +358,15 @@ export function CompleteWorkOrderDialog({
         .single();
 
       // Generate signature image
-      const signatureDataUrl = signatureRef.current!.toDataURL();
+      const srcCanvas = signatureRef.current!.getCanvas();
+      const flat = document.createElement("canvas");
+      flat.width = srcCanvas.width;
+      flat.height = srcCanvas.height;
+      const fctx = flat.getContext("2d")!;
+      fctx.fillStyle = "#ffffff";
+      fctx.fillRect(0, 0, flat.width, flat.height);
+      fctx.drawImage(srcCanvas, 0, 0);
+      const signatureDataUrl = flat.toDataURL("image/png");
 
       // Split hours by work regime (laboral / pós-laboral)
       const laborHours = employeeHoursList.reduce((s, e) => s + e.laborHours, 0);

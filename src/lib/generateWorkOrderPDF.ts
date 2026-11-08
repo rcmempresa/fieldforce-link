@@ -176,29 +176,41 @@ export async function generateWorkOrderPDF(
     currentY += 8;
     
     doc.setFont("helvetica", "normal");
-    const splitNotes = doc.splitTextToSize(notes, 170);
-    doc.text(splitNotes, 20, currentY);
-    currentY += splitNotes.length * 6 + 10;
+    const splitNotes: string[] = doc.splitTextToSize(notes, 170);
+    for (const line of splitNotes) {
+      if (currentY > 272) { doc.addPage(); currentY = 20; }
+      doc.text(line, 20, currentY);
+      currentY += 6;
+    }
+    currentY += 10;
   }
   
-  // Client Signature
+  // Client Signature (new page if it doesn't fit above the footer)
+  let sigLabelY = Math.max(currentY, 180);
+  if (sigLabelY + 40 > 272) {
+    doc.addPage();
+    sigLabelY = 20;
+  }
+  doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text("Assinatura do Cliente:", 20, Math.max(currentY, 180));
-  
-  const signatureY = Math.max(currentY + 5, 185);
+  doc.text("Assinatura do Cliente:", 20, sigLabelY);
   if (signatureDataUrl) {
-    doc.addImage(signatureDataUrl, "PNG", 20, signatureY, 80, 30);
+    try {
+      doc.addImage(signatureDataUrl, "PNG", 20, sigLabelY + 5, 80, 30);
+    } catch (e) {
+      console.warn("Signature not added to WO PDF", e);
+    }
   }
-  
-  // Footer
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "italic");
-  doc.text(
-    `Documento gerado automaticamente em ${new Date().toLocaleString("pt-BR")}`,
-    105,
-    280,
-    { align: "center" }
-  );
+
+  // Footer on every page
+  const generatedAt = new Date().toLocaleString("pt-BR");
+  const pages = doc.getNumberOfPages();
+  for (let i = 1; i <= pages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "italic");
+    doc.text(`Documento gerado automaticamente em ${generatedAt}`, 105, 285, { align: "center" });
+  }
   
   return doc.output("blob");
 }
