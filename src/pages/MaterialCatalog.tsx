@@ -151,15 +151,9 @@ export default function MaterialCatalog() {
   const getUnitLabel = (v: string) => units.find((u) => u.value === v)?.label || v;
 
   const filteredItems = items
-    .filter((i) => {
-      const q = search.toLowerCase().trim();
-      if (!q) return true;
-      return (
-        i.name.toLowerCase().includes(q) ||
-        (i.reference || "").toLowerCase().includes(q) ||
-        getUnitLabel(i.default_unit).toLowerCase().includes(q)
-      );
-    })
+    .filter((i) =>
+      matchesSearch([i.name, i.reference, getUnitLabel(i.default_unit)], search),
+    )
     .sort((a, b) => {
       if (sortBy === "recent") {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();

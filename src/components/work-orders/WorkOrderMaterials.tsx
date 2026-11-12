@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MaterialCatalogSelect } from "@/components/work-orders/MaterialCatalogSelect";
 
 interface Material {
   id: string;
@@ -29,6 +30,7 @@ interface CatalogItem {
   id: string;
   name: string;
   default_unit: string;
+  reference: string | null;
 }
 
 interface WorkOrderMaterialsProps {
@@ -87,7 +89,7 @@ export function WorkOrderMaterials({ workOrderId, canEdit, currentUserId, isMana
   const fetchCatalog = async () => {
     const { data, error } = await supabase
       .from("material_catalog")
-      .select("id, name, default_unit")
+      .select("id, name, default_unit, reference")
       .eq("active", true)
       .order("name");
 
@@ -180,18 +182,14 @@ export function WorkOrderMaterials({ workOrderId, canEdit, currentUserId, isMana
             {catalog.length > 0 && (
               <div className="space-y-2">
                 <Label>Selecionar do Catálogo</Label>
-                <Select value={selectedCatalogId} onValueChange={handleCatalogSelect}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Escolher material..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover z-50">
-                    {catalog.map((item) => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {item.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <MaterialCatalogSelect
+                  options={catalog}
+                  value={selectedCatalogId}
+                  onChange={handleCatalogSelect}
+                  placeholder="Escolher material..."
+                  searchPlaceholder="Pesquisar por nome ou referência..."
+                  emptyLabel="Nenhum material encontrado."
+                />
               </div>
             )}
 
