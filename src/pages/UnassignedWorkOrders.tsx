@@ -7,6 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataPagination } from "@/components/ui/data-pagination";
 import { formatDateTime } from "@/lib/formatDate";
@@ -37,7 +39,7 @@ type DateResult = "changed" | "unchanged" | "error";
 export default function UnassignedWorkOrders() {
   const [rows, setRows] = useState<Row[]>([]);
   const [employees, setEmployees] = useState<{ id: string; name: string }[]>([]);
-  const [picked, setPicked] = useState<Record<string, string>>({});
+  const [picked, setPicked] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("recent");
@@ -149,9 +151,9 @@ export default function UnassignedWorkOrders() {
   };
 
   const assignAndSchedule = async (orderId: string) => {
-    const userId = picked[orderId];
+    const userIds = picked[orderId] || [];
     const date = dates[orderId];
-    if (!userId && !date) return;
+    if (!userIds.length && !date) return;
     setSaving(orderId);
 
     let result: DateResult = "unchanged";
@@ -163,17 +165,17 @@ export default function UnassignedWorkOrders() {
       }
     }
 
-    if (userId) {
+    if (userIds.length) {
       const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase
         .from("work_order_assignments")
-        .insert({ work_order_id: orderId, user_id: userId, assigned_by: user?.id });
+        .insert(userIds.map((uid) => ({ work_order_id: orderId, user_id: uid, assigned_by: user?.id })));
       setSaving(null);
       if (error) {
         toast({ title: "Erro", description: "Não foi possível atribuir o técnico.", variant: "destructive" });
         return;
       }
-      toast({ title: result === "changed" ? "Técnico atribuído e OT agendada" : "Técnico atribuído" });
+      toast({ title: result === "changed" ? (userIds.length > 1 ? "Técnicos atribuídos e OT agendada" : "Técnico atribuído e OT agendada") : (userIds.length > 1 ? "Técnicos atribuídos" : "Técnico atribuído") });
       load();
       return;
     }
@@ -236,12 +238,39 @@ export default function UnassignedWorkOrders() {
                       {r.client_name}{r.scheduled_date && ` • ${formatDateTime(r.scheduled_date)}`}
                     </p>
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                      <Select value={picked[r.id] || ""} onValueChange={(v) => setPicked((p) => ({ ...p, [r.id]: v }))}>
-                        <SelectTrigger className="sm:w-56"><SelectValue placeholder="Escolher técnico" /></SelectTrigger>
-                        <SelectContent>
-                          {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button size="sm" variant="outline" className="justify-start truncate sm:w-56">
+                            <UserPlus className="mr-2 h-4 w-4 shrink-0" />
+                            <span className="truncate">
+                              {(picked[r.id] || []).length === 0
+                                ? "Escolher técnicos"
+                                : employees.filter((e) => picked[r.id].includes(e.id)).map((e) => e.name).join(", ")}
+                            </span>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-64 p-2" align="start">
+                          <div className="max-h-64 space-y-1 overflow-y-auto">
+                            {employees.map((e) => {
+                              const checked = (picked[r.id] || []).includes(e.id);
+                              return (
+                                <label key={e.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent">
+                                  <Checkbox
+                                    checked={checked}
+                                    onCheckedChange={(v) =>
+                                      setPicked((p) => {
+                                        const cur = p[r.id] || [];
+                                        return { ...p, [r.id]: v ? [...cur, e.id] : cur.filter((x) => x !== e.id) };
+                                      })
+                                    }
+                                  />
+                                  {e.name}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                       <Button size="sm" variant="outline" className="justify-start sm:w-56" onClick={() => openDate(r)}>
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {dates[r.id]
@@ -254,7 +283,7 @@ export default function UnassignedWorkOrders() {
                         <Button
                           size="sm"
                           className="flex-1 sm:flex-none"
-                          disabled={(!picked[r.id] && !dates[r.id]) || saving === r.id}
+                          disabled={(!(picked[r.id] || []).length && !dates[r.id]) || saving === r.id}
                           onClick={() => assignAndSchedule(r.id)}
                         >
                           {saving === r.id ? (
