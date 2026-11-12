@@ -12,12 +12,12 @@ import { equipmentModelKey, parseCauses } from "@/lib/equipmentModelKey";
 type Manual = { id: string; kind: string; filename: string; url: string };
 type Fault = { id: string; symptom: string; causes: string[] };
 
-export function EquipmentKnowledge({ brand, model }: { brand?: string | null; model?: string | null }) {
+export function EquipmentKnowledge({ brand, model, name }: { brand?: string | null; model?: string | null; name?: string | null }) {
   const { user, roles } = useAuth();
   const { toast } = useToast();
   const isManager = roles.includes("manager");
   const isStaff = isManager || roles.includes("employee");
-  const key = useMemo(() => equipmentModelKey(brand, model), [brand, model]);
+  const key = useMemo(() => equipmentModelKey(brand, model, name), [brand, model, name]);
   const [manuals, setManuals] = useState<Manual[]>([]);
   const [faults, setFaults] = useState<Fault[]>([]);
   const [search, setSearch] = useState("");
@@ -118,7 +118,7 @@ export function EquipmentKnowledge({ brand, model }: { brand?: string | null; mo
 
   return (
     <div className="rounded-lg border p-3">
-      <p className="mb-2 text-xs text-muted-foreground">Partilhado por todos os equipamentos {brand} {model}</p>
+      <p className="mb-2 text-xs text-muted-foreground">Partilhado por todos os equipamentos {brand} {model || name}</p>
       <Tabs defaultValue="faults">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="manuals"><BookOpen className="mr-1 h-4 w-4" />Manuais</TabsTrigger>

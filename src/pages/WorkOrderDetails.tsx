@@ -950,7 +950,7 @@ export default function WorkOrderDetails() {
                       </div>
                     </AccordionTrigger>
                     <AccordionContent>
-                      <div className="mb-3"><EquipmentKnowledge brand={equipment.brand} model={equipment.model} /></div>
+                      <div className="mb-3"><EquipmentKnowledge brand={equipment.brand} model={equipment.model} name={equipment.name} /></div>
                       {(isManager || roles.includes("employee")) && <div className="mb-3 space-y-3"><FaultAssistant equipmentId={equipment.id} /></div>}
                       <EquipmentAttachments
                         equipmentId={equipment.id}

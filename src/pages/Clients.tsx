@@ -875,7 +875,7 @@ export default function Clients() {
                                    <div className="mt-4">
                                      <EquipmentHistory equipmentId={equipment.id} />
                                    </div>
-                                   <div className="mt-4"><EquipmentKnowledge brand={equipment.brand} model={equipment.model} /></div>
+                                   <div className="mt-4"><EquipmentKnowledge brand={equipment.brand} model={equipment.model} name={equipment.name} /></div>
                                    {currentUserId && (
                                      <div className="mt-4">
                             <EquipmentAttachments 

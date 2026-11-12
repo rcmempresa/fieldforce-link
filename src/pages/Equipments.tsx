@@ -299,7 +299,7 @@ export default function Equipments() {
                       <p className="mb-3 text-sm text-muted-foreground">{eq.notes}</p>
                     )}
                     <EquipmentHistory equipmentId={eq.id} />
-                    <div className="mt-3"><EquipmentKnowledge brand={eq.brand} model={eq.model} /></div>
+                    <div className="mt-3"><EquipmentKnowledge brand={eq.brand} model={eq.model} name={eq.name} /></div>
                   </CardContent>
                 </Card>
               ))}
