@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ClipboardList, Clock, CheckCircle, CalendarDays, Pause, Play, PlayCircle, Circle, ChevronLeft, ChevronRight, Filter, FileText, Zap, Wind, Cog, Camera } from "lucide-react";
+import { ClipboardList, Clock, CheckCircle, CalendarDays, Pause, Play, PlayCircle, ChevronLeft, ChevronRight, Filter, FileText, Zap, Wind, Cog, Camera } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { CompleteWorkOrderDialog } from "@/components/work-orders/CompleteWorkOrderDialog";
 import { PauseWorkOrderDialog } from "@/components/work-orders/PauseWorkOrderDialog";
@@ -565,7 +565,8 @@ export default function EmployeeDashboard() {
   const ordersForSelectedDate = getOrdersForSelectedDate();
 
   // Separate orders into categories based on THE EMPLOYEE's state (not global status)
-  // Closed: work is done — completed, invoiced, or awaiting purchase order (stays in "Concluídas")
+  // Closed: work is done — completed, invoiced, or awaiting purchase order.
+  // These no longer appear in the technician's order tabs.
   const isClosed = (status: string) =>
     status === "completed" || status === "invoiced" || status === "awaiting_purchase_order";
   // Active: employee has an active session (time entry without end_time)
@@ -577,14 +578,6 @@ export default function EmployeeDashboard() {
   const startedOrders = assignedOrders.filter(
     (order) => order.has_been_started && !order.active_time_entry_id && !isClosed(order.status) && !order.missing_material
   );
-  // New: employee has never worked on this order
-  const newOrders = assignedOrders.filter(
-    (order) => !order.has_been_started && !isClosed(order.status)
-  );
-  const completedOrders = assignedOrders.filter(
-    (order) => isClosed(order.status)
-  );
-
   return (
     <DashboardLayout title="Dashboard do Funcionário">
       <div className="space-y-6">
@@ -846,8 +839,8 @@ export default function EmployeeDashboard() {
                 {clientFilter === "all" ? "Nenhuma ordem de trabalho atribuída" : `Nenhuma ordem para ${clientFilter}`}
               </p>
             ) : (
-              <Tabs defaultValue={filterOrdersByClient(activeOrders).length > 0 ? "active" : filterOrdersByClient(startedOrders).length > 0 ? "paused" : "new"} className="w-full">
-                <TabsList className="grid h-auto w-full grid-cols-3 sm:grid-cols-5 mb-4">
+              <Tabs defaultValue={filterOrdersByClient(activeOrders).length > 0 ? "active" : filterOrdersByClient(startedOrders).length > 0 ? "paused" : "missing"} className="w-full">
+                <TabsList className="grid h-auto w-full grid-cols-3 mb-4">
                   <TabsTrigger value="active" className="flex items-center gap-1.5 text-xs sm:text-sm">
                     <PlayCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     <span className="hidden sm:inline">Em Execução</span>
@@ -865,26 +858,6 @@ export default function EmployeeDashboard() {
                     {filterOrdersByClient(startedOrders).length > 0 && (
                       <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px]">
                         {filterOrdersByClient(startedOrders).length}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                  <TabsTrigger value="new" className="flex items-center gap-1.5 text-xs sm:text-sm">
-                    <Circle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    <span className="hidden sm:inline">Novas</span>
-                    <span className="sm:hidden">Novas</span>
-                    {filterOrdersByClient(newOrders).length > 0 && (
-                      <Badge variant="outline" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px]">
-                        {filterOrdersByClient(newOrders).length}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                  <TabsTrigger value="completed" className="flex items-center gap-1.5 text-xs sm:text-sm">
-                    <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    <span className="hidden sm:inline">Concluídas</span>
-                    <span className="sm:hidden">Concl.</span>
-                    {filterOrdersByClient(completedOrders).length > 0 && (
-                      <Badge variant="outline" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px] bg-accent/20">
-                        {filterOrdersByClient(completedOrders).length}
                       </Badge>
                     )}
                   </TabsTrigger>
@@ -1022,101 +995,6 @@ export default function EmployeeDashboard() {
                             <Button size="sm" variant="outline" onClick={() => handleEditTimeEntriesClick(order.id, order.reference)}>
                               <Clock className="h-3.5 w-3.5 mr-1" />
                               Horas
-                            </Button>
-                            {renderReportButton(order.id, order.reference)}
-                            <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
-                              Detalhes
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </TabsContent>
-
-                {/* New Orders Tab */}
-                <TabsContent value="new" className="mt-0">
-                  {filterOrdersByClient(newOrders).length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Circle className="h-12 w-12 mx-auto mb-2 opacity-30" />
-                      <p>Nenhuma nova ordem</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3 sm:max-h-[400px] sm:overflow-y-auto sm:pr-2">
-                      {filterOrdersByClient(newOrders).map((order) => (
-                        <div key={order.id} className="flex flex-col gap-3 rounded-lg border p-3">
-                          <div className="space-y-1 flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-medium text-sm">{order.reference}</p>
-                              {order.missing_material && <Badge variant="destructive"><PackageX className="mr-1 h-3 w-3" />Sem material</Badge>}
-                              <DaysOpenBadge createdAt={order.created_at} status={order.status} />
-                              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(order.priority)}`}>
-                                {getPriorityLabel(order.priority)}
-                              </span>
-                              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
-                                {getStatusLabel(order.status)}
-                              </span>
-                            </div>
-                            <p className="text-sm text-muted-foreground line-clamp-1">{order.title}</p>
-                            {order.client_name && (
-                              <p className="text-xs text-muted-foreground">Cliente: {order.client_name}</p>
-                            )}
-                            {order.scheduled_date && (
-                              <p className="text-xs text-muted-foreground">
-                                Agendado: {formatDateTime(order.scheduled_date)}
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Button size="sm" onClick={() => openStartRegimeDialog(order.id, order.reference, order.has_been_started)}>
-                              <Play className="h-3.5 w-3.5 mr-1" />
-                              Iniciar
-                            </Button>
-                            {! ["completed", "invoiced", "cancelled"].includes(order.status) && (
-                              <Button size="sm" className="order-first w-full sm:order-none sm:w-auto" onClick={() => handleCompleteClick(order.id, order.reference)}>
-                                <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                                Concluir OT
-                              </Button>
-                            )}
-                            {renderReportButton(order.id, order.reference)}
-                            <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
-                              Detalhes
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </TabsContent>
-
-                {/* Completed Orders Tab */}
-                <TabsContent value="completed" className="mt-0">
-                  {filterOrdersByClient(completedOrders).length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <CheckCircle className="h-12 w-12 mx-auto mb-2 opacity-30" />
-                      <p>Nenhuma ordem concluída</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3 sm:max-h-[400px] sm:overflow-y-auto sm:pr-2">
-                      {filterOrdersByClient(completedOrders).map((order) => (
-                        <div key={order.id} className="flex flex-col gap-3 rounded-lg border border-accent/30 bg-accent/5 p-3">
-                          <div className="space-y-1 flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-medium text-sm">{order.reference}</p>
-                              {order.missing_material && <Badge variant="destructive"><PackageX className="mr-1 h-3 w-3" />Sem material</Badge>}
-                              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityColor(order.priority)}`}>
-                                {getPriorityLabel(order.priority)}
-                              </span>
-                            </div>
-                            <p className="text-sm text-muted-foreground line-clamp-1">{order.title}</p>
-                            {order.client_name && (
-                              <p className="text-xs text-muted-foreground">Cliente: {order.client_name}</p>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Button size="sm" variant="outline" onClick={() => handleEditTimeEntriesClick(order.id, order.reference, true)}>
-                              <Clock className="h-3.5 w-3.5 mr-1" />
-                              Ver Horas
                             </Button>
                             {renderReportButton(order.id, order.reference)}
                             <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
