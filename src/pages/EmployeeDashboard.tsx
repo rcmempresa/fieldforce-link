@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ClipboardList, Clock, CheckCircle, CalendarDays, Pause, Play, PlayCircle, ChevronLeft, ChevronRight, Filter, FileText, Zap, Wind, Cog, Camera } from "lucide-react";
+import { ClipboardList, Clock, CheckCircle, CalendarDays, Pause, Play, PlayCircle, ChevronLeft, ChevronRight, Filter, FileText, Zap, Wind, Cog, Camera, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { CompleteWorkOrderDialog } from "@/components/work-orders/CompleteWorkOrderDialog";
 import { PauseWorkOrderDialog } from "@/components/work-orders/PauseWorkOrderDialog";
@@ -583,7 +583,25 @@ export default function EmployeeDashboard() {
       <div className="space-y-6">
         <EmployeeMissingMaterial />
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+          <a
+            href="https://picaponto.nrtechsolucion.pt/auth"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block"
+          >
+            <Card className="h-full border-primary/40 bg-primary/5 transition-colors hover:bg-primary/10">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pica Ponto</CardTitle>
+                <ExternalLink className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl font-bold tracking-tight text-primary">PICA PONTO</div>
+                <p className="text-xs text-muted-foreground">Abrir aplicação</p>
+              </CardContent>
+            </Card>
+          </a>
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Ordens Atribuídas</CardTitle>
