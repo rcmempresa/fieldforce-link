@@ -816,7 +816,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Company inbox always receives a copy of created/completed OTs. Only the
     // non-manager call adds it, and only if no manager already resolves to it.
     if ((type === "work_order_completed" || type === "work_order_created") && (!data.isManager || data.includeCompanyCopy)) {
-      const managerEmails = await getManagerEmails(supabaseAdmin);
+      const managerEmails = type === "work_order_created" ? await getManagerEmails(supabaseAdmin) : [];
       const already = [...allRecipients, ...managerEmails].some((e) => e?.toLowerCase() === COMPANY_INBOX);
       if (!already) allRecipients.push(COMPANY_INBOX);
     }
