@@ -733,6 +733,21 @@ export default function ManagerDashboard() {
         }
       });
 
+      const assignMap = new Map<string, string[]>();
+      for (let from = 0; ; from += 1000) {
+        const { data: asg } = await supabase
+          .from("work_order_assignments")
+          .select("work_order_id, profiles!work_order_assignments_user_id_fkey (name)")
+          .range(from, from + 999);
+        (asg || []).forEach((a: any) => {
+          if (!idSet.has(a.work_order_id)) return;
+          const list = assignMap.get(a.work_order_id) || [];
+          list.push(a.profiles?.name || "N/A");
+          assignMap.set(a.work_order_id, list);
+        });
+        if (!asg || asg.length < 1000) break;
+      }
+
       const formattedOrders = data.map((order: any) => {
         const hoursData = hoursMap.get(order.id);
         const employeeHours: EmployeeHours[] = hoursData 
@@ -748,6 +763,7 @@ export default function ManagerDashboard() {
           client_name: order.profiles?.company_name || order.profiles?.name || "N/A",
           total_hours: hoursData?.total || 0,
           employee_hours: employeeHours,
+          assigned_names: assignMap.get(order.id) || [],
         };
       });
       setCalendarOrders(formattedOrders);
@@ -1739,6 +1755,12 @@ export default function ManagerDashboard() {
                                 Cliente: {order.client_name}
                               </p>
                             )}
+                            <p className="text-xs mt-0.5 flex items-center gap-1">
+                              <Users className="h-3 w-3 text-muted-foreground" />
+                              {(order as any).assigned_names?.length
+                                ? <span className="font-medium">{(order as any).assigned_names.join(", ")}</span>
+                                : <span className="text-destructive font-medium">Sem técnico</span>}
+                            </p>
                             <div className="flex items-center gap-3 mt-1">
                               {order.scheduled_date && (
                                 <p className="text-xs font-semibold text-primary">
