@@ -49,6 +49,8 @@ export function MaterialCatalogSelect({
   const filtered = options.filter((o) =>
     matchesSearch([o.name, o.reference, o.default_unit], search),
   );
+  const MAX_SHOWN = 100;
+  const shown = filtered.slice(0, MAX_SHOWN);
 
   return (
     <Popover
@@ -81,7 +83,7 @@ export function MaterialCatalogSelect({
           <CommandList>
             <CommandEmpty>{emptyLabel}</CommandEmpty>
             <CommandGroup>
-              {filtered.map((item) => (
+              {shown.map((item) => (
                 <CommandItem
                   key={item.id}
                   value={item.id}
@@ -107,6 +109,12 @@ export function MaterialCatalogSelect({
               ))}
             </CommandGroup>
           </CommandList>
+          {filtered.length > MAX_SHOWN && (
+            <p className="border-t px-3 py-2 text-xs text-muted-foreground">
+              A mostrar os primeiros {MAX_SHOWN} de {filtered.length}. Escreve para
+              filtrar.
+            </p>
+          )}
         </Command>
       </PopoverContent>
     </Popover>

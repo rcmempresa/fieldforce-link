@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DataPagination } from "@/components/ui/data-pagination";
+import { matchesSearch } from "@/lib/searchText";
 
 const units = [
   { value: "un", label: "Unidade(s)" },
@@ -264,7 +265,9 @@ export default function MaterialCatalog() {
               </div>
             ) : filteredItems.length === 0 ? (
               <p className="text-center text-muted-foreground py-4 text-sm">
-                Nenhum material no catálogo.
+                {search.trim()
+                  ? "Nenhum material encontrado para esta pesquisa."
+                  : "Nenhum material no catálogo."}
               </p>
             ) : (
               <>
