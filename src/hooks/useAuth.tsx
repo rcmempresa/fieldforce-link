@@ -15,6 +15,7 @@ export interface Profile {
   phone: string | null;
   company_name: string | null;
   address: string | null;
+  nif?: string | null;
 }
 
 export function useAuth() {
@@ -91,7 +92,7 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, name: string) => {
+  const signUp = async (email: string, password: string, name: string, nif?: string | null) => {
     try {
       const redirectUrl = `${window.location.origin}/`;
       
@@ -102,6 +103,7 @@ export function useAuth() {
           emailRedirectTo: redirectUrl,
           data: {
             name,
+            ...(nif ? { nif } : {}),
           },
         },
       });

@@ -12,6 +12,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DataPagination } from "@/components/ui/data-pagination";
 import { Search, History, Clock, CheckCircle, ClipboardList, FileText } from "lucide-react";
 import { formatDate } from "@/lib/formatDate";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { isValidNif, normalizeNif } from "@/lib/nif";
 import { formatHoursDetailed } from "@/lib/formatHours";
 
 interface HistoryOrder {
@@ -89,6 +92,40 @@ export default function Profile() {
   const [page, setPage] = useState(1);
 
   const role = roles[0] ?? "";
+  const isClient = roles.includes("client");
+  const [billing, setBilling] = useState({ company_name: "", nif: "", phone: "", address: "" });
+  const [savingBilling, setSavingBilling] = useState(false);
+
+  useEffect(() => {
+    if (!profile) return;
+    setBilling({
+      company_name: profile.company_name ?? "",
+      nif: profile.nif ?? "",
+      phone: profile.phone ?? "",
+      address: profile.address ?? "",
+    });
+  }, [profile]);
+
+  const saveBilling = async () => {
+    if (!profile) return;
+    if (!isValidNif(billing.nif)) {
+      toast.error("O NIF tem de ter 9 digitos");
+      return;
+    }
+    setSavingBilling(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        company_name: billing.company_name.trim() || null,
+        nif: normalizeNif(billing.nif),
+        phone: billing.phone.trim() || null,
+        address: billing.address.trim() || null,
+      })
+      .eq("id", profile.id);
+    setSavingBilling(false);
+    if (error) toast.error("Nao foi possivel guardar os dados");
+    else toast.success("Dados de faturacao guardados");
+  };
 
   useEffect(() => {
     loadHistory();
@@ -264,6 +301,37 @@ export default function Profile() {
             </div>
           </CardContent>
         </Card>
+
+        {isClient && (
+          <Card>
+            <CardContent className="py-6 space-y-4">
+              <h3 className="text-lg font-semibold">Dados de faturação</h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="b-company">Nome da empresa</Label>
+                  <Input id="b-company" value={billing.company_name} onChange={(e) => setBilling({ ...billing, company_name: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="b-nif">NIF</Label>
+                  <Input id="b-nif" inputMode="numeric" placeholder="123456789" value={billing.nif} onChange={(e) => setBilling({ ...billing, nif: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="b-phone">Telefone</Label>
+                  <Input id="b-phone" value={billing.phone} onChange={(e) => setBilling({ ...billing, phone: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="b-address">Morada</Label>
+                  <Input id="b-address" value={billing.address} onChange={(e) => setBilling({ ...billing, address: e.target.value })} />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={saveBilling} disabled={savingBilling}>
+                  {savingBilling ? "A guardar..." : "Guardar"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* History */}
         <Card>

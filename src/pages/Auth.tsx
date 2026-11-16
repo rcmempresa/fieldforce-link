@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { isValidNif, normalizeNif } from "@/lib/nif";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,6 +15,7 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [nif, setNif] = useState("");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
@@ -36,7 +38,11 @@ export default function Auth() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await signUp(email, password, name);
+    if (!isValidNif(nif)) {
+      toast.error("O NIF tem de ter 9 digitos");
+      return;
+    }
+    const { error } = await signUp(email, password, name, normalizeNif(nif));
     if (!error) {
       navigate("/");
     }
@@ -142,6 +148,16 @@ export default function Auth() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-nif">NIF (opcional)</Label>
+                  <Input
+                    id="signup-nif"
+                    inputMode="numeric"
+                    placeholder="123456789"
+                    value={nif}
+                    onChange={(e) => setNif(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
