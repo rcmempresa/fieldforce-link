@@ -21,3 +21,6 @@ test("enviado quando pelo menos um canal funciona", () => {
   expect(anyChannelSent({ email: { ok: false }, whatsapp: { ok: true } })).toBe(true);
   expect(anyChannelSent({ email: { ok: false }, whatsapp: { ok: false } })).toBe(false);
 });
+test("whatsapp pendente do agente nao conta como enviado", () => {
+  expect(anyChannelSent({ whatsapp: { ok: false, pending_agent: true } as any })).toBe(false);
+});

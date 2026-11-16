@@ -200,13 +200,15 @@ ${q.valid_until ? `<tr><td style="padding:4px 12px 4px 0">Válido até</td><td>$
 
 async function sendQuoteWhatsapp(db: any, q: any, phone: string, pdf: ArrayBuffer, mensagem?: string) {
   const lov = Deno.env.get("LOVABLE_API_KEY"), wa = Deno.env.get("WHATSAPP_API_KEY");
-  if (!lov || !wa) return { ok: false, error: "WhatsApp não está ligado à app" };
   const path = `${q.id}/${q.reference.replace(/[^\w.\-]/g, "_")}-${Date.now()}.pdf`;
   const up = await db.storage.from("quote-pdfs").upload(path, new Blob([pdf], { type: "application/pdf" }), { contentType: "application/pdf" });
   if (up.error) return { ok: false, error: `Falha a guardar PDF: ${up.error.message}` };
   const signed = await db.storage.from("quote-pdfs").createSignedUrl(path, 7 * 86400);
   if (signed.error) return { ok: false, error: signed.error.message };
   const filename = `${q.reference}.pdf`;
+  const caption0 = mensagem || `Olá ${q.client_name || ""}, segue o orçamento ${q.reference} da NR Tech Solution. Total: ${Number(q.total).toFixed(2).replace(".", ",")} EUR (IVA incluído).`;
+  // The number lives on the external AI agent: hand it the PDF so it sends and then confirms.
+  if (!lov || !wa) return { ok: false, pending_agent: true, pdf_url: signed.data.signedUrl, filename, caption: caption0 };
   const headers = { Authorization: `Bearer ${lov}`, "X-Connection-Api-Key": wa, "Content-Type": "application/json" };
   const send = (payload: unknown) => fetch("https://connector-gateway.lovable.dev/whatsapp/messages", { method: "POST", headers, body: JSON.stringify(payload) });
   const caption = mensagem || `Orçamento ${q.reference} - NR Tech Solution. Total: ${Number(q.total).toFixed(2).replace(".", ",")} EUR`;
@@ -1039,7 +1041,7 @@ ${i.valid_until ? `<tr><td style="padding:4px 12px 4px 0">Válido até</td><td>$
           vat_amount: Number(q.vat_amount), total: Number(q.total), notes: q.notes ?? undefined, work_order_reference: woRef,
         });
         const pdf: ArrayBuffer = doc.output("arraybuffer");
-        const results: Record<string, { ok: boolean; error?: string; to?: string }> = {};
+        const results: Record<string, any> = {};
         const subject = `Orçamento ${q.reference} — NR Tech Solution`;
         const logUser = q.client_id ?? q.created_by;
         if (channels.includes("email")) {
@@ -1048,16 +1050,30 @@ ${i.valid_until ? `<tr><td style="padding:4px 12px 4px 0">Válido até</td><td>$
           if (logUser) await db.from("email_logs").insert({ user_id: logUser, email: email!, subject, notification_type: "quote_sent", status: r.ok ? "sent" : "failed", error_message: r.ok ? null : r.error, work_order_id: q.work_order_id });
         }
         if (channels.includes("whatsapp")) {
-          const r = await sendQuoteWhatsapp(db, q, phone!, pdf, i.mensagem);
+          const r: any = await sendQuoteWhatsapp(db, q, phone!, pdf, i.mensagem);
           results.whatsapp = { ...r, to: phone! };
-          if (logUser) await db.from("email_logs").insert({ user_id: logUser, email: `whatsapp:+${phone}`, subject, notification_type: "quote_whatsapp", status: r.ok ? "sent" : "failed", error_message: r.ok ? null : r.error, work_order_id: q.work_order_id });
+          if (logUser && !r.pending_agent) await db.from("email_logs").insert({ user_id: logUser, email: `whatsapp:+${phone}`, subject, notification_type: "quote_whatsapp", status: r.ok ? "sent" : "failed", error_message: r.ok ? null : r.error, work_order_id: q.work_order_id });
         }
         const sent = anyChannelSent(results);
         if (sent) await db.from("quotes").update({ status: q.status === "rascunho" ? "enviado" : q.status, sent_at: new Date().toISOString() }).eq("id", q.id);
-        return json({ data: { reference: q.reference, sent, results } }, sent ? 200 : 502);
+        const pending = !!results.whatsapp?.pending_agent;
+        return json({ data: { reference: q.reference, sent, pending_agent_whatsapp: pending, results } }, sent || pending ? 200 : 502);
+      }
+      case "confirmar_whatsapp_orcamento": {
+        const parsed = z.object({ reference: referenceInput, telefone: z.string().trim().max(50), ok: booleanInput, erro: z.string().trim().max(500).optional() }).safeParse(p);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const i = parsed.data;
+        const found = await findQuote(db, i.reference);
+        if (found.response) return found.response;
+        const q = found.data;
+        const phone = normalizeWhatsappNumber(i.telefone) ?? i.telefone;
+        const logUser = q.client_id ?? q.created_by;
+        if (logUser) await db.from("email_logs").insert({ user_id: logUser, email: `whatsapp:+${phone}`, subject: `Orçamento ${q.reference} — NR Tech Solution`, notification_type: "quote_whatsapp", status: i.ok ? "sent" : "failed", error_message: i.ok ? null : (i.erro ?? "Falha reportada pelo agente"), work_order_id: q.work_order_id });
+        if (i.ok) await db.from("quotes").update({ status: q.status === "rascunho" ? "enviado" : q.status, sent_at: new Date().toISOString() }).eq("id", q.id);
+        return json({ data: { reference: q.reference, confirmed: i.ok } });
       }
       default:
-        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "listar_contratos", "historico_equipamento", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "criar_cliente", "editar_cliente", "apagar_registo_horas", "criar_orcamento", "listar_orcamentos", "buscar_orcamento", "marcar_orcamento_enviado", "enviar_email_orcamento", "procurar_cliente_orcamento", "resumo_orcamento", "editar_orcamento", "adicionar_linha_orcamento", "editar_linha_orcamento", "remover_linha_orcamento", "enviar_orcamento"] }, 400);
+        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "listar_contratos", "historico_equipamento", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "criar_cliente", "editar_cliente", "apagar_registo_horas", "criar_orcamento", "listar_orcamentos", "buscar_orcamento", "marcar_orcamento_enviado", "enviar_email_orcamento", "procurar_cliente_orcamento", "resumo_orcamento", "editar_orcamento", "adicionar_linha_orcamento", "editar_linha_orcamento", "remover_linha_orcamento", "enviar_orcamento", "confirmar_whatsapp_orcamento"] }, 400);
     }
   } catch (e: any) {
     console.error(action, e);
