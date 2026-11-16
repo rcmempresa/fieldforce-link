@@ -86,77 +86,17 @@ export function PauseWorkOrderDialog({
         }
       }
 
-      // Get time entry details to calculate duration
-      const { data: timeEntry } = await supabase
-        .from("time_entries")
-        .select("start_time")
-        .eq("id", timeEntryId)
-        .single();
-
-      if (!timeEntry) throw new Error("Entrada de tempo não encontrada");
-
-      const now = new Date();
-      const startTime = new Date(timeEntry.start_time);
-      const durationHours = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-
-      // Update time entry with end time, duration, and pause reason
-      const { error: timeEntryError } = await supabase
-        .from("time_entries")
-        .update({
-          end_time: now.toISOString(),
-          duration_hours: durationHours,
-          pause_reason: selectedReason as "falta_material" | "enviado_oficina" | "enviado_orcamento" | "assinatura_gerente" | "saida_temporaria",
-          note: selectedReason === "falta_material" ? `Material em falta: ${missingMaterial}` : null,
-        })
-        .eq("id", timeEntryId);
-
-      if (timeEntryError) throw timeEntryError;
-
-      // Get total hours from all time entries for this work order
-      const { data: allTimeEntries } = await supabase
-        .from("time_entries")
-        .select("duration_hours")
-        .eq("work_order_id", workOrderId)
-        .not("duration_hours", "is", null);
-
-      const totalHours = (allTimeEntries || []).reduce(
-        (sum, entry) => sum + (entry.duration_hours || 0),
-        0
-      );
-
-      // Get current user ID
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-
-      // Check if there are OTHER employees with active sessions
-      const { count: otherActiveSessions } = await supabase
-        .from("time_entries")
-        .select("*", { count: "exact", head: true })
-        .eq("work_order_id", workOrderId)
-        .is("end_time", null)
-        .neq("user_id", user.id);
-
-      // Only update status to pending if no other employees are actively working
-      const newStatus = (otherActiveSessions && otherActiveSessions > 0) ? "in_progress" : "pending";
-
-      // Update work order status and total_hours
-      const { error: updateError } = await supabase
-        .from("work_orders")
-        .update({ 
-          status: newStatus,
-          total_hours: totalHours
-        })
-        .eq("id", workOrderId);
-
-      if (updateError) throw updateError;
+      // Close the session, set status and the "sem material" flag in one atomic step
+      const { data: newStatus, error: pauseError } = await supabase.rpc("pause_work_order", {
+        _entry: timeEntryId,
+        _reason: selectedReason as "falta_material" | "enviado_oficina" | "enviado_orcamento" | "assinatura_gerente" | "saida_temporaria",
+        _note: selectedReason === "falta_material" ? missingMaterial.trim() : null,
+      });
+      if (pauseError) throw pauseError;
 
       // If missing material, send emails, then release technicians (kept as "previous assignees")
       if (selectedReason === "falta_material") {
         await sendMissingMaterialEmails(workOrderId, missingMaterial, attachmentPaths);
-        if (newStatus === "pending") {
-          const { error: relErr } = await supabase.rpc("release_assignments_for_missing_material", { _wo: workOrderId });
-          if (relErr) console.error("Error releasing assignments:", relErr);
-        }
       }
 
       toast({
@@ -175,7 +115,7 @@ export function PauseWorkOrderDialog({
       console.error("Error pausing work:", error);
       toast({
         title: "Erro",
-        description: "Erro ao pausar trabalho",
+        description: (error as any)?.message ? `Não foi possível pausar: ${(error as any).message}` : "Erro ao pausar trabalho",
         variant: "destructive",
       });
     } finally {

@@ -126,6 +126,19 @@ export default function WorkOrderDetails() {
     window.location.reload();
   };
   
+  const toggleMissingMaterial = async () => {
+    if (!id) return;
+    let note: string | null = null;
+    if (!missingMaterial) {
+      note = window.prompt("Que material está em falta?")?.trim() || "";
+      if (!note) return;
+    } else if (!window.confirm("Retirar a marca «Sem material» desta OT?")) return;
+    const { error } = await supabase.rpc("set_missing_material", { _wo: id, _note: note });
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    setMissingMaterial(!missingMaterial);
+    toast({ title: note ? "OT marcada como sem material" : "Marca «Sem material» retirada" });
+  };
+
   // Manager only states
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -627,7 +640,7 @@ export default function WorkOrderDetails() {
                 <CardTitle className="text-2xl">{workOrder.reference}</CardTitle>
                 <p className="text-muted-foreground mt-1">{workOrder.title}</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <span
                   className={`rounded-full px-3 py-1 text-sm font-medium ${getStatusColor(
                     workOrder.status
@@ -640,6 +653,11 @@ export default function WorkOrderDetails() {
                   <span className="rounded-full px-3 py-1 text-sm font-medium bg-destructive/10 text-destructive border border-destructive/30">
                     Sem material
                   </span>
+                )}
+                {isManager && !["completed", "invoiced", "cancelled"].includes(workOrder.status) && (
+                  <Button size="sm" variant="outline" onClick={toggleMissingMaterial}>
+                    {missingMaterial ? "Retirar «Sem material»" : "Marcar sem material"}
+                  </Button>
                 )}
                 {isManager && hasPrevious && (
                   <Button size="sm" variant="outline" onClick={reassignPrevious}>

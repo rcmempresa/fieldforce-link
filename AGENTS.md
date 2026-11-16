@@ -15,3 +15,4 @@
 - Notification emails resolve recipients via profiles.notification_email when set, falling back to the auth login email; this redirects notices without changing anyone's login.
 - Quote emails are sent by the send-quote-email edge function (manager-only, PDF generated client-side and attached), which logs to email_logs and marks the quote sent; keeps Resend credentials server-side.
 - Quote PDFs are drawn by supabase/functions/_shared/quotePdf.ts for both the Quotes page and the empregado-digital assistant (enviar_orcamento sends by email and/or WhatsApp); one layout avoids divergence.
+- "Sem material" is an explicit flag on work_orders (missing_material_since/note), set atomically by the pause_work_order RPC or manager set_missing_material and cleared by triggers; never infer it from the last time entry, which proved unreliable.

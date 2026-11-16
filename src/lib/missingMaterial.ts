@@ -1,21 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
 
-/** IDs of open work orders whose most recent pause was "falta de material". */
+/** IDs of open work orders currently flagged as "sem material". */
 export async function fetchMissingMaterialIds(): Promise<Set<string>> {
   const { data } = await supabase
-    .from("time_entries")
-    .select("work_order_id, pause_reason, start_time, work_orders!inner(status)")
-    .order("start_time", { ascending: false })
+    .from("work_orders")
+    .select("id")
+    .not("missing_material_since", "is", null)
     .limit(5000);
-  const seen = new Set<string>();
-  const ids = new Set<string>();
-  for (const row of (data || []) as any[]) {
-    if (seen.has(row.work_order_id)) continue;
-    seen.add(row.work_order_id);
-    const status = row.work_orders?.status;
-    if (row.pause_reason === "falta_material" && !["completed", "invoiced", "cancelled", "in_progress", "awaiting_purchase_order"].includes(status)) {
-      ids.add(row.work_order_id);
-    }
-  }
-  return ids;
+  return new Set((data || []).map((r: any) => r.id));
 }

@@ -31,19 +31,14 @@ export function EmployeeMissingMaterial({ embedded = false, onCount }: { embedde
       const mine = new Set([...(prev.data || []), ...(cur.data || [])].map((r: any) => r.work_order_id));
       const ids = [...missing].filter((id) => mine.has(id));
       if (!ids.length) { onCount?.(0); return setRows([]); }
-      const [{ data: wos }, { data: notes }] = await Promise.all([
-        supabase.from("work_orders").select("id, reference, title, profiles!work_orders_client_id_fkey(name, company_name)").in("id", ids),
-        supabase.from("time_entries").select("work_order_id, note, start_time").in("work_order_id", ids).eq("pause_reason", "falta_material").order("start_time", { ascending: false }),
-      ]);
-      const noteMap = new Map<string, string | null>();
-      for (const n of (notes || []) as any[]) if (!noteMap.has(n.work_order_id)) noteMap.set(n.work_order_id, n.note);
+      const { data: wos } = await supabase.from("work_orders").select("id, reference, title, missing_material_note, profiles!work_orders_client_id_fkey(name, company_name)").in("id", ids);
       onCount?.((wos || []).length);
       setRows(((wos || []) as any[]).map((w) => ({
         id: w.id,
         reference: w.reference,
         title: w.title,
         client: w.profiles?.company_name || w.profiles?.name || "N/A",
-        note: noteMap.get(w.id) ?? null,
+        note: w.missing_material_note ? `Material em falta: ${w.missing_material_note}` : null,
       })));
     })();
   }, []);

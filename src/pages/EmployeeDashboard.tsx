@@ -120,7 +120,7 @@ export default function EmployeeDashboard() {
               status,
               created_at,
               total_hours,
-              time_entries (pause_reason, start_time),
+              missing_material_since,
               profiles:client_id (
                 name
               )
@@ -152,12 +152,9 @@ export default function EmployeeDashboard() {
           const wo = item.work_orders;
           if (!wo) return null;
           const activeEntry = activeTimeEntriesMap.get(wo.id);
-          const latestEntry = [...(wo.time_entries || [])].sort(
-            (a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime()
-          )[0];
           return {
             ...wo,
-            missing_material: latestEntry?.pause_reason === "falta_material",
+            missing_material: !!wo.missing_material_since,
             client_name: wo.profiles?.name || 'N/A',
             active_time_entry_id: activeEntry?.id,
             active_time_entry_start: activeEntry?.start_time,

@@ -1067,6 +1067,8 @@ export type Database = {
           id: string
           is_after_hours: boolean
           is_labor_hours: boolean
+          missing_material_note: string | null
+          missing_material_since: string | null
           needs_scheduling: boolean
           notes: string | null
           priority: Database["public"]["Enums"]["work_order_priority"]
@@ -1089,6 +1091,8 @@ export type Database = {
           id?: string
           is_after_hours?: boolean
           is_labor_hours?: boolean
+          missing_material_note?: string | null
+          missing_material_since?: string | null
           needs_scheduling?: boolean
           notes?: string | null
           priority?: Database["public"]["Enums"]["work_order_priority"]
@@ -1111,6 +1115,8 @@ export type Database = {
           id?: string
           is_after_hours?: boolean
           is_labor_hours?: boolean
+          missing_material_note?: string | null
+          missing_material_since?: string | null
           needs_scheduling?: boolean
           notes?: string | null
           priority?: Database["public"]["Enums"]["work_order_priority"]
@@ -1191,12 +1197,24 @@ export type Database = {
         Args: { _user: string; _wo: string }
         Returns: boolean
       }
+      pause_work_order: {
+        Args: {
+          _entry: string
+          _note?: string
+          _reason: Database["public"]["Enums"]["pause_reason"]
+        }
+        Returns: string
+      }
       reassign_previous_technicians: {
         Args: { _wo: string }
         Returns: undefined
       }
       release_assignments_for_missing_material: {
         Args: { _wo: string }
+        Returns: undefined
+      }
+      set_missing_material: {
+        Args: { _note: string; _wo: string }
         Returns: undefined
       }
     }
