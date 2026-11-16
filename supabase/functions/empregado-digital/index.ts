@@ -1,6 +1,9 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3.25.76";
+import { jsPDF } from "npm:jspdf@2.5.2";
+import { drawQuotePdf } from "../_shared/quotePdf.ts";
+import { anyChannelSent, channelsFor, computeQuoteTotals, normalizeWhatsappNumber } from "../_shared/quoteDelivery.ts";
 
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -109,6 +112,117 @@ async function findWriteProfile(db: any, search: string, client = false, userId?
   if (!rows?.length) return { response: json({ error: client ? "Cliente não encontrado" : "Técnico não encontrado" }, 404) };
   if (rows.length > 1) return { response: json({ error: "Nome ambíguo", matches: rows.map((row: any) => client ? row.company_name || row.name : row.name) }, 400) };
   return { data: rows[0] };
+}
+
+const LOGO_URL = "https://nrtechsolucion.pt/__l5e/assets-v1/3720c907-122a-4da3-8033-0f1b9881dc20/nr-techsolucion-logo.png";
+let logoCache: string | null = null;
+async function loadLogo() {
+  if (logoCache) return logoCache;
+  try {
+    const r = await fetch(LOGO_URL);
+    const type = r.headers.get("content-type") ?? "";
+    if (!r.ok || !type.startsWith("image/")) return null;
+    const bytes = new Uint8Array(await r.arrayBuffer());
+    let bin = ""; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    logoCache = `data:${type};base64,${btoa(bin)}`;
+    return logoCache;
+  } catch { return null; }
+}
+
+async function findQuote(db: any, ref: string) {
+  const { data, error } = await db.from("quotes").select("*").eq("reference", ref).maybeSingle();
+  if (error) throw error;
+  if (data) return { data };
+  const r = await db.from("quotes").select("*").ilike("reference", `%${ref.replace(/[%_]/g, "")}%`).order("created_at", { ascending: false }).limit(2);
+  if (r.error) throw r.error;
+  if ((r.data?.length ?? 0) > 1) return { response: json({ error: "Referência ambígua", matches: r.data.map((q: any) => q.reference) }, 409) };
+  if (!r.data?.length) return { response: json({ error: "Orçamento não encontrado" }, 404) };
+  return { data: r.data[0] };
+}
+
+const quoteSummary = (q: any) => ({
+  reference: q.reference, status: q.status, client_id: q.client_id, client_name: q.client_name, client_nif: q.client_nif,
+  client_email: q.client_email, client_phone: q.client_phone, valid_until: q.valid_until, requires_visit: q.requires_visit,
+  notes: q.notes, internal_notes: q.internal_notes,
+  lines: (q.items ?? []).map((it: any, i: number) => ({ line: i + 1, ...it })),
+  subtotal: q.subtotal, vat_rate: q.vat_rate, vat_amount: q.vat_amount, total: q.total,
+});
+
+async function saveQuoteLines(db: any, q: any, lines: any[]) {
+  const t = computeQuoteTotals(lines.map((l) => ({ description: l.description, quantity: Number(l.quantity), unit: l.unit, unit_price: Number(l.unit_price) })), Number(q.vat_rate ?? 0.22));
+  const { data, error } = await db.from("quotes").update(t).eq("id", q.id).select().single();
+  if (error) throw error;
+  return json({ data: quoteSummary(data) });
+}
+
+const num = (min = 0) => z.preprocess((v) => typeof v === "string" && v.trim() ? Number(v.replace(",", ".")) : v, z.number().finite().min(min));
+const quoteSchemas = {
+  procurar_cliente_orcamento: z.object({ search: nameInput }),
+  editar_orcamento: z.object({ reference: referenceInput, client_search: nameInput.optional(),
+    vat_rate: num().refine((v) => v <= 1, "Usar fração, ex.: 0.22").optional(),
+    valid_days: num(1).optional(), requires_visit: booleanInput.optional(),
+    notes: z.string().trim().max(2000).optional(), internal_notes: z.string().trim().max(2000).optional(),
+    client_email: z.string().trim().email().optional(), client_phone: z.string().trim().max(50).optional() }),
+  adicionar_linha_orcamento: z.object({ reference: referenceInput, description: z.string().trim().min(1).max(500),
+    quantity: num().refine((v) => v > 0).default(1), unit: z.string().trim().min(1).max(20).default("un"), unit_price: num() }),
+  editar_linha_orcamento: z.object({ reference: referenceInput, line: z.coerce.number().int().min(1),
+    description: z.string().trim().min(1).max(500).optional(), quantity: num().refine((v) => v > 0).optional(),
+    unit: z.string().trim().min(1).max(20).optional(), unit_price: num().optional() }),
+  remover_linha_orcamento: z.object({ reference: referenceInput, line: z.coerce.number().int().min(1) }),
+  resumo_orcamento: z.object({ reference: referenceInput }),
+  enviar_orcamento: z.object({ reference: referenceInput, canal: z.enum(["email", "whatsapp", "ambos"]),
+    email: z.string().trim().email().optional(), telefone: z.string().trim().max(50).optional(),
+    mensagem: z.string().trim().max(1000).optional() }),
+};
+
+const b64 = (buf: ArrayBuffer) => { const u = new Uint8Array(buf); let s = ""; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(s); };
+
+async function sendQuoteEmail(q: any, to: string, pdfB64: string, mensagem?: string) {
+  const key = Deno.env.get("RESEND_API_KEY");
+  if (!key) return { ok: false, error: "Serviço de email não configurado" };
+  const esc = (v: string) => v.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+  const eur = (v: number | null) => (v == null ? "-" : `${Number(v).toFixed(2).replace(".", ",")} €`);
+  const html = `<div style="font-family:Arial,sans-serif;color:#222"><p>Olá ${esc(q.client_name || "")},</p>
+${mensagem ? `<p>${esc(mensagem)}</p>` : ""}<p>Segue em anexo o orçamento <strong>${esc(q.reference)}</strong>.</p>
+<table style="border-collapse:collapse"><tr><td style="padding:4px 12px 4px 0">Subtotal</td><td>${eur(q.subtotal)}</td></tr>
+<tr><td style="padding:4px 12px 4px 0">IVA</td><td>${eur(q.vat_amount)}</td></tr>
+<tr><td style="padding:4px 12px 4px 0"><strong>Total</strong></td><td><strong>${eur(q.total)}</strong></td></tr>
+${q.valid_until ? `<tr><td style="padding:4px 12px 4px 0">Válido até</td><td>${esc(String(q.valid_until).split("-").reverse().join("/"))}</td></tr>` : ""}</table>
+<p>Para qualquer esclarecimento, responda a este email.</p><p>Cumprimentos,<br/>NR Tech Solution</p></div>`;
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: "NR Tech Solution <geral@nrtechsolucion.pt>", to: [to], reply_to: "geral@nrtechsolucion.pt",
+      subject: `Orçamento ${q.reference} — NR Tech Solution`, html,
+      attachments: [{ filename: `${q.reference.replace(/[^\w.\-]/g, "_")}.pdf`, content: pdfB64 }] }),
+  });
+  return res.ok ? { ok: true } : { ok: false, error: `[${res.status}] ${(await res.text()).slice(0, 300)}` };
+}
+
+async function sendQuoteWhatsapp(db: any, q: any, phone: string, pdf: ArrayBuffer, mensagem?: string) {
+  const lov = Deno.env.get("LOVABLE_API_KEY"), wa = Deno.env.get("WHATSAPP_API_KEY");
+  if (!lov || !wa) return { ok: false, error: "WhatsApp não está ligado à app" };
+  const path = `${q.id}/${q.reference.replace(/[^\w.\-]/g, "_")}-${Date.now()}.pdf`;
+  const up = await db.storage.from("quote-pdfs").upload(path, new Blob([pdf], { type: "application/pdf" }), { contentType: "application/pdf" });
+  if (up.error) return { ok: false, error: `Falha a guardar PDF: ${up.error.message}` };
+  const signed = await db.storage.from("quote-pdfs").createSignedUrl(path, 7 * 86400);
+  if (signed.error) return { ok: false, error: signed.error.message };
+  const filename = `${q.reference}.pdf`;
+  const headers = { Authorization: `Bearer ${lov}`, "X-Connection-Api-Key": wa, "Content-Type": "application/json" };
+  const send = (payload: unknown) => fetch("https://connector-gateway.lovable.dev/whatsapp/messages", { method: "POST", headers, body: JSON.stringify(payload) });
+  const caption = mensagem || `Orçamento ${q.reference} - NR Tech Solution. Total: ${Number(q.total).toFixed(2).replace(".", ",")} EUR`;
+  // Free-form document only works inside the 24h window; fall back to the approved template.
+  let res = await send({ messaging_product: "whatsapp", to: phone, type: "document", document: { link: signed.data.signedUrl, filename, caption } });
+  let body = await res.text();
+  if (!res.ok) {
+    const t = await send({ messaging_product: "whatsapp", to: phone, type: "template", template: { name: "orcamento_nr", language: { code: "pt_PT" }, components: [
+      { type: "header", parameters: [{ type: "document", document: { link: signed.data.signedUrl, filename } }] },
+      { type: "body", parameters: [{ type: "text", text: q.client_name || "cliente" }, { type: "text", text: q.reference }] },
+    ] } });
+    const tb = await t.text();
+    if (!t.ok) return { ok: false, error: `[${res.status}] ${body.slice(0, 200)} | modelo: [${t.status}] ${tb.slice(0, 200)}` };
+    res = t; body = tb;
+  }
+  return { ok: true };
 }
 
 Deno.serve(async (req) => {
@@ -715,7 +829,7 @@ Deno.serve(async (req) => {
         if (client.response) return client.response;
         // Same source as the Quotes page: phone/address from profiles, email from client_emails.
         const { data: clientRow, error: clientError } = await db.from("profiles")
-          .select("id, name, company_name, phone, address").eq("id", client.data.id).single();
+          .select("id, name, company_name, phone, address, nif").eq("id", client.data.id).single();
         if (clientError) throw clientError;
         const { data: emails, error: emailError } = await db.from("client_emails")
           .select("email").eq("user_id", client.data.id).order("created_at", { ascending: true }).limit(1);
@@ -735,7 +849,7 @@ Deno.serve(async (req) => {
         const { data: created, error } = await db.from("quotes").insert({
           client_id: clientRow.id,
           client_name: clientRow.company_name || clientRow.name,
-          client_nif: null,
+          client_nif: clientRow.nif ?? null,
           client_address: clientRow.address,
           client_phone: clientRow.phone,
           client_email: emails?.[0]?.email ?? null,
@@ -826,8 +940,124 @@ ${i.valid_until ? `<tr><td style="padding:4px 12px 4px 0">Válido até</td><td>$
         if (!res.ok) return json({ error: `Falha no envio do email: ${(await res.text()).slice(0, 300)}` }, 502);
         return json({ data: { sent: true } });
       }
+      case "procurar_cliente_orcamento": {
+        const parsed = quoteSchemas.procurar_cliente_orcamento.safeParse(p);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const { data: roles, error: re } = await db.from("user_roles").select("user_id").eq("role", "client");
+        if (re) throw re;
+        const ids = [...new Set((roles ?? []).map((r: any) => r.user_id))];
+        const term = parsed.data.search.replace(/[%,()_]/g, " ");
+        const { data: rows, error } = await db.from("profiles").select("id, name, company_name, nif, phone, address")
+          .in("id", ids).or(`name.ilike.%${term}%,company_name.ilike.%${term}%,nif.ilike.%${term}%`).limit(10);
+        if (error) throw error;
+        const { data: emails } = await db.from("client_emails").select("user_id, email").in("user_id", (rows ?? []).map((r: any) => r.id));
+        return json({ data: (rows ?? []).map((r: any) => ({ ...r, emails: (emails ?? []).filter((e: any) => e.user_id === r.id).map((e: any) => e.email), whatsapp: normalizeWhatsappNumber(r.phone) })) });
+      }
+      case "resumo_orcamento": {
+        const parsed = quoteSchemas.resumo_orcamento.safeParse(p);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const q = await findQuote(db, parsed.data.reference);
+        if (q.response) return q.response;
+        return json({ data: quoteSummary(q.data) });
+      }
+      case "editar_orcamento": {
+        const parsed = quoteSchemas.editar_orcamento.safeParse(p);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const i = parsed.data;
+        const q = await findQuote(db, i.reference);
+        if (q.response) return q.response;
+        const patch: Record<string, unknown> = {};
+        if (i.client_search) {
+          const c = await findWriteProfile(db, i.client_search, true);
+          if (c.response) return c.response;
+          const { data: row } = await db.from("profiles").select("id, name, company_name, phone, address, nif").eq("id", c.data.id).single();
+          const { data: em } = await db.from("client_emails").select("email").eq("user_id", row.id).order("created_at").limit(1);
+          Object.assign(patch, { client_id: row.id, client_name: row.company_name || row.name, client_nif: row.nif, client_address: row.address, client_phone: row.phone, client_email: em?.[0]?.email ?? null });
+        }
+        if (i.valid_days) {
+          const base = new Date(q.data.created_at ?? Date.now());
+          Object.assign(patch, { valid_days: i.valid_days, valid_until: new Date(base.getTime() + i.valid_days * 86400000).toISOString().slice(0, 10) });
+        }
+        for (const k of ["requires_visit", "notes", "internal_notes", "client_email", "client_phone"] as const) if (i[k] !== undefined) patch[k] = i[k];
+        if (i.vat_rate !== undefined) {
+          const t = computeQuoteTotals(q.data.items ?? [], i.vat_rate);
+          Object.assign(patch, t);
+        }
+        const { data, error } = await db.from("quotes").update(patch).eq("id", q.data.id).select().single();
+        if (error) throw error;
+        return json({ data: quoteSummary(data) });
+      }
+      case "adicionar_linha_orcamento": {
+        const parsed = quoteSchemas.adicionar_linha_orcamento.safeParse(p);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const { reference, ...line } = parsed.data;
+        const q = await findQuote(db, reference);
+        if (q.response) return q.response;
+        return await saveQuoteLines(db, q.data, [...(q.data.items ?? []), line]);
+      }
+      case "editar_linha_orcamento": {
+        const parsed = quoteSchemas.editar_linha_orcamento.safeParse(p);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const { reference, line, ...changes } = parsed.data;
+        const q = await findQuote(db, reference);
+        if (q.response) return q.response;
+        const items = [...(q.data.items ?? [])];
+        if (!items[line - 1]) return json({ error: `Linha ${line} não existe`, lines: items.length }, 404);
+        items[line - 1] = { ...items[line - 1], ...Object.fromEntries(Object.entries(changes).filter(([, v]) => v !== undefined)) };
+        return await saveQuoteLines(db, q.data, items);
+      }
+      case "remover_linha_orcamento": {
+        const parsed = quoteSchemas.remover_linha_orcamento.safeParse(p);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const q = await findQuote(db, parsed.data.reference);
+        if (q.response) return q.response;
+        const items = [...(q.data.items ?? [])];
+        if (!items[parsed.data.line - 1]) return json({ error: `Linha ${parsed.data.line} não existe` }, 404);
+        if (items.length === 1) return json({ error: "O orçamento tem de ter pelo menos uma linha" }, 400);
+        items.splice(parsed.data.line - 1, 1);
+        return await saveQuoteLines(db, q.data, items);
+      }
+      case "enviar_orcamento": {
+        const parsed = quoteSchemas.enviar_orcamento.safeParse(p);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const i = parsed.data;
+        const found = await findQuote(db, i.reference);
+        if (found.response) return found.response;
+        const q = found.data;
+        const channels = channelsFor(i.canal);
+        const email = i.email ?? q.client_email;
+        let phone = normalizeWhatsappNumber(i.telefone ?? q.client_phone);
+        if (channels.includes("email") && !email) return json({ error: "Falta o email do cliente" }, 400);
+        if (channels.includes("whatsapp") && !phone) return json({ error: "Falta um telemóvel válido para WhatsApp" }, 400);
+        let woRef: string | undefined;
+        if (q.work_order_id) { const { data: wo } = await db.from("work_orders").select("reference").eq("id", q.work_order_id).maybeSingle(); woRef = wo?.reference; }
+        const doc = drawQuotePdf(new jsPDF(), {
+          logo: await loadLogo(), reference: q.reference, date: String(q.created_at ?? new Date().toISOString()).slice(0, 10),
+          valid_until: q.valid_until, requires_visit: !!q.requires_visit, client_name: q.client_name ?? "",
+          client_nif: q.client_nif ?? undefined, client_address: q.client_address ?? undefined, client_phone: q.client_phone ?? undefined,
+          client_email: q.client_email ?? undefined, items: q.items ?? [], subtotal: Number(q.subtotal), vat_rate: Number(q.vat_rate),
+          vat_amount: Number(q.vat_amount), total: Number(q.total), notes: q.notes ?? undefined, work_order_reference: woRef,
+        });
+        const pdf: ArrayBuffer = doc.output("arraybuffer");
+        const results: Record<string, { ok: boolean; error?: string; to?: string }> = {};
+        const subject = `Orçamento ${q.reference} — NR Tech Solution`;
+        const logUser = q.client_id ?? q.created_by;
+        if (channels.includes("email")) {
+          const r = await sendQuoteEmail(q, email!, b64(pdf), i.mensagem);
+          results.email = { ...r, to: email! };
+          if (logUser) await db.from("email_logs").insert({ user_id: logUser, email: email!, subject, notification_type: "quote_sent", status: r.ok ? "sent" : "failed", error_message: r.ok ? null : r.error, work_order_id: q.work_order_id });
+        }
+        if (channels.includes("whatsapp")) {
+          const r = await sendQuoteWhatsapp(db, q, phone!, pdf, i.mensagem);
+          results.whatsapp = { ...r, to: phone! };
+          if (logUser) await db.from("email_logs").insert({ user_id: logUser, email: `whatsapp:+${phone}`, subject, notification_type: "quote_whatsapp", status: r.ok ? "sent" : "failed", error_message: r.ok ? null : r.error, work_order_id: q.work_order_id });
+        }
+        const sent = anyChannelSent(results);
+        if (sent) await db.from("quotes").update({ status: q.status === "rascunho" ? "enviado" : q.status, sent_at: new Date().toISOString() }).eq("id", q.id);
+        return json({ data: { reference: q.reference, sent, results } }, sent ? 200 : 502);
+      }
       default:
-        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "listar_contratos", "historico_equipamento", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "criar_cliente", "editar_cliente", "apagar_registo_horas", "criar_orcamento", "listar_orcamentos", "buscar_orcamento", "marcar_orcamento_enviado", "enviar_email_orcamento"] }, 400);
+        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "listar_contratos", "historico_equipamento", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "criar_cliente", "editar_cliente", "apagar_registo_horas", "criar_orcamento", "listar_orcamentos", "buscar_orcamento", "marcar_orcamento_enviado", "enviar_email_orcamento", "procurar_cliente_orcamento", "resumo_orcamento", "editar_orcamento", "adicionar_linha_orcamento", "editar_linha_orcamento", "remover_linha_orcamento", "enviar_orcamento"] }, 400);
     }
   } catch (e: any) {
     console.error(action, e);

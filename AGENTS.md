@@ -14,3 +14,4 @@
 - AI fault diagnosis runs in the sugerir-verificacoes edge function via @lovable.dev/ai-gateway, authorizing through get_equipment_history; keeps prompts and history access server-side.
 - Notification emails resolve recipients via profiles.notification_email when set, falling back to the auth login email; this redirects notices without changing anyone's login.
 - Quote emails are sent by the send-quote-email edge function (manager-only, PDF generated client-side and attached), which logs to email_logs and marks the quote sent; keeps Resend credentials server-side.
+- Quote PDFs are drawn by supabase/functions/_shared/quotePdf.ts for both the Quotes page and the empregado-digital assistant (enviar_orcamento sends by email and/or WhatsApp); one layout avoids divergence.
