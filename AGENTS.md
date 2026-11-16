@@ -13,3 +13,4 @@
 - Equipment manuals and frequent faults are keyed by normalized brand+model (src/lib/equipmentModelKey.ts), not by equipment id, so knowledge is shared across identical machines of every client.
 - AI fault diagnosis runs in the sugerir-verificacoes edge function via @lovable.dev/ai-gateway, authorizing through get_equipment_history; keeps prompts and history access server-side.
 - Notification emails resolve recipients via profiles.notification_email when set, falling back to the auth login email; this redirects notices without changing anyone's login.
+- Quote emails are sent by the send-quote-email edge function (manager-only, PDF generated client-side and attached), which logs to email_logs and marks the quote sent; keeps Resend credentials server-side.

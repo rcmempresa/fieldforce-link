@@ -141,6 +141,13 @@
       "when": 1794477221005,
       "tag": "0019_scope_attachment_storage_reads",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794835076504,
+      "tag": "0020_quotes_internal_notes",
+      "breakpoints": true
     }
   ]
 }

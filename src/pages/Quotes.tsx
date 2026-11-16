@@ -19,7 +19,11 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ReportLogoPicker } from "@/components/work-orders/ReportLogoPicker";
 import { generateQuotePDF, type QuoteData } from "@/lib/generateQuotePDF";
-import { Download, FileText, Pencil, Plus, Trash2 } from "lucide-react";
+import { Copy, Download, FileText, Mail, Pencil, Plus, Trash2, Wrench } from "lucide-react";
+import { getDefaultReportLogo } from "@/lib/defaultReportLogo";
+import { useNavigate } from "react-router-dom";
+
+const DEFAULT_CONDITIONS = "Precos com IVA a taxa legal (22%).\nPagamento: 50% na adjudicacao e restante na conclusao dos trabalhos.\nOrcamento valido pelo prazo indicado.";
 
 const VAT_RATE = 0.22;
 const LOGO_KEY = "quote_logo";
@@ -73,6 +77,7 @@ interface Quote {
   created_at: string;
   sent_at: string | null;
   accepted_at: string | null;
+  internal_notes: string | null;
 }
 
 interface ItemForm {
@@ -113,7 +118,9 @@ const emptyForm = () => ({
   valid_days: 30,
   status: "rascunho",
   items: [emptyItem()],
-  notes: "",
+  notes: DEFAULT_CONDITIONS,
+  internal_notes: "",
+  base_date: new Date().toISOString().split("T")[0],
 });
 
 const money = (value: number) => `${value.toFixed(2)} €`;
@@ -133,7 +140,13 @@ export default function Quotes() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<Quote | null>(null);
   const [form, setForm] = useState(emptyForm());
-  const [logo, setLogo] = useState<string | null>(() => localStorage.getItem(LOGO_KEY));
+  const [savedLogo, setSavedLogo] = useState<string | null>(() => localStorage.getItem(LOGO_KEY));
+  const [defaultLogo, setDefaultLogo] = useState<string | null>(null);
+  useEffect(() => { void getDefaultReportLogo().then(setDefaultLogo); }, []);
+  const logo = savedLogo ?? defaultLogo;
+  const navigate = useNavigate();
+  const [emailing, setEmailing] = useState<{ quote: Quote; options: string[]; to: string } | null>(null);
+  const [sending, setSending] = useState(false);
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrderOption[]>([]);
   const [saving, setSaving] = useState(false);
@@ -220,8 +233,8 @@ export default function Quotes() {
   }, [form.items]);
 
   const validUntil = useMemo(
-    () => new Date(Date.now() + form.valid_days * 86400000).toISOString().split("T")[0],
-    [form.valid_days],
+    () => new Date(new Date(form.base_date + "T12:00:00").getTime() + form.valid_days * 86400000).toISOString().split("T")[0],
+    [form.valid_days, form.base_date],
   );
 
   const openCreate = () => {
@@ -248,6 +261,8 @@ export default function Quotes() {
         ? q.items.map((it) => ({ description: it.description, unit: it.unit, quantity: String(it.quantity), unit_price: String(it.unit_price) }))
         : [emptyItem()],
       notes: q.notes ?? "",
+      internal_notes: q.internal_notes ?? "",
+      base_date: q.created_at.slice(0, 10),
     });
     setSheetOpen(true);
   };
@@ -275,7 +290,7 @@ export default function Quotes() {
   };
 
   const changeLogo = (value: string | null) => {
-    setLogo(value);
+    setSavedLogo(value);
     if (value) localStorage.setItem(LOGO_KEY, value);
     else localStorage.removeItem(LOGO_KEY);
   };
@@ -298,6 +313,7 @@ export default function Quotes() {
     valid_days: form.valid_days,
     valid_until: validUntil,
     notes: form.notes.trim() || null,
+    internal_notes: form.internal_notes.trim() || null,
     ...(status === "enviado" ? { sent_at: new Date().toISOString() } : {}),
   });
 
@@ -351,14 +367,14 @@ export default function Quotes() {
     void load();
   };
 
-  const downloadPDF = async (q: Quote) => {
+  const quotePdfBlob = async (q: Quote) => {
     let workOrderReference: string | undefined;
     if (q.work_order_id) {
       const { data } = await supabase.from("work_orders").select("reference").eq("id", q.work_order_id).maybeSingle();
       workOrderReference = data?.reference ?? undefined;
     }
     const pdfData: QuoteData = {
-      logo: localStorage.getItem(LOGO_KEY),
+      logo: localStorage.getItem(LOGO_KEY) ?? (await getDefaultReportLogo()),
       reference: q.reference ?? "ORC",
       date: q.created_at.slice(0, 10),
       valid_until: q.valid_until ?? validUntil,
@@ -376,13 +392,93 @@ export default function Quotes() {
       notes: q.notes ?? undefined,
       work_order_reference: workOrderReference,
     };
-    const blob = generateQuotePDF(pdfData);
+    return generateQuotePDF(pdfData);
+  };
+
+  const downloadPDF = async (q: Quote) => {
+    const blob = await quotePdfBlob(q);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = `${q.reference ?? "orcamento"}.pdf`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const openEmail = async (q: Quote) => {
+    const options = new Set<string>();
+    if (q.client_email) options.add(q.client_email);
+    if (q.client_id) {
+      const { data } = await supabase.from("client_emails").select("email").eq("user_id", q.client_id);
+      (data ?? []).forEach((e) => options.add(e.email));
+    }
+    const list = Array.from(options);
+    setEmailing({ quote: q, options: list, to: list[0] ?? "" });
+  };
+
+  const sendEmail = async () => {
+    if (!emailing) return;
+    const to = emailing.to.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+      toast({ title: "Indique um email válido.", variant: "destructive" });
+      return;
+    }
+    setSending(true);
+    try {
+      const blob = await quotePdfBlob(emailing.quote);
+      const pdf_base64 = await new Promise<string>((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(String(fr.result));
+        fr.onerror = reject;
+        fr.readAsDataURL(blob);
+      });
+      const { data, error } = await supabase.functions.invoke("send-quote-email", { body: { quote_id: emailing.quote.id, to, pdf_base64 } });
+      if (error || data?.error) throw new Error(data?.error || error?.message);
+      toast({ title: `Orçamento enviado para ${to}` });
+      setEmailing(null);
+      void load();
+    } catch (e) {
+      toast({ title: "Erro ao enviar email", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const duplicate = async (q: Quote) => {
+    const { id: _id, reference: _r, created_at: _c, sent_at: _s, accepted_at: _a, ...rest } = q as Quote & { updated_at?: string };
+    delete (rest as { updated_at?: string }).updated_at;
+    const days = q.valid_days ?? 30;
+    const { error } = await supabase.from("quotes").insert({
+      ...rest,
+      status: "rascunho",
+      work_order_id: null,
+      requires_visit: false,
+      valid_until: new Date(Date.now() + days * 86400000).toISOString().split("T")[0],
+      created_by: user?.id ?? null,
+    } as never);
+    if (error) toast({ title: "Erro ao duplicar", description: error.message, variant: "destructive" });
+    else toast({ title: "Orçamento duplicado como rascunho" });
+    void load();
+  };
+
+  const createWorkOrder = async (q: Quote) => {
+    if (!q.client_id) {
+      toast({ title: "Este orçamento não tem cliente registado na app.", description: "Edite-o e escolha um cliente existente para criar a OT.", variant: "destructive" });
+      return;
+    }
+    const description = [`Orçamento ${q.reference ?? ""} aceite.`, ...q.items.map((it) => `- ${it.description} (${it.quantity} ${it.unit})`), q.notes ? `\n${q.notes}` : ""].join("\n").trim();
+    const { data, error } = await supabase
+      .from("work_orders")
+      .insert({ title: `Orçamento ${q.reference ?? ""}`.trim(), description, client_id: q.client_id, created_by: user?.id ?? null, needs_scheduling: true, address: q.client_address })
+      .select("id")
+      .single();
+    if (error || !data) {
+      toast({ title: "Erro ao criar OT", description: error?.message, variant: "destructive" });
+      return;
+    }
+    await supabase.from("quotes").update({ work_order_id: data.id }).eq("id", q.id);
+    toast({ title: "OT criada a partir do orçamento" });
+    navigate(`/work-orders/${data.id}`);
   };
 
   const downloadDraftPDF = () => {
@@ -508,11 +604,20 @@ export default function Quotes() {
                         <Button size="icon" variant="ghost" title="Gerar PDF" onClick={() => void downloadPDF(q)}>
                           <Download className="h-4 w-4" />
                         </Button>
-                        {q.status === "rascunho" && (
-                          <Button size="icon" variant="ghost" title="Eliminar" onClick={() => setDeleting(q)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                        <Button size="icon" variant="ghost" title="Enviar por email" onClick={() => void openEmail(q)}>
+                          <Mail className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" title="Duplicar" onClick={() => void duplicate(q)}>
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        {q.status === "aceite" && !q.work_order_id && (
+                          <Button size="icon" variant="ghost" title="Criar OT" onClick={() => void createWorkOrder(q)}>
+                            <Wrench className="h-4 w-4" />
                           </Button>
                         )}
+                        <Button size="icon" variant="ghost" title="Eliminar" onClick={() => setDeleting(q)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -703,13 +808,20 @@ export default function Quotes() {
             </section>
 
             <section className="space-y-2 border-b pb-5">
-              <Label htmlFor="q-notes">Notas</Label>
+              <Label htmlFor="q-notes">Condições / Observações (aparecem no PDF)</Label>
               <Textarea
                 id="q-notes"
                 rows={3}
-                placeholder="Observações internas ou condições especiais"
+                placeholder="Condições de pagamento, prazos, garantias..."
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              />
+              <Label htmlFor="q-internal">Notas internas (só na app)</Label>
+              <Textarea
+                id="q-internal"
+                rows={2}
+                value={form.internal_notes}
+                onChange={(e) => setForm({ ...form, internal_notes: e.target.value })}
               />
             </section>
 
@@ -732,6 +844,14 @@ export default function Quotes() {
                   Gerar e descarregar PDF
                 </Button>
               </div>
+              {editing && (
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={() => void openEmail(editing)}><Mail className="mr-2 h-4 w-4" />Enviar por email</Button>
+                  {editing.status === "aceite" && !editing.work_order_id && (
+                    <Button variant="outline" onClick={() => void createWorkOrder(editing)}><Wrench className="mr-2 h-4 w-4" />Criar OT</Button>
+                  )}
+                </div>
+              )}
               {editing && editing.status === "enviado" && (
                 <div className="flex flex-wrap gap-2 border-t pt-3">
                   <Button variant="outline" onClick={() => void setStatus(editing, "aceite")}>Marcar como aceite</Button>
@@ -750,11 +870,39 @@ export default function Quotes() {
             <AlertDialogTitle>Eliminar orçamento</AlertDialogTitle>
             <AlertDialogDescription>
               Eliminar o orçamento {deleting?.reference}? Esta ação não pode ser anulada.
+              {deleting && deleting.status !== "rascunho" && ` Atenção: este orçamento está «${STATUS_LABELS[deleting.status] ?? deleting.status}».`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={() => void remove()}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!emailing} onOpenChange={(open) => !open && !sending && setEmailing(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Enviar orçamento {emailing?.quote.reference}</AlertDialogTitle>
+            <AlertDialogDescription>O PDF segue em anexo e o orçamento fica marcado como enviado.</AlertDialogDescription>
+          </AlertDialogHeader>
+          {emailing && (
+            <div className="space-y-2">
+              {emailing.options.length > 1 && (
+                <Select value={emailing.to} onValueChange={(v) => setEmailing({ ...emailing, to: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {emailing.options.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
+              <Label htmlFor="q-send-to">Email do destinatário</Label>
+              <Input id="q-send-to" type="email" value={emailing.to} onChange={(e) => setEmailing({ ...emailing, to: e.target.value })} />
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={sending}>Cancelar</AlertDialogCancel>
+            <Button disabled={sending} onClick={() => void sendEmail()}>{sending ? "A enviar..." : "Enviar"}</Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

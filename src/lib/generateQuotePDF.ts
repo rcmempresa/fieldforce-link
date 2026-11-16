@@ -169,7 +169,7 @@ export function generateQuotePDF(data: QuoteData): Blob {
     ensureSpace(14);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.text("Notas", margin, y);
+    doc.text("Condicoes / Observacoes", margin, y);
     y += 5;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
@@ -180,6 +180,21 @@ export function generateQuotePDF(data: QuoteData): Blob {
       y += 4.5;
     }
   }
+
+  // Client acceptance
+  ensureSpace(30);
+  y += 10;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text("Aceitacao do cliente", margin, y);
+  y += 16;
+  doc.setDrawColor(120);
+  doc.line(margin, y, margin + 80, y);
+  doc.line(pageWidth - margin - 50, y, pageWidth - margin, y);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.text("Assinatura / carimbo", margin, y + 4);
+  doc.text("Data", pageWidth - margin - 50, y + 4);
 
   // Footer on every page
   const pages = doc.getNumberOfPages();

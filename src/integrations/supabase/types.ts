@@ -705,6 +705,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          internal_notes: string | null
           items: Json
           notes: string | null
           reference: string | null
@@ -731,6 +732,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          internal_notes?: string | null
           items?: Json
           notes?: string | null
           reference?: string | null
@@ -757,6 +759,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          internal_notes?: string | null
           items?: Json
           notes?: string | null
           reference?: string | null
