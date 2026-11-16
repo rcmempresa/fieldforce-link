@@ -145,6 +145,7 @@ const quoteSummary = (q: any) => ({
   client_email: q.client_email, client_phone: q.client_phone, valid_until: q.valid_until, requires_visit: q.requires_visit,
   notes: q.notes, internal_notes: q.internal_notes,
   lines: (q.items ?? []).map((it: any, i: number) => ({ line: i + 1, ...it })),
+  items: (q.items ?? []).map((it: any, i: number) => ({ line: i + 1, ...it, total: Math.round(Number(it.quantity) * Number(it.unit_price) * 100) / 100 })),
   subtotal: q.subtotal, vat_rate: q.vat_rate, vat_amount: q.vat_amount, total: q.total,
 });
 
@@ -152,7 +153,9 @@ async function saveQuoteLines(db: any, q: any, lines: any[]) {
   const t = computeQuoteTotals(lines.map((l) => ({ description: l.description, quantity: Number(l.quantity), unit: l.unit, unit_price: Number(l.unit_price) })), Number(q.vat_rate ?? 0.22));
   const { data, error } = await db.from("quotes").update(t).eq("id", q.id).select().single();
   if (error) throw error;
-  return json({ data: quoteSummary(data) });
+  const sum = quoteSummary(data);
+  const last = sum.items[sum.items.length - 1];
+  return json({ data: { ...sum, ok: true, line: last?.line, total_linha: last?.total } });
 }
 
 const num = (min = 0) => z.preprocess((v) => typeof v === "string" && v.trim() ? Number(v.replace(",", ".")) : v, z.number().finite().min(min));
@@ -206,7 +209,7 @@ async function sendQuoteWhatsapp(db: any, q: any, phone: string, pdf: ArrayBuffe
   const signed = await db.storage.from("quote-pdfs").createSignedUrl(path, 7 * 86400);
   if (signed.error) return { ok: false, error: signed.error.message };
   const filename = `${q.reference}.pdf`;
-  const caption0 = mensagem || `Olá ${q.client_name || ""}, segue o orçamento ${q.reference} da NR Tech Solution. Total: ${Number(q.total).toFixed(2).replace(".", ",")} EUR (IVA incluído).`;
+  const caption0 = mensagem || `Bom dia, ${q.client_name || ""}! Segue em anexo o orçamento ${q.reference}.\n\nQualquer questão estamos disponíveis.\nNR Tech Solution`;
   // The number lives on the external AI agent: hand it the PDF so it sends and then confirms.
   if (!lov || !wa) return { ok: false, pending_agent: true, pdf_url: signed.data.signedUrl, filename, caption: caption0 };
   const headers = { Authorization: `Bearer ${lov}`, "X-Connection-Api-Key": wa, "Content-Type": "application/json" };
@@ -1070,7 +1073,7 @@ ${i.valid_until ? `<tr><td style="padding:4px 12px 4px 0">Válido até</td><td>$
         const logUser = q.client_id ?? q.created_by;
         if (logUser) await db.from("email_logs").insert({ user_id: logUser, email: `whatsapp:+${phone}`, subject: `Orçamento ${q.reference} — NR Tech Solution`, notification_type: "quote_whatsapp", status: i.ok ? "sent" : "failed", error_message: i.ok ? null : (i.erro ?? "Falha reportada pelo agente"), work_order_id: q.work_order_id });
         if (i.ok) await db.from("quotes").update({ status: q.status === "rascunho" ? "enviado" : q.status, sent_at: new Date().toISOString() }).eq("id", q.id);
-        return json({ data: { reference: q.reference, confirmed: i.ok } });
+        return json({ data: { ok: true, reference: q.reference, confirmed: i.ok } });
       }
       default:
         return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "listar_contratos", "historico_equipamento", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "criar_cliente", "editar_cliente", "apagar_registo_horas", "criar_orcamento", "listar_orcamentos", "buscar_orcamento", "marcar_orcamento_enviado", "enviar_email_orcamento", "procurar_cliente_orcamento", "resumo_orcamento", "editar_orcamento", "adicionar_linha_orcamento", "editar_linha_orcamento", "remover_linha_orcamento", "enviar_orcamento", "confirmar_whatsapp_orcamento"] }, 400);
