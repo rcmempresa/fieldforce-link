@@ -101,11 +101,9 @@ export function generateQuotePDF(data: QuoteData): Blob {
 
   // Items table
   const cols = [
-    { label: "Descricao", w: width * 0.42, align: "left" as const },
-    { label: "Un.", w: width * 0.08, align: "left" as const },
-    { label: "Qtd", w: width * 0.1, align: "right" as const },
-    { label: "P. Unit.", w: width * 0.19, align: "right" as const },
-    { label: "Total", w: width * 0.21, align: "right" as const },
+    { label: "Descricao", w: width * 0.7, align: "left" as const },
+    { label: "Un.", w: width * 0.12, align: "left" as const },
+    { label: "Qtd", w: width * 0.18, align: "right" as const },
   ];
 
   const drawTableHeader = () => {
@@ -137,10 +135,6 @@ export function generateQuotePDF(data: QuoteData): Blob {
     doc.text(text(item.unit), x + 1, y);
     x += cols[1].w;
     doc.text(String(item.quantity), x + cols[2].w - 1, y, { align: "right" });
-    x += cols[2].w;
-    doc.text(money(item.unit_price), x + cols[3].w - 1, y, { align: "right" });
-    x += cols[3].w;
-    doc.text(money(item.total), x + cols[4].w - 1, y, { align: "right" });
     y += rowHeight;
     doc.setDrawColor(230);
     doc.line(margin, y - rowHeight + 4.5 - 4.5 + rowHeight, pageWidth - margin, y);
