@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Save, FileDown, Plus, Trash2, Zap, Wind, Camera } from "lucide-react";
 import SignatureCanvas from "react-signature-canvas";
+import { computeHvacCalcs, HVAC_SUPPORT, HVAC_STATUS_LABEL } from "@/lib/hvacCalculations";
 import { equipmentLinkLabel, categoryForReport, matchesReportCategory, EQUIPMENT_CATEGORY_LABEL } from "@/lib/equipmentLabel";
 import {
   ChecklistItem,
@@ -25,7 +26,7 @@ import {
   buildHvacGroupedMeasurements,
 } from "@/lib/maintenanceReportDefaults";
 
-interface HvacEq { group: string; name: string; serial: string; source?: string }
+interface HvacEq { group: string; name: string; serial: string; source?: string; observation?: string }
 import {
   generateMaintenanceReportPDF,
   uploadMaintenanceReportPDF,
@@ -381,7 +382,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
     setHvacEqs((prev) => prev.filter((e) => e.group !== group));
     setMeasurements((prev) => prev.filter((m) => m.group !== group));
   };
-  const updateEq = (group: string, field: "name" | "serial", value: string) =>
+  const updateEq = (group: string, field: "name" | "serial" | "observation", value: string) =>
     setHvacEqs((prev) => prev.map((e) => (e.group === group ? { ...e, [field]: value } : e)));
   const toggleEntry = (en: Omit<HvacEq, "group">) => {
     const existing = hvacEqs.find((h) => h.source === en.source);
@@ -413,6 +414,34 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
       </div>
     </div>
   );
+
+  const renderHvacGroup = (group: string) => {
+    const rows = measurements.map((m, idx) => ({ m, idx })).filter(({ m }) => m.group === group);
+    if (!rows.some(({ m }) => m.section)) return rows.map(({ m, idx }) => renderMeasurementRow(m, idx));
+    const calcs = computeHvacCalcs(rows.map(({ m }) => m));
+    const sections = Array.from(new Set(rows.map(({ m }) => m.section || "Outras medições")));
+    const statusClass = { ok: "bg-primary/10 text-primary", low: "bg-destructive/10 text-destructive", high: "bg-destructive/10 text-destructive" } as const;
+    return sections.map((sec) => (
+      <div key={sec} className="space-y-2 rounded-md bg-muted/40 p-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{sec}</p>
+        {rows.filter(({ m }) => (m.section || "Outras medições") === sec).map(({ m, idx }) => renderMeasurementRow(m, idx))}
+        {calcs.filter((c) => c.calc.section === sec).map(({ calc, result }) => (
+          <div key={calc.id} className="flex flex-wrap items-center justify-between gap-2 rounded border bg-background px-2 py-1.5 text-sm">
+            <span>{calc.label} <span className="text-xs text-muted-foreground">({calc.formula}; ideal {calc.min}–{calc.max} K)</span></span>
+            {result ? (
+              <span className={`rounded px-2 py-0.5 font-semibold ${statusClass[result.status]}`}>{result.value} K · {HVAC_STATUS_LABEL[result.status]}</span>
+            ) : <span className="text-xs text-muted-foreground">preenche as temperaturas</span>}
+          </div>
+        ))}
+        {HVAC_SUPPORT[sec] && (
+          <details className="text-xs text-muted-foreground">
+            <summary className="cursor-pointer font-medium text-primary">Ver apoio técnico</summary>
+            <ul className="mt-1 list-disc space-y-1 pl-4">{HVAC_SUPPORT[sec].map((t, i) => <li key={i}>{t}</li>)}</ul>
+          </details>
+        )}
+      </div>
+    ));
+  };
 
   const addMaterial = () => {
     setMaterials([...materials, { description: "", quantity: "", unit: "" }]);
@@ -649,7 +678,11 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
                         </Button>
                       )}
                     </div>
-                    {measurements.map((m, idx) => (m.group === e.group ? renderMeasurementRow(m, idx) : null))}
+                    {renderHvacGroup(e.group)}
+                    <div className="space-y-1.5">
+                      <Label>Observações deste equipamento</Label>
+                      <Textarea value={e.observation || ""} onChange={(ev) => updateEq(e.group, "observation", ev.target.value)} disabled={isReadOnly} rows={2} />
+                    </div>
                   </div>
                 ))}
               </div>

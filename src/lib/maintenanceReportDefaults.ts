@@ -12,6 +12,10 @@ export interface Measurement {
   group?: string;
   /** User-added row: parameter and unit are editable */
   custom?: boolean;
+  /** Stable id used by automatic calculations (HVAC) */
+  key?: string;
+  /** Block title the row belongs to (HVAC) */
+  section?: string;
 }
 
 export interface Material {
@@ -60,22 +64,25 @@ export const hvacChecklist: ChecklistItem[] = [
 ];
 
 export const hvacMeasurements: Measurement[] = [
-  { parameter: "Temperatura de insuflação", value: "", unit: "°C" },
-  { parameter: "Temperatura de retorno", value: "", unit: "°C" },
-  { parameter: "Pressão alta", value: "", unit: "bar" },
-  { parameter: "Pressão baixa", value: "", unit: "bar" },
-  { parameter: "Temperatura exterior", value: "", unit: "°C" },
-  { parameter: "Humidade relativa", value: "", unit: "%" },
-  { parameter: "Caudal de ar", value: "", unit: "m³/h" },
-  { parameter: "Consumo energético", value: "", unit: "kW" },
-  { parameter: "Temperatura de descarga", value: "", unit: "°C" },
-  { parameter: "Temperatura de aspiração", value: "", unit: "°C" },
-  { parameter: "Sobreaquecimento", value: "", unit: "K" },
-  { parameter: "Sub-arrefecimento", value: "", unit: "K" },
-  { parameter: "Diferencial de temperatura (Delta T)", value: "", unit: "K" },
-  { parameter: "Tensão de alimentação", value: "", unit: "V" },
-  { parameter: "Corrente do compressor", value: "", unit: "A" },
-  { parameter: "Corrente do ventilador", value: "", unit: "A" },
+  { section: "Gerais", key: "t_exterior", parameter: "Temperatura exterior", value: "", unit: "°C" },
+  { section: "Gerais", key: "caudal_ar", parameter: "Caudal de ar (evaporador)", value: "", unit: "m³/h" },
+  { section: "Subarrefecimento", key: "p_alta", parameter: "Pressão de alta", value: "", unit: "bar" },
+  { section: "Subarrefecimento", key: "t_descarga", parameter: "Temperatura de descarga", value: "", unit: "°C" },
+  { section: "Subarrefecimento", key: "t_fim_cond", parameter: "Temperatura fim de condensação (saída do condensador)", value: "", unit: "°C" },
+  { section: "Rendimento do condensador", key: "t_ar_entrada_cond", parameter: "Temperatura ar à entrada do condensador", value: "", unit: "°C" },
+  { section: "Rendimento do condensador", key: "t_ar_saida_cond", parameter: "Temperatura ar à saída do condensador", value: "", unit: "°C" },
+  { section: "Sobreaquecimento util", key: "p_baixa_util", parameter: "Pressão de baixa", value: "", unit: "bar" },
+  { section: "Sobreaquecimento util", key: "t_evap_util", parameter: "Temperatura de evaporação", value: "", unit: "°C" },
+  { section: "Sobreaquecimento util", key: "t_saida_evap", parameter: "Temperatura à saída do evaporador", value: "", unit: "°C" },
+  { section: "Sobreaquecimento total", key: "p_baixa_total", parameter: "Pressão de baixa", value: "", unit: "bar" },
+  { section: "Sobreaquecimento total", key: "t_evap_total", parameter: "Temperatura de evaporação", value: "", unit: "°C" },
+  { section: "Sobreaquecimento total", key: "t_succao", parameter: "Temperatura linha de sucção (10 cm antes)", value: "", unit: "°C" },
+  { section: "Rendimento do evaporador", key: "t_retorno", parameter: "Temperatura de retorno", value: "", unit: "°C" },
+  { section: "Rendimento do evaporador", key: "t_insuflacao", parameter: "Temperatura de insuflação", value: "", unit: "°C" },
+  { section: "Eletricas", key: "tensao", parameter: "Tensão de alimentação", value: "", unit: "V" },
+  { section: "Eletricas", key: "i_compressor", parameter: "Corrente do compressor", value: "", unit: "A" },
+  { section: "Eletricas", key: "i_ventilador", parameter: "Corrente do ventilador", value: "", unit: "A" },
+  { section: "Eletricas", key: "consumo", parameter: "Consumo energético", value: "", unit: "kW" },
 ];
 
 export const HVAC_GROUPS = ["eq1", "eq2"] as const;

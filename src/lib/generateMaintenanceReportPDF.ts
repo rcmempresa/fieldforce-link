@@ -1,3 +1,5 @@
+const ascii = (t: string) => (t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/³/g, "3").replace(/°/g, " ").replace(/[^\x20-\x7E\n]/g, "");
+import { computeHvacCalcs, HVAC_SUPPORT, HVAC_STATUS_LABEL } from "./hvacCalculations";
 import { jsPDF } from "jspdf";
 import { drawReportLogo } from "./reportLogo";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,7 +32,7 @@ interface ReportData {
   technician_signature: string | null;
   supervisor_signature: string | null;
   work_order_reference: string;
-  equipments?: Array<{ group: string; name: string; serial: string }>;
+  equipments?: Array<{ group: string; name: string; serial: string; observation?: string }>;
 }
 
 export function generateMaintenanceReportPDF(data: ReportData): Blob {
@@ -175,7 +177,7 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
       checkPageBreak(8);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
-      doc.text(m.parameter || "-", margin + 3, y);
+      doc.text(ascii(m.parameter) || "-", margin + 3, y);
       doc.text(m.value || "-", margin + contentWidth * 0.55, y);
       doc.text(m.unit || "", margin + contentWidth * 0.8, y);
       doc.setDrawColor(230, 230, 230);
@@ -198,7 +200,38 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
       doc.text(`Equipamento ${i + 1}${name ? ` - ${name}` : ""}`, margin + 3, y);
       doc.setTextColor(0, 0, 0);
       y += 6;
-      drawRows(rows);
+      if (rows.some((m) => m.section)) {
+        const calcs = computeHvacCalcs(rows);
+        const secs = Array.from(new Set(rows.map((m) => m.section || "Outras medicoes")));
+        for (const sec of secs) {
+          checkPageBreak(12);
+          doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(90, 90, 90);
+          doc.text(ascii(sec).toUpperCase(), margin + 3, y);
+          doc.setTextColor(0, 0, 0);
+          y += 5;
+          drawRows(rows.filter((m) => (m.section || "Outras medicoes") === sec));
+          for (const { calc, result } of calcs.filter((c) => c.calc.section === sec)) {
+            checkPageBreak(8);
+            doc.setFont("helvetica", "bold"); doc.setFontSize(9);
+            doc.text(`${calc.label} (${calc.formula}; ideal ${calc.min}-${calc.max} K)`, margin + 3, y);
+            if (result) {
+              if (result.status === "ok") doc.setTextColor(22, 128, 61); else doc.setTextColor(200, 50, 30);
+              doc.text(`${result.value} K - ${HVAC_STATUS_LABEL[result.status]}`, margin + contentWidth * 0.8, y);
+              doc.setTextColor(0, 0, 0);
+            } else doc.text("-", margin + contentWidth * 0.8, y);
+            y += 7;
+          }
+        }
+      } else drawRows(rows);
+      const obs = eqList.find((e) => e.group === g)?.observation;
+      if (obs) {
+        checkPageBreak(10);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+        const lines = doc.splitTextToSize(`Observacoes: ${ascii(obs)}`, contentWidth - 6);
+        checkPageBreak(lines.length * 4 + 4);
+        doc.text(lines, margin + 3, y);
+        y += lines.length * 4 + 2;
+      }
       y += 3;
     });
   } else {
@@ -280,6 +313,26 @@ export function generateMaintenanceReportPDF(data: ReportData): Blob {
     }
   }
   y += 30;
+
+  // === TECHNICAL SUPPORT (HVAC) ===
+  if (data.measurements.some((m) => m.section)) {
+    checkPageBreak(30);
+    drawSectionHeader("Apoio Tecnico - Valores de Referencia");
+    for (const [sec, lines] of Object.entries(HVAC_SUPPORT)) {
+      checkPageBreak(14);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(9);
+      doc.text(sec, margin, y);
+      y += 5;
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8);
+      for (const t of lines) {
+        const wrapped = doc.splitTextToSize(`- ${t}`, contentWidth - 4);
+        checkPageBreak(wrapped.length * 4 + 2);
+        doc.text(wrapped, margin + 2, y);
+        y += wrapped.length * 4;
+      }
+      y += 3;
+    }
+  }
 
   // Footer
   doc.setFontSize(8);
