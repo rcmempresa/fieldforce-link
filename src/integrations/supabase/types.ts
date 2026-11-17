@@ -1169,6 +1169,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_access_equipment: {
+        Args: { _eq: string; _user: string }
+        Returns: boolean
+      }
+      can_access_work_order: {
+        Args: { _user: string; _wo: string }
+        Returns: boolean
+      }
       create_contract_work_order: {
         Args: { _contract: string; _scheduled?: string; _technician?: string }
         Returns: string

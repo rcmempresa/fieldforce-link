@@ -169,6 +169,13 @@
       "when": 1794920008931,
       "tag": "0023_equipment_hvac_specs",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794926818128,
+      "tag": "0024_bind_attachment_reads_to_user",
+      "breakpoints": true
     }
   ]
 }
