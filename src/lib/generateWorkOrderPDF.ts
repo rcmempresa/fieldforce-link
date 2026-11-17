@@ -1,3 +1,4 @@
+import { equipmentSpecsText } from "@/components/equipments/EquipmentFormFields";
 import { jsPDF } from "jspdf";
 import { supabase } from "@/integrations/supabase/client";
 import logoAsset from "@/assets/nr-techsolucion-logo.png.asset.json";
@@ -25,7 +26,7 @@ interface WorkOrderData {
   completed_at: string;
   labor_hours_worked?: number;
   after_hours_worked?: number;
-  equipments?: Array<{ name?: string | null; brand?: string | null; model?: string | null; serial_number?: string | null; location?: string | null; unit_part?: string | null }>;
+  equipments?: Array<{ name?: string | null; brand?: string | null; model?: string | null; serial_number?: string | null; location?: string | null; unit_part?: string | null; voltage?: string | null; power?: string | null; refrigerant?: string | null; refrigerant_charge_kg?: number | null }>;
 }
 
 
@@ -120,6 +121,13 @@ export async function generateWorkOrderPDF(
       if (extra) {
         doc.setFontSize(9);
         doc.text(extra, 30, eqY);
+        doc.setFontSize(11);
+        eqY += 6;
+      }
+      const specs = equipmentSpecsText(e);
+      if (specs) {
+        doc.setFontSize(9);
+        doc.text(specs, 30, eqY);
         doc.setFontSize(11);
         eqY += 6;
       }

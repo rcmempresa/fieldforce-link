@@ -41,6 +41,10 @@ export function EditEquipmentDialog({ open, onOpenChange, equipment, onSuccess }
         outdoor_serial_number: e.outdoor_serial_number || "",
         location: e.location || "",
         notes: e.notes || "",
+        voltage: e.voltage || "",
+        power: e.power || "",
+        refrigerant: e.refrigerant || "",
+        refrigerant_charge_kg: e.refrigerant_charge_kg != null ? String(e.refrigerant_charge_kg).replace(".", ",") : "",
       });
     });
   }, [open, equipment]);

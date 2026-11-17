@@ -1,0 +1,1 @@
+ALTER TABLE public.equipments ADD COLUMN IF NOT EXISTS voltage text, ADD COLUMN IF NOT EXISTS power text, ADD COLUMN IF NOT EXISTS refrigerant text, ADD COLUMN IF NOT EXISTS refrigerant_charge_kg numeric;

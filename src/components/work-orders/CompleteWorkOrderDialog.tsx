@@ -374,7 +374,7 @@ export function CompleteWorkOrderDialog({
 
       const { data: eqLinks } = await supabase
         .from("work_order_equipments")
-        .select("unit_part, equipments(name, brand, model, serial_number, outdoor_serial_number, location)")
+        .select("unit_part, equipments(name, brand, model, serial_number, outdoor_serial_number, location, voltage, power, refrigerant, refrigerant_charge_kg)")
         .eq("work_order_id", workOrderId);
       const pdfEquipments = (eqLinks || [])
         .filter((l: any) => l.equipments)

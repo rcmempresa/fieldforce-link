@@ -17,6 +17,10 @@ export interface EquipmentFormData {
   outdoor_serial_number: string;
   location: string;
   notes: string;
+  voltage: string;
+  power: string;
+  refrigerant: string;
+  refrigerant_charge_kg: string;
 }
 
 export const emptyEquipmentForm: EquipmentFormData = {
@@ -31,7 +35,34 @@ export const emptyEquipmentForm: EquipmentFormData = {
   outdoor_serial_number: "",
   location: "",
   notes: "",
+  voltage: "",
+  power: "",
+  refrigerant: "",
+  refrigerant_charge_kg: "",
 };
+
+export const REFRIGERANT_OPTIONS = ["R32", "R410A", "R134a", "R404A", "R290", "R744", "R22", "R407C", "R449A", "R452A"];
+
+/** Tensao/Potencia/Refrigerante/Carga so existem em Climatizacao e Refrigeracao & Congelacao. */
+export function hasCoolingSpecs(category: string | null | undefined): boolean {
+  return category === "hvac" || category === "refrigeration";
+}
+
+export function parseRefrigerantCharge(raw: string): number | null {
+  const t = (raw || "").trim().replace(",", ".");
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+export function equipmentSpecsText(e: { voltage?: string | null; power?: string | null; refrigerant?: string | null; refrigerant_charge_kg?: number | string | null }): string {
+  return [
+    e.voltage ? `Tensao: ${e.voltage}` : "",
+    e.power ? `Potencia: ${e.power}` : "",
+    e.refrigerant ? `Refrigerante: ${e.refrigerant}` : "",
+    e.refrigerant_charge_kg != null && e.refrigerant_charge_kg !== "" ? `Carga: ${String(e.refrigerant_charge_kg).replace(".", ",")} kg` : "",
+  ].filter(Boolean).join(" | ");
+}
 
 export function parseManufactureYear(raw: string): number | null {
   const trimmed = (raw || "").trim();
@@ -43,6 +74,7 @@ export function parseManufactureYear(raw: string): number | null {
 
 export function equipmentPayload(f: EquipmentFormData) {
   const isAc = f.equipment_type === "ac";
+  const specs = hasCoolingSpecs(f.category);
   return {
     equipment_type: f.equipment_type,
     category: f.category,
@@ -55,6 +87,10 @@ export function equipmentPayload(f: EquipmentFormData) {
     outdoor_serial_number: isAc ? f.outdoor_serial_number || null : null,
     location: f.location || null,
     notes: f.notes || null,
+    voltage: specs ? f.voltage.trim() || null : null,
+    power: specs ? f.power.trim() || null : null,
+    refrigerant: specs ? f.refrigerant.trim() || null : null,
+    refrigerant_charge_kg: specs ? parseRefrigerantCharge(f.refrigerant_charge_kg) : null,
   };
 }
 
@@ -162,6 +198,33 @@ export function EquipmentFormFields({ value, onChange }: Props) {
           </div>
         )}
       </div>
+
+      {hasCoolingSpecs(value.category) && (
+        <div className="space-y-3 rounded-lg border p-3">
+          <p className="text-sm font-semibold">Características</p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-2">
+              <Label htmlFor="eq-voltage">Tensão</Label>
+              <Input id="eq-voltage" value={value.voltage} onChange={(e) => set("voltage", e.target.value)} placeholder="Ex: 230 V" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="eq-power">Potência</Label>
+              <Input id="eq-power" value={value.power} onChange={(e) => set("power", e.target.value)} placeholder="Ex: 3,5 kW" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="eq-refrigerant">Refrigerante</Label>
+              <Input id="eq-refrigerant" list="eq-refrigerant-options" value={value.refrigerant} onChange={(e) => set("refrigerant", e.target.value)} placeholder="Ex: R32 (ou escreva outro)" />
+              <datalist id="eq-refrigerant-options">
+                {REFRIGERANT_OPTIONS.map((r) => <option key={r} value={r} />)}
+              </datalist>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="eq-charge">Carga refrigerante (kg)</Label>
+              <Input id="eq-charge" inputMode="decimal" value={value.refrigerant_charge_kg} onChange={(e) => set("refrigerant_charge_kg", e.target.value)} placeholder="Ex: 1,2" />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor="eq-location">Localização / Morada</Label>

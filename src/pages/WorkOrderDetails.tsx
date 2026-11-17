@@ -1,3 +1,4 @@
+import { equipmentSpecsText } from "@/components/equipments/EquipmentFormFields";
 import { formatDate, formatDateTime } from "@/lib/formatDate";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
@@ -96,6 +97,10 @@ interface Equipment {
   model: string | null;
   brand?: string | null;
   manufacture_year?: number | null;
+  voltage?: string | null;
+  power?: string | null;
+  refrigerant?: string | null;
+  refrigerant_charge_kg?: number | null;
   serial_number: string | null;
   location: string | null;
 }
@@ -357,7 +362,11 @@ export default function WorkOrderDetails() {
           brand,
           manufacture_year,
           serial_number,
-          location
+          location,
+          voltage,
+          power,
+          refrigerant,
+          refrigerant_charge_kg
         )
       `)
       .eq("work_order_id", id);
@@ -956,6 +965,11 @@ export default function WorkOrderDetails() {
                               {equipment.manufacture_year && `Ano: ${equipment.manufacture_year}`}
                               {(equipment.model || equipment.manufacture_year) && equipment.serial_number && " | "}
                               {equipment.serial_number && `S/N: ${equipment.serial_number}`}
+                            </p>
+                          )}
+                          {equipmentSpecsText(equipment) && (
+                            <p className="text-xs text-muted-foreground">
+                              {[equipment.voltage && `Tensão: ${equipment.voltage}`, equipment.power && `Potência: ${equipment.power}`, equipment.refrigerant && `Refrigerante: ${equipment.refrigerant}`, equipment.refrigerant_charge_kg != null && `Carga: ${String(equipment.refrigerant_charge_kg).replace(".", ",")} kg`].filter(Boolean).join(" | ")}
                             </p>
                           )}
                           {equipment.location && (

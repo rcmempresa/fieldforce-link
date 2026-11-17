@@ -28,6 +28,10 @@ interface EquipmentRow {
   brand: string | null;
   model: string | null;
   manufacture_year: number | null;
+  voltage?: string | null;
+  power?: string | null;
+  refrigerant?: string | null;
+  refrigerant_charge_kg?: number | null;
   serial_number: string | null;
   location: string | null;
   notes: string | null;
@@ -64,7 +68,7 @@ export default function Equipments() {
       supabase
         .from("equipments")
         .select(
-          "id, client_id, name, brand, model, manufacture_year, serial_number, location, notes, category, created_at"
+          "id, client_id, name, brand, model, manufacture_year, serial_number, location, notes, category, created_at, voltage, power, refrigerant, refrigerant_charge_kg"
         )
         .order("created_at", { ascending: false }),
       supabase.from("user_roles").select("user_id").eq("role", "client"),
@@ -290,6 +294,12 @@ export default function Equipments() {
                         )}
                         {eq.serial_number && (
                           <Badge variant="outline">Nº {eq.serial_number}</Badge>
+                        )}
+                        {eq.voltage && <Badge variant="outline">{eq.voltage}</Badge>}
+                        {eq.power && <Badge variant="outline">{eq.power}</Badge>}
+                        {eq.refrigerant && <Badge variant="outline">{eq.refrigerant}</Badge>}
+                        {eq.refrigerant_charge_kg != null && (
+                          <Badge variant="outline">Carga {String(eq.refrigerant_charge_kg).replace(".", ",")} kg</Badge>
                         )}
                       </div>
                     </div>

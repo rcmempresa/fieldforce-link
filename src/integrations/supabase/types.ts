@@ -294,8 +294,12 @@ export type Database = {
           notes: string | null
           outdoor_model: string | null
           outdoor_serial_number: string | null
+          power: string | null
+          refrigerant: string | null
+          refrigerant_charge_kg: number | null
           serial_number: string | null
           updated_at: string
+          voltage: string | null
         }
         Insert: {
           brand?: string | null
@@ -311,8 +315,12 @@ export type Database = {
           notes?: string | null
           outdoor_model?: string | null
           outdoor_serial_number?: string | null
+          power?: string | null
+          refrigerant?: string | null
+          refrigerant_charge_kg?: number | null
           serial_number?: string | null
           updated_at?: string
+          voltage?: string | null
         }
         Update: {
           brand?: string | null
@@ -328,8 +336,12 @@ export type Database = {
           notes?: string | null
           outdoor_model?: string | null
           outdoor_serial_number?: string | null
+          power?: string | null
+          refrigerant?: string | null
+          refrigerant_charge_kg?: number | null
           serial_number?: string | null
           updated_at?: string
+          voltage?: string | null
         }
         Relationships: [
           {

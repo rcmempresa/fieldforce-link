@@ -29,3 +29,18 @@ describe("ano de fabrico do equipamento", () => {
     expect(parseManufactureYear("abc")).toBeNull();
   });
 });
+
+describe("características de climatização/refrigeração", () => {
+  const specs = { voltage: "230 V", power: "3,5 kW", refrigerant: "R32", refrigerant_charge_kg: "1,2" };
+  it("guarda tensão, potência, refrigerante e carga em Climatização", () => {
+    const p = equipmentPayload(form({ category: "hvac", ...specs }));
+    expect(p).toMatchObject({ voltage: "230 V", power: "3,5 kW", refrigerant: "R32", refrigerant_charge_kg: 1.2 });
+  });
+  it("guarda também em Refrigeração & Congelação", () => {
+    expect(equipmentPayload(form({ category: "refrigeration", ...specs })).refrigerant).toBe("R32");
+  });
+  it("não guarda nas outras categorias", () => {
+    const p = equipmentPayload(form({ category: "other", ...specs }));
+    expect(p).toMatchObject({ voltage: null, power: null, refrigerant: null, refrigerant_charge_kg: null });
+  });
+});
