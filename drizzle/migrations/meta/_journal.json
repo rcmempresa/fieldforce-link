@@ -176,6 +176,13 @@
       "when": 1794926818128,
       "tag": "0024_bind_attachment_reads_to_user",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1794999987495,
+      "tag": "0025_secure_email_logs_and_attachment_uploads",
+      "breakpoints": true
     }
   ]
 }

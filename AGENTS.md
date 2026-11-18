@@ -16,3 +16,4 @@
 - Quote emails are sent by the send-quote-email edge function (manager-only, PDF generated client-side and attached), which logs to email_logs and marks the quote sent; keeps Resend credentials server-side.
 - Quote PDFs are drawn by supabase/functions/_shared/quotePdf.ts for both the Quotes page and the empregado-digital assistant (enviar_orcamento sends by email and/or WhatsApp); one layout avoids divergence.
 - "Sem material" is an explicit flag on work_orders (missing_material_since/note), set atomically by the pause_work_order RPC or manager set_missing_material and cleared by triggers; never infer it from the last time entry, which proved unreliable.
+- Only service-role email senders may insert email_logs, and attachment storage INSERT policies must bind owner_id to auth.uid(); this prevents forged delivery records and uploads claiming another user's ownership without changing existing file paths.
