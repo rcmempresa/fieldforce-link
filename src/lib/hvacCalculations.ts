@@ -15,9 +15,9 @@ export interface HvacCalc {
 }
 
 export const HVAC_CALCS: HvacCalc[] = [
-  { id: "subcool", section: "Subarrefecimento", label: "Delta T subarrefecimento", a: "t_descarga", b: "t_fim_cond", min: 4, max: 7, formula: "Td - Tf" },
+  { id: "subcool", section: "Subarrefecimento", label: "Delta T subarrefecimento", a: "t_descarga", b: "t_fim_cond", min: 3, max: 10, formula: "T saturacao - T linha liquido" },
   { id: "cond", section: "Rendimento do condensador", label: "Delta T condensador", a: "t_ar_saida_cond", b: "t_ar_entrada_cond", min: 10, max: 15, formula: "T saida - T entrada" },
-  { id: "sh_util", section: "Sobreaquecimento util", label: "Delta T sobreaquecimento util", a: "t_saida_evap", b: "t_evap_util", min: 3, max: 6, formula: "T saida evaporador - T evaporacao" },
+  { id: "sh_util", section: "Sobreaquecimento util", label: "Delta T sobreaquecimento util", a: "t_saida_evap", b: "t_evap_util", min: 8, max: 15, formula: "T saida evaporador - T evaporacao" },
   { id: "sh_total", section: "Sobreaquecimento total", label: "Delta T sobreaquecimento total", a: "t_succao", b: "t_evap_total", min: 8, max: 15, formula: "T linha succao - T evaporacao" },
   { id: "evap", section: "Rendimento do evaporador", label: "Delta T evaporador", a: "t_retorno", b: "t_insuflacao", min: 10, max: 14, formula: "T retorno - T insuflacao" },
 ];
@@ -49,10 +49,10 @@ export const HVAC_STATUS_LABEL: Record<HvacStatus, string> = { ok: "OK", low: "B
 /** Technical support text (ASCII, used in form and PDF). */
 export const HVAC_SUPPORT: Record<string, string[]> = {
   "Subarrefecimento": [
-    "Ideal geral: 4 K a 7 K (microcanais: 5 K a 8 K).",
-    "Com deposito de liquido: 1 K a 3 K a saida do deposito. Capilar/orificio fixo: 3 K a 6 K.",
-    "Abaixo de 3 K: falta de fluido ou condensador com baixa troca termica (sujidade, ventilador avariado).",
-    "Acima de 8-10 K: excesso de carga, filtro secador entupido ou valvula de expansao obstruida.",
+    "Formula: T saturacao (condensacao, lida no manometro de alta) - T real da linha de liquido.",
+    "Ideal: 3 K a 10 K.",
+    "Abaixo de 3 K: falta de fluido, condensador sujo com pouca troca termica ou problemas no compressor.",
+    "Acima de 10 K (sem subarrefecedor): excesso de carga, filtro secador entupido ou obstrucao na linha de liquido.",
   ],
   "Rendimento do condensador": [
     "Delta T condensacao (T condensacao - T ar entrada): standard 10 K a 15 K; alta eficiencia 6 K a 10 K.",
@@ -62,15 +62,16 @@ export const HVAC_SUPPORT: Record<string, string[]> = {
     "Delta T do ar > 14 K: alhetas obstruidas ou ventilador com rotacao reduzida.",
   ],
   "Sobreaquecimento util": [
-    "Medido a saida do evaporador, junto ao bolbo da valvula. AC: 4 K a 7 K; refrig. positiva: 5 K a 8 K; negativa: 4 K a 6 K; VEE: 3 K a 5 K.",
-    "Abaixo de 3 K: evaporador inundado - fechar ligeiramente a valvula (sentido horario).",
-    "4 K a 8 K: sistema afinado, nao mexer.",
-    "Acima de 8-10 K: evaporador subalimentado - verificar falta de gas; se a carga estiver boa, abrir ligeiramente a valvula (anti-horario).",
+    "Formula: T real a saida do evaporador (10-20 cm, sonda isolada) - T saturacao de evaporacao.",
+    "Split / AC: 8 K a 15 K. Valvula de expansao termostatica (TXV): 4 K a 10 K.",
+    "Alto: falta de fluido ou restricao no dispositivo de expansao.",
+    "Baixo ou zero: excesso de carga ou falha na regulacao da valvula - risco de retorno de liquido ao compressor.",
   ],
   "Sobreaquecimento total": [
-    "Medido na linha de succao antes do compressor. Capilar: 5 K a 12 K; com valvula (VET/VEE): 8 K a 15 K; refrig. positiva: 8 K a 14 K; negativa: 12 K a 20 K.",
-    "Abaixo de 4 K: risco de retorno de liquido - excesso de carga, valvula muito aberta ou evaporador sujo.",
-    "Acima de 15-20 K: falta de fluido, valvula entupida/fechada, succao longa ou isolamento danificado.",
+    "Formula: T linha de succao (10 cm da valvula de servico do compressor) - T saturacao de evaporacao.",
+    "Ideal: 8 K a 15 K na entrada do compressor.",
+    "Abaixo de 8 K: risco de retorno de liquido ao compressor (golpe de liquido).",
+    "Acima de 15 K: baixa troca termica, falta de fluido ou sobreaquecimento do motor do compressor.",
   ],
   "Rendimento do evaporador": [
     "Delta T do ar (retorno - insuflacao): AC 10 K a 14 K; camaras frigorificas 3 K a 6 K.",
