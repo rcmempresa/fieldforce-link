@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DataPagination } from "@/components/ui/data-pagination";
 import { formatDateTime } from "@/lib/formatDate";
 import { DaysOpenBadge } from "@/components/work-orders/DaysOpenBadge";
-import { Search, UserX, Eye, Loader2, UserPlus, Pencil, CalendarIcon } from "lucide-react";
+import { Search, UserX, PackageX, Eye, Loader2, UserPlus, Pencil, CalendarIcon } from "lucide-react";
 import { EditWorkOrderDialog } from "@/components/work-orders/EditWorkOrderDialog";
 import { SlotDateTimePicker } from "@/components/work-orders/SlotDateTimePicker";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -28,6 +28,8 @@ interface Row {
   scheduled_date: string | null;
   created_at: string;
   client_name: string;
+  missing_material_since: string | null;
+  missing_material_note: string | null;
 }
 
 const PER_PAGE = 10;
@@ -55,7 +57,7 @@ export default function UnassignedWorkOrders() {
     setLoading(true);
     const { data } = await supabase
       .from("work_orders")
-      .select("id, reference, title, status, priority, scheduled_date, created_at, profiles!work_orders_client_id_fkey ( name, company_name )")
+      .select("id, reference, title, status, priority, scheduled_date, created_at, missing_material_since, missing_material_note, profiles!work_orders_client_id_fkey ( name, company_name )")
       .in("status", ["pending", "approved", "in_progress"])
       .order("created_at", { ascending: false });
     const ids = (data || []).map((o: any) => o.id);
@@ -225,8 +227,17 @@ export default function UnassignedWorkOrders() {
           <>
             <div className="space-y-3">
               {pageItems.map((r) => (
-                <Card key={r.id}>
+                <Card key={r.id} className={r.missing_material_since ? "border-2 border-destructive bg-destructive/5" : undefined}>
                   <CardContent className="space-y-3 p-4">
+                    {r.missing_material_since && (
+                      <div className="flex items-start gap-2 rounded-md bg-destructive px-3 py-2 text-sm text-destructive-foreground">
+                        <PackageX className="mt-0.5 h-4 w-4 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-semibold">Sem material — técnico retirado desde {formatDateTime(r.missing_material_since)}</p>
+                          {r.missing_material_note && <p className="break-words">{r.missing_material_note}</p>}
+                        </div>
+                      </div>
+                    )}
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold">{r.reference}</span>
                       <Badge variant="outline">{STATUS[r.status] || r.status}</Badge>
