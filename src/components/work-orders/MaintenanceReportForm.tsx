@@ -96,7 +96,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
     (async () => {
       const { data } = await supabase
         .from("work_order_equipments")
-        .select("unit_part, equipments ( id, name, brand, model, serial_number, location, equipment_type, outdoor_model, outdoor_serial_number, category )")
+        .select("unit_part, equipments ( id, name, brand, model, serial_number, location, equipment_type, outdoor_model, outdoor_serial_number, category, voltage, power, refrigerant, refrigerant_charge_kg )")
         .eq("work_order_id", workOrderId);
       const list = (data || []).filter((r: any) => r.equipments).map((r: any) => ({ eq: r.equipments, part: r.unit_part }));
       setWoEquipments(list);
@@ -107,7 +107,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
         const entries = match.flatMap(entriesFor);
         const eqs = entries.map((en, i) => ({ ...en, group: `eq${i + 1}` }));
         setHvacEqs(eqs);
-        setMeasurements(eqs.flatMap((e) => hvacMeasurements.map((m) => ({ ...m, group: e.group }))));
+        setMeasurements(eqs.flatMap((e) => withSpecs(hvacMeasurements.map((m) => ({ ...m, group: e.group })), eqById(list, e.source))));
         if (match[0].eq.location) setSpecificLocation(match[0].eq.location);
         return;
       }
@@ -115,6 +115,23 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
       if (!reportId && match.length === 2) applyEquipment(match[1], 2);
     })();
   }, [workOrderId]);
+
+  const eqById = (list: Array<{ eq: any }>, source?: string) => {
+    const id = source?.split(":")[0];
+    return id ? list.find((l) => l.eq.id === id)?.eq : undefined;
+  };
+  /** Prefill the "Gerais" characteristics from the registered equipment. */
+  const withSpecs = (ms: Measurement[], eq?: any): Measurement[] => {
+    if (!eq) return ms;
+    const num = (v: string | null) => (v || "").replace(/\s*(kw|v)\s*$/i, "").trim();
+    const vals: Record<string, string> = {
+      tensao_nominal: num(eq.voltage),
+      potencia_nominal: num(eq.power),
+      refrigerante: eq.refrigerant || "",
+      carga_refrigerante: eq.refrigerant_charge_kg != null ? String(eq.refrigerant_charge_kg) : "",
+    };
+    return ms.map((m: any) => (m.key && vals[m.key] && !m.value ? { ...m, value: vals[m.key] } : m));
+  };
 
   /** Report entries for an OT equipment (AC with both units -> two entries). */
   const entriesFor = ({ eq, part }: { eq: any; part: string | null }): Omit<HvacEq, "group">[] => {
@@ -376,7 +393,7 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
   const addEq = (entry?: Omit<HvacEq, "group">) => {
     const group = nextGroup(hvacEqs);
     setHvacEqs((prev) => [...prev, { group, name: entry?.name || "", serial: entry?.serial || "", source: entry?.source }]);
-    setMeasurements((prev) => [...prev, ...hvacMeasurements.map((m) => ({ ...m, group }))]);
+    setMeasurements((prev) => [...prev, ...withSpecs(hvacMeasurements.map((m) => ({ ...m, group })), eqById(woEquipments, entry?.source))]);
   };
   const removeEq = (group: string) => {
     setHvacEqs((prev) => prev.filter((e) => e.group !== group));
@@ -389,7 +406,11 @@ export function MaintenanceReportForm({ workOrderId, reportId, reportType, canEd
     if (existing) { removeEq(existing.group); return; }
     // Reuse an empty slot if present
     const empty = hvacEqs.find((h) => !h.name && !h.source);
-    if (empty) setHvacEqs((prev) => prev.map((h) => (h.group === empty.group ? { ...h, ...en } : h)));
+    if (empty) {
+      setHvacEqs((prev) => prev.map((h) => (h.group === empty.group ? { ...h, ...en } : h)));
+      const eq = eqById(woEquipments, en.source);
+      setMeasurements((prev) => [...prev.filter((m) => m.group !== empty.group), ...withSpecs(prev.filter((m) => m.group === empty.group), eq)]);
+    }
     else addEq(en);
   };
   const renderMeasurementRow = (m: Measurement, idx: number) => (

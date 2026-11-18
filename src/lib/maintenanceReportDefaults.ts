@@ -66,6 +66,10 @@ export const hvacChecklist: ChecklistItem[] = [
 export const hvacMeasurements: Measurement[] = [
   { section: "Gerais", key: "t_exterior", parameter: "Temperatura exterior", value: "", unit: "°C" },
   { section: "Gerais", key: "caudal_ar", parameter: "Caudal de ar (evaporador)", value: "", unit: "m³/h" },
+  { section: "Gerais", key: "tensao_nominal", parameter: "Tensão nominal (placa)", value: "", unit: "V" },
+  { section: "Gerais", key: "potencia_nominal", parameter: "Potência nominal", value: "", unit: "kW" },
+  { section: "Gerais", key: "refrigerante", parameter: "Refrigerante", value: "", unit: "" },
+  { section: "Gerais", key: "carga_refrigerante", parameter: "Carga de refrigerante", value: "", unit: "kg" },
   { section: "Subarrefecimento", key: "p_alta", parameter: "Pressão de alta", value: "", unit: "bar" },
   { section: "Subarrefecimento", key: "t_descarga", parameter: "Temperatura de saturação (condensação, pela pressão de alta)", value: "", unit: "°C" },
   { section: "Subarrefecimento", key: "t_fim_cond", parameter: "Temperatura real da linha de líquido", value: "", unit: "°C" },
