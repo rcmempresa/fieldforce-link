@@ -1217,6 +1217,8 @@ export type Database = {
         Args: { _user: string; _wo: string }
         Returns: boolean
       }
+      my_completed_count: { Args: never; Returns: number }
+      my_hours_since: { Args: { _from: string }; Returns: number }
       pause_work_order: {
         Args: {
           _entry: string
@@ -1237,6 +1239,7 @@ export type Database = {
         Args: { _note: string; _wo: string }
         Returns: undefined
       }
+      wo_is_open: { Args: { _wo: string }; Returns: boolean }
     }
     Enums: {
       app_role: "manager" | "employee" | "client"

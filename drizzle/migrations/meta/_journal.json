@@ -183,6 +183,20 @@
       "when": 1794999987495,
       "tag": "0025_secure_email_logs_and_attachment_uploads",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1795117559518,
+      "tag": "0026_employees_lose_access_closed_wos",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1795117592227,
+      "tag": "0027_employee_own_stats",
+      "breakpoints": true
     }
   ]
 }

@@ -186,58 +186,37 @@ export default function EmployeeDashboard() {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    const { data: timeTodayEntries } = await supabase
-      .from("time_entries")
-      .select("duration_hours")
-      .eq("user_id", user.id)
-      .gte("start_time", startOfDay.toISOString());
+    const { data: timeTodayEntriesTotal } = await supabase.rpc("my_hours_since", { _from: startOfDay.toISOString() });
 
-    const hoursToday = timeTodayEntries?.reduce((sum, entry) => sum + (entry.duration_hours || 0), 0) || 0;
+    const hoursToday = Number(timeTodayEntriesTotal) || 0;
 
     // Hours this week
     const startOfWeek = new Date();
     startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
     startOfWeek.setHours(0, 0, 0, 0);
 
-    const { data: timeWeekEntries } = await supabase
-      .from("time_entries")
-      .select("duration_hours")
-      .eq("user_id", user.id)
-      .gte("start_time", startOfWeek.toISOString());
+    const { data: timeWeekEntriesTotal } = await supabase.rpc("my_hours_since", { _from: startOfWeek.toISOString() });
 
-    const hoursWeek = timeWeekEntries?.reduce((sum, entry) => sum + (entry.duration_hours || 0), 0) || 0;
+    const hoursWeek = Number(timeWeekEntriesTotal) || 0;
 
     // Hours this month
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
-    const { data: timeMonthEntries } = await supabase
-      .from("time_entries")
-      .select("duration_hours")
-      .eq("user_id", user.id)
-      .gte("start_time", startOfMonth.toISOString());
+    const { data: timeMonthEntriesTotal } = await supabase.rpc("my_hours_since", { _from: startOfMonth.toISOString() });
 
-    const hoursMonth = timeMonthEntries?.reduce((sum, entry) => sum + (entry.duration_hours || 0), 0) || 0;
+    const hoursMonth = Number(timeMonthEntriesTotal) || 0;
 
     // Completed orders
-    const { data: completedAssignments } = await supabase
-      .from("work_order_assignments")
-      .select(`
-        work_order_id,
-        work_orders!inner (
-          status
-        )
-      `)
-      .eq("user_id", user.id)
-      .eq("work_orders.status", "completed");
+    const { data: completedCount } = await supabase.rpc("my_completed_count");
 
     setStats({
       assignedOrders: assignedCount || 0,
       hoursToday: Math.round(hoursToday * 10) / 10,
       hoursWeek: Math.round(hoursWeek * 10) / 10,
       hoursMonth: Math.round(hoursMonth * 10) / 10,
-      completedOrders: completedAssignments?.length || 0,
+      completedOrders: Number(completedCount) || 0,
     });
   };
 

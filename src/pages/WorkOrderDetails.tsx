@@ -621,7 +621,14 @@ export default function WorkOrderDetails() {
   }
 
   if (!workOrder) {
-    return null;
+    return (
+      <DashboardLayout title="Detalhes da Ordem">
+        <div className="flex min-h-[300px] flex-col items-center justify-center gap-4 text-center">
+          <p className="text-muted-foreground">Esta OT está fechada e já não está disponível.</p>
+          <Button variant="outline" onClick={() => navigate(-1)}>Voltar</Button>
+        </div>
+      </DashboardLayout>
+    );
   }
 
   return (
