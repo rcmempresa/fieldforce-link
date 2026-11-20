@@ -89,7 +89,7 @@ export default function EmailLogs() {
   const getNotificationTypeLabel = (type: string) => {
     const types: Record<string, string> = {
       work_order_assigned: "Ordem Atribuída",
-      work_order_completed: "Ordem Concluída",
+      work_order_completed: "Ordem a faturar",
       work_order_created: "Ordem Criada",
       work_order_updated: "Ordem Atualizada",
       work_order_assignment_removed: "Atribuição Removida",

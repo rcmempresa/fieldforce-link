@@ -436,7 +436,7 @@ export function CompleteWorkOrderDialog({
           channel: "email",
           payload: JSON.stringify({
             reference: workOrderReference,
-            message: `Ordem de trabalho ${workOrderReference} foi concluída. Documento disponível nos anexos.`,
+            message: `Ordem de trabalho ${workOrderReference} está pronta a faturar. Documento disponível nos anexos.`,
           }),
         });
 
@@ -475,7 +475,7 @@ export function CompleteWorkOrderDialog({
           payload: JSON.stringify({
             reference: workOrderReference,
             client_name: (workOrder.client as any)?.name || "Cliente",
-            message: `Ordem ${workOrderReference} concluída. Documento disponível nos anexos.`,
+            message: `Ordem ${workOrderReference} pronta a faturar. Documento disponível nos anexos.`,
           }),
         }));
         await supabase.from("notifications").insert(managerNotifications);
@@ -510,7 +510,7 @@ export function CompleteWorkOrderDialog({
 
       toast({
         title: "Sucesso",
-        description: `Ordem ${workOrderReference} concluída e documento gerado!`,
+        description: `Ordem ${workOrderReference} pronta a faturar e documento gerado!`,
       });
 
       setNote("");

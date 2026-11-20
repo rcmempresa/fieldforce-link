@@ -82,7 +82,7 @@ export function ContractDecisions({ workOrderId }: { workOrderId?: string }) {
                 <div className="text-sm min-w-0">
                   <button className="font-medium hover:underline text-left" onClick={() => navigate(`/work-orders/${w.id}`)}>{w.reference} — {w.title}</button>
                   <p className="text-muted-foreground">
-                    {w.client?.company_name || w.client?.name} • Contrato {TYPE[w.maintenance_contracts?.contract_type] || ""} {FREQ[w.maintenance_contracts?.frequency] || ""}. OT concluída: criar a próxima OT de manutenção?
+                    {w.client?.company_name || w.client?.name} • Contrato {TYPE[w.maintenance_contracts?.contract_type] || ""} {FREQ[w.maintenance_contracts?.frequency] || ""}. OT a faturar: criar a próxima OT de manutenção?
                   </p>
                 </div>
                 <Button size="sm" className="shrink-0" onClick={() => openFor(w)}>Decidir</Button>

@@ -1132,7 +1132,7 @@ export default function ManagerDashboard() {
           <Card className="bg-gradient-to-br from-accent/5 to-background border-accent/20 hover:shadow-md transition-all">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-medium text-muted-foreground">Concluídas/mês</span>
+                <span className="text-xs font-medium text-muted-foreground">A faturar/mês</span>
                 <CheckCircle className="h-4 w-4 text-accent" />
               </div>
               <div className="text-2xl font-bold text-accent">{stats.completed}</div>

@@ -91,7 +91,7 @@ export async function generateWorkOrderPDF(
   
   doc.text(`Tipo de Serviço: ${workOrderData.service_type}`, 20, descEndY + 2);
   doc.text(`Prioridade: ${workOrderData.priority}`, 20, descEndY + 10);
-  doc.text(`Status: Concluída`, 20, descEndY + 18);
+  doc.text(`Status: A faturar`, 20, descEndY + 18);
 
   
   // Client Information
