@@ -606,7 +606,7 @@ export default function EmployeeDashboard() {
       <div className="space-y-6">
         <EmployeeMissingMaterial />
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
           <a
             href="https://picaponto.nrtechsolucion.pt/auth"
             target="_blank"
@@ -680,6 +680,21 @@ export default function EmployeeDashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{formatHours(stats.hoursWeek)}</div>
               <p className="text-xs text-muted-foreground">Esta semana</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Horas {format(calendarMonth, "MMM", { locale: ptBR })}
+              </CardTitle>
+              <Clock className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatHours(getHoursForCalendarMonth())}</div>
+              <p className="text-xs text-muted-foreground">
+                {format(calendarMonth, "MMMM yyyy", { locale: ptBR })}
+              </p>
             </CardContent>
           </Card>
         </div>
