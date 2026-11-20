@@ -574,7 +574,7 @@ export default function WorkOrderDetails() {
       case "in_progress":
         return "Em Progresso";
       case "completed":
-        return "Concluída";
+        return "A faturar";
       case "invoiced":
         return "Faturada";
       case "cancelled":

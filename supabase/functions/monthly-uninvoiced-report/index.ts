@@ -3,7 +3,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const TO = "geral@nrtechsolucion.pt";
 const STATUS: Record<string, string> = {
-  pending: "Pendente", approved: "Aprovada", in_progress: "Em execução", completed: "Concluída",
+  pending: "Pendente", approved: "Aprovada", in_progress: "Em execução", completed: "A faturar",
   awaiting_approval: "A aguardar aprovação", cancelled: "Cancelada", invoiced: "Faturada",
 };
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));

@@ -258,7 +258,7 @@ export default function WorkOrders() {
       case "in_progress":
         return "Em Progresso";
       case "completed":
-        return "Concluída";
+        return "A faturar";
       case "cancelled":
         return "Cancelada";
       default:

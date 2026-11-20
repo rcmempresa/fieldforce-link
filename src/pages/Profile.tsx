@@ -31,7 +31,7 @@ interface HistoryOrder {
 
 const STATUS_OPTIONS = [
   { value: "all", label: "Todas" },
-  { value: "completed", label: "Concluídas" },
+  { value: "completed", label: "A faturar" },
   { value: "in_progress", label: "Em Progresso" },
   { value: "pending", label: "Pendentes" },
   { value: "awaiting_approval", label: "Aguarda Aprovação" },
@@ -52,7 +52,7 @@ const getStatusLabel = (status: string) => {
     case "in_progress":
       return "Em Progresso";
     case "completed":
-      return "Concluída";
+      return "A faturar";
     case "cancelled":
       return "Cancelada";
     case "invoiced":
@@ -302,7 +302,7 @@ export default function Profile() {
               </div>
               <div className="text-center px-4 py-2 rounded-lg bg-muted/50">
                 <p className="text-2xl font-semibold">{completedCount}</p>
-                <p className="text-xs text-muted-foreground">Concluídas</p>
+                <p className="text-xs text-muted-foreground">A faturar</p>
               </div>
               <div className="text-center px-4 py-2 rounded-lg bg-muted/50">
                 <p className="text-2xl font-semibold">{formatHoursDetailed(totalHours)}</p>

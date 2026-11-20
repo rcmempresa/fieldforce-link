@@ -51,7 +51,7 @@ const statusLabels: Record<string, string> = {
   pending: "Pendente",
   approved: "Aprovada",
   in_progress: "Em Curso",
-  completed: "Concluída",
+  completed: "A faturar",
   cancelled: "Cancelada",
   awaiting_approval: "Aguarda Aprovação",
   awaiting_purchase_order: "Aguarda Nota de Encomenda",

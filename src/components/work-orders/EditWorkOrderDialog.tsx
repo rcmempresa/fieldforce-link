@@ -436,7 +436,7 @@ export function EditWorkOrderDialog({
                   <SelectItem value="awaiting_purchase_order">Aguarda Nota de Encomenda</SelectItem>
                   <SelectItem value="approved">Aprovada</SelectItem>
                   <SelectItem value="in_progress">Em Progresso</SelectItem>
-                  <SelectItem value="completed">Concluída</SelectItem>
+                  <SelectItem value="completed">A faturar</SelectItem>
                   <SelectItem value="invoiced">Faturada</SelectItem>
                   <SelectItem value="cancelled">Cancelada</SelectItem>
                 </SelectContent>

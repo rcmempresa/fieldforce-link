@@ -351,7 +351,7 @@ export default function EmployeeDashboard() {
       case "in_progress":
         return "Em Progresso";
       case "completed":
-        return "Concluída";
+        return "A faturar";
       case "invoiced":
         return "Faturada";
       default:
@@ -628,7 +628,7 @@ export default function EmployeeDashboard() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Concluídas</CardTitle>
+              <CardTitle className="text-sm font-medium">A faturar</CardTitle>
               <CheckCircle className="h-4 w-4 text-accent" />
             </CardHeader>
             <CardContent>

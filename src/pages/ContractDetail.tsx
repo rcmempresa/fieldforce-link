@@ -15,7 +15,7 @@ import { CONTRACT_TYPE_LABEL, FREQUENCY_LABEL } from "./Contracts";
 
 const fmt = (d: string) => d.split("-").reverse().join("/");
 const STATUS: Record<string, string> = {
-  pending: "Pendente", approved: "Aprovada", in_progress: "Em execução", completed: "Concluída",
+  pending: "Pendente", approved: "Aprovada", in_progress: "Em execução", completed: "A faturar",
   cancelled: "Cancelada", awaiting_approval: "A aguardar aprovação", invoiced: "Faturada",
   awaiting_purchase_order: "Aguarda nota de encomenda",
 };
