@@ -223,6 +223,16 @@ export default function Profile() {
         reports_count: reportsMap.get(o.id) || 0,
       }))
     );
+    if (role === "employee") {
+      const { data: closed } = await supabase.rpc("my_closed_work_orders_hours");
+      const openIds = new Set(ids);
+      const closedRows = (closed || []).filter((c: any) => !openIds.has(c.id)).map((c: any) => ({
+        id: c.id, reference: c.reference, title: c.title, status: c.status,
+        scheduled_date: c.scheduled_date, created_at: c.created_at,
+        client_name: c.client_name || "—", my_hours: Number(c.hours) || 0, reports_count: 0, locked: true,
+      }));
+      setOrders((prev) => [...prev, ...closedRows]);
+    }
     setLoading(false);
   };
 
@@ -377,8 +387,8 @@ export default function Profile() {
                 {pageOrders.map((o) => (
                   <div
                     key={o.id}
-                    onClick={() => navigate(`/work-orders/${o.id}`)}
-                    className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/40 transition-colors cursor-pointer"
+                    onClick={() => !(o as any).locked && navigate(`/work-orders/${o.id}`)}
+                    className={`flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border bg-card transition-colors ${(o as any).locked ? "" : "hover:bg-muted/40 cursor-pointer"}`}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">

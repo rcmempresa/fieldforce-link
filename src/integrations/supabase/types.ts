@@ -1217,6 +1217,19 @@ export type Database = {
         Args: { _user: string; _wo: string }
         Returns: boolean
       }
+      my_closed_work_orders_hours: {
+        Args: never
+        Returns: {
+          client_name: string
+          created_at: string
+          hours: number
+          id: string
+          reference: string
+          scheduled_date: string
+          status: string
+          title: string
+        }[]
+      }
       my_completed_count: { Args: never; Returns: number }
       my_hours_since: { Args: { _from: string }; Returns: number }
       pause_work_order: {
