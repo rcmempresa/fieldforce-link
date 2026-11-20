@@ -1232,6 +1232,14 @@ export type Database = {
       }
       my_completed_count: { Args: never; Returns: number }
       my_hours_since: { Args: { _from: string }; Returns: number }
+      my_time_entries_since: {
+        Args: { _from: string }
+        Returns: {
+          duration_hours: number
+          start_time: string
+          work_regime: string
+        }[]
+      }
       pause_work_order: {
         Args: {
           _entry: string
