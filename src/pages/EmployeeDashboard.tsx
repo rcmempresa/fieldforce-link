@@ -315,6 +315,16 @@ export default function EmployeeDashboard() {
     };
   };
 
+  // Totais de 12 meses por regime (laboral / pós-laboral)
+  const total12LaborH = useMemo(
+    () => Math.round(monthlyHours.reduce((s, m) => s + m.labor, 0) * 10) / 10,
+    [monthlyHours]
+  );
+  const total12AfterH = useMemo(
+    () => Math.round(monthlyHours.reduce((s, m) => s + m.after, 0) * 10) / 10,
+    [monthlyHours]
+  );
+
   // Get unique clients for filter
   const uniqueClients = useMemo(() => {
     const clients = new Set<string>();
@@ -596,7 +606,7 @@ export default function EmployeeDashboard() {
       <div className="space-y-6">
         <EmployeeMissingMaterial />
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <a
             href="https://picaponto.nrtechsolucion.pt/auth"
             target="_blank"
@@ -617,12 +627,37 @@ export default function EmployeeDashboard() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Ordens Atribuídas</CardTitle>
-              <ClipboardList className="h-4 w-4 text-primary" />
+              <CardTitle className="text-sm font-medium">Horas Laborais</CardTitle>
+              <Clock className="h-4 w-4 text-success" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.assignedOrders}</div>
-              <p className="text-xs text-muted-foreground">Tarefas ativas</p>
+              <div className="text-2xl font-bold text-success">
+                {formatHours(getRegimeForCalendarMonth().labor)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {format(calendarMonth, "MMMM yyyy", { locale: ptBR })}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Total 12 meses: <span className="font-medium">{formatHours(total12LaborH)}</span>
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Horas Pós-laborais</CardTitle>
+              <Clock className="h-4 w-4 text-warning" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-warning">
+                {formatHours(getRegimeForCalendarMonth().after)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {format(calendarMonth, "MMMM yyyy", { locale: ptBR })}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Total 12 meses: <span className="font-medium">{formatHours(total12AfterH)}</span>
+              </p>
             </CardContent>
           </Card>
 
@@ -645,65 +680,6 @@ export default function EmployeeDashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{formatHours(stats.hoursWeek)}</div>
               <p className="text-xs text-muted-foreground">Esta semana</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Horas {format(calendarMonth, "MMM", { locale: ptBR })}
-              </CardTitle>
-              <Clock className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatHours(getHoursForCalendarMonth())}</div>
-              <p className="text-xs text-muted-foreground">
-                {format(calendarMonth, "MMMM yyyy", { locale: ptBR })}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">A faturar</CardTitle>
-              <CheckCircle className="h-4 w-4 text-accent" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.completedOrders}</div>
-              <p className="text-xs text-muted-foreground">Total</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Regime Cards (mês do calendário) */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Horas Laborais — {format(calendarMonth, "MMMM yyyy", { locale: ptBR })}
-              </CardTitle>
-              <Clock className="h-4 w-4 text-success" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-success">
-                {formatHours(getRegimeForCalendarMonth().labor)}
-              </div>
-              <p className="text-xs text-muted-foreground">Regime laboral neste mês</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Horas Pós-laborais — {format(calendarMonth, "MMMM yyyy", { locale: ptBR })}
-              </CardTitle>
-              <Clock className="h-4 w-4 text-warning" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-warning">
-                {formatHours(getRegimeForCalendarMonth().after)}
-              </div>
-              <p className="text-xs text-muted-foreground">Regime pós-laboral neste mês</p>
             </CardContent>
           </Card>
         </div>
