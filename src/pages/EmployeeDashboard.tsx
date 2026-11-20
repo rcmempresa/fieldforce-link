@@ -54,6 +54,17 @@ interface Stats {
   completedOrders: number;
 }
 
+interface ClosedOrder {
+  id: string;
+  reference: string;
+  title: string;
+  client_name: string;
+  scheduled_date: string | null;
+  created_at: string;
+  status: string;
+  hours: number;
+}
+
 interface MonthlyHours {
   month: Date;
   hours: number;
@@ -63,6 +74,8 @@ interface MonthlyHours {
 
 export default function EmployeeDashboard() {
   const [assignedOrders, setAssignedOrders] = useState<WorkOrder[]>([]);
+  const [closedOrders, setClosedOrders] = useState<ClosedOrder[]>([]);
+  const [loadingClosed, setLoadingClosed] = useState(true);
   const [missingCount, setMissingCount] = useState(0);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [stats, setStats] = useState<Stats>({ 
@@ -96,6 +109,7 @@ export default function EmployeeDashboard() {
 
   useEffect(() => {
     fetchAssignedOrders();
+    fetchClosedOrders();
     fetchStats();
     fetchMonthlyHours();
   }, []);
@@ -168,6 +182,29 @@ export default function EmployeeDashboard() {
       setAssignedOrders(orders);
     } finally {
       setLoadingOrders(false);
+    }
+  };
+
+  const fetchClosedOrders = async () => {
+    setLoadingClosed(true);
+    try {
+      const { data, error } = await supabase.rpc("my_closed_work_orders_hours");
+      if (!error && data) {
+        setClosedOrders(
+          data.map((row: any) => ({
+            id: row.id,
+            reference: row.reference,
+            title: row.title,
+            client_name: row.client_name || "N/A",
+            scheduled_date: row.scheduled_date,
+            created_at: row.created_at,
+            status: row.status,
+            hours: Number(row.hours) || 0,
+          }))
+        );
+      }
+    } finally {
+      setLoadingClosed(false);
     }
   };
 
@@ -833,8 +870,8 @@ export default function EmployeeDashboard() {
                 {clientFilter === "all" ? "Nenhuma ordem de trabalho atribuída" : `Nenhuma ordem para ${clientFilter}`}
               </p>
             ) : (
-              <Tabs defaultValue={filterOrdersByClient(activeOrders).length > 0 ? "active" : filterOrdersByClient(startedOrders).length > 0 ? "paused" : "missing"} className="w-full">
-                <TabsList className="grid h-auto w-full grid-cols-3 mb-4">
+              <Tabs defaultValue={filterOrdersByClient(activeOrders).length > 0 ? "active" : filterOrdersByClient(startedOrders).length > 0 ? "paused" : "missing"} className="w-full" >
+                <TabsList className="grid h-auto w-full grid-cols-4 mb-4">
                   <TabsTrigger value="active" className="flex items-center gap-1.5 text-xs sm:text-sm">
                     <PlayCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     <span className="hidden sm:inline">Em Execução</span>
@@ -862,6 +899,16 @@ export default function EmployeeDashboard() {
                     {missingCount > 0 && (
                       <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px]">
                         {missingCount}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="closed" className="flex items-center gap-1.5 text-xs sm:text-sm">
+                    <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600" />
+                    <span className="hidden sm:inline">Fechadas</span>
+                    <span className="sm:hidden">Fech.</span>
+                    {closedOrders.length > 0 && (
+                      <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px]">
+                        {closedOrders.length}
                       </Badge>
                     )}
                   </TabsTrigger>
@@ -1004,6 +1051,46 @@ export default function EmployeeDashboard() {
                 {/* Missing material Tab */}
                 <TabsContent value="missing" className="mt-0">
                   <EmployeeMissingMaterial embedded onCount={setMissingCount} />
+                </TabsContent>
+
+                {/* Closed Orders Tab — completed, invoiced, awaiting_purchase_order */}
+                <TabsContent value="closed" className="mt-0">
+                  {loadingClosed ? (
+                    <p className="text-center text-muted-foreground py-8">A carregar...</p>
+                  ) : closedOrders.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <CheckCircle className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                      <p>Nenhuma ordem fechada</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 sm:max-h-[400px] sm:overflow-y-auto sm:pr-2">
+                      {closedOrders.map((order) => (
+                        <div key={order.id} className="flex flex-col gap-2 rounded-lg border border-green-200 bg-green-50/50 dark:bg-green-950/20 dark:border-green-900 p-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium text-sm">{order.reference}</p>
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
+                              {getStatusLabel(order.status)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground line-clamp-1">{order.title}</p>
+                          {order.client_name && (
+                            <p className="text-xs text-muted-foreground">Cliente: {order.client_name}</p>
+                          )}
+                          {order.hours > 0 && (
+                            <p className="text-xs font-medium text-primary">
+                              <Clock className="h-3 w-3 inline mr-1" />
+                              Horas trabalhadas: {formatHours(order.hours)}
+                            </p>
+                          )}
+                          <div>
+                            <Button size="sm" variant="ghost" onClick={() => navigate(`/work-orders/${order.id}`)}>
+                              Detalhes
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             )}
