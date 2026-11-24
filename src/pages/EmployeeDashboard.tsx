@@ -265,11 +265,7 @@ export default function EmployeeDashboard() {
     const twelveMonthsAgo = new Date();
     twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
 
-    const { data: timeEntries } = await supabase
-      .from("time_entries")
-      .select("start_time, duration_hours, work_regime")
-      .eq("user_id", user.id)
-      .gte("start_time", twelveMonthsAgo.toISOString());
+    const { data: timeEntries } = await supabase.rpc("my_time_entries_since", { _from: twelveMonthsAgo.toISOString() });
 
     if (timeEntries) {
       const monthlyMap = new Map<string, MonthlyHours>();
