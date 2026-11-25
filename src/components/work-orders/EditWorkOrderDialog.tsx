@@ -1,3 +1,4 @@
+import { UnavailabilityWarning } from "@/components/employees/UnavailabilityWarning";
 import { useState, useEffect } from "react";
 import { uploadWorkOrderAttachments } from "@/lib/uploadWorkOrderAttachments";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -509,6 +510,11 @@ export function EditWorkOrderDialog({
                   );
                 })}
               </div>
+              <UnavailabilityWarning
+                scheduledDate={formData.scheduled_date}
+                selectedIds={assignedIds}
+                employees={employees}
+              />
               {formData.scheduled_date &&
                 employees.length > 0 &&
                 busyEmployeeIds.size === employees.length && (() => {

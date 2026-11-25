@@ -18,6 +18,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DataPagination } from "@/components/ui/data-pagination";
 import { formatHours } from "@/lib/formatHours";
 import { entryRegime } from "@/lib/workRegime";
+import { EmployeeUnavailabilityDialog } from "@/components/employees/EmployeeUnavailabilityDialog";
+import { useUnavailabilities } from "@/hooks/useUnavailabilities";
+import { findBlock, reasonInfo, toDay } from "@/lib/unavailability";
 
 import {
   AlertDialog,
@@ -93,6 +96,10 @@ export default function Employees() {
   const [loadingHours, setLoadingHours] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const todayDay = toDay(new Date());
+  const { data: unavailabilities, reload: reloadUnavailabilities } = useUnavailabilities(todayDay);
+  const [unavailOpen, setUnavailOpen] = useState(false);
+  const [unavailEmployeeId, setUnavailEmployeeId] = useState<string | undefined>();
 
   useEffect(() => {
     fetchEmployees();
@@ -515,6 +522,16 @@ export default function Employees() {
                         >
                           {getRoleLabel(employee.role)}
                         </span>
+                        {(() => {
+                          const block = findBlock(unavailabilities, employee.id, todayDay);
+                          if (!block) return null;
+                          const info = reasonInfo(block.reason);
+                          return (
+                            <span className="rounded-full bg-warning/20 px-2 py-0.5 text-xs font-medium text-warning-foreground">
+                              {info.icon} {info.label} hoje
+                            </span>
+                          );
+                        })()}
                         {!employee.approved && (
                           <span className="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
                             Não Aprovado
@@ -548,6 +565,13 @@ export default function Employees() {
                         onClick={() => handleViewEmployee(employee)}
                       >
                         <CalendarIcon className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { setUnavailEmployeeId(employee.id); setUnavailOpen(true); }}
+                      >
+                        Indisponibilidades
                       </Button>
                       <Button
                         size="sm"
@@ -587,6 +611,18 @@ export default function Employees() {
             )}
           </CardContent>
         </Card>
+
+        {unavailOpen && (
+          <EmployeeUnavailabilityDialog
+            key={unavailEmployeeId ?? "new"}
+            open={unavailOpen}
+            onOpenChange={setUnavailOpen}
+            employees={employees.map((e) => ({ id: e.id, name: e.name }))}
+            initialEmployeeId={unavailEmployeeId}
+            unavailabilities={unavailabilities}
+            onChanged={reloadUnavailabilities}
+          />
+        )}
 
         {selectedCalendarEmployee && (
           <div className="space-y-6">

@@ -1,3 +1,4 @@
+import { UnavailabilityWarning } from "@/components/employees/UnavailabilityWarning";
 import { useState, useEffect } from "react";
 import { uploadWorkOrderAttachments } from "@/lib/uploadWorkOrderAttachments";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -539,6 +540,11 @@ export function CreateWorkOrderDialog({
                   );
                 })}
               </div>
+              <UnavailabilityWarning
+                scheduledDate={formData.scheduled_date}
+                selectedIds={formData.employee_ids}
+                employees={employees}
+              />
               {formData.scheduled_date && busyEmployeeIds.size === employees.length && (() => {
                 const slot = getSlot(new Date(formData.scheduled_date));
                 return (
