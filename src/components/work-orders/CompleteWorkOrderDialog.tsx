@@ -420,25 +420,13 @@ export function CompleteWorkOrderDialog({
       );
 
       // Update work order status to completed
-      const { error: updateError } = await supabase
-        .from("work_orders")
-        .update({ status: "completed" })
-        .eq("id", workOrderId);
+      // Atomic server-side completion (technicians lose SELECT on closed OTs, so a direct UPDATE fails RLS)
+      const { error: updateError } = await supabase.rpc("complete_work_order", { _wo: workOrderId });
 
       if (updateError) throw updateError;
 
       // Create notification for client
       if (workOrder.client_id) {
-        await supabase.from("notifications").insert({
-          user_id: workOrder.client_id,
-          work_order_id: workOrderId,
-          type: "work_order_completed",
-          channel: "email",
-          payload: JSON.stringify({
-            reference: workOrderReference,
-            message: `Ordem de trabalho ${workOrderReference} está pronta a faturar. Documento disponível nos anexos.`,
-          }),
-        });
 
         // Send email to client with PDF attachment
         if ((workOrder.client as any)?.name) {
@@ -467,18 +455,6 @@ export function CompleteWorkOrderDialog({
         .eq("approved", true);
 
       if (managers && managers.length > 0) {
-        const managerNotifications = managers.map((manager: any) => ({
-          user_id: manager.user_id,
-          work_order_id: workOrderId,
-          type: "work_order_completed",
-          channel: "email" as const,
-          payload: JSON.stringify({
-            reference: workOrderReference,
-            client_name: (workOrder.client as any)?.name || "Cliente",
-            message: `Ordem ${workOrderReference} pronta a faturar. Documento disponível nos anexos.`,
-          }),
-        }));
-        await supabase.from("notifications").insert(managerNotifications);
 
         // Company inbox copy rides on the first manager email when no client email is sent
         let companyCopyPending = !(workOrder.client_id && (workOrder.client as any)?.name);
@@ -522,7 +498,7 @@ export function CompleteWorkOrderDialog({
       console.error("Error completing work order:", error);
       toast({
         title: "Erro",
-        description: "Erro ao concluir a ordem de trabalho",
+        description: `Erro ao concluir a ordem de trabalho${(error as any)?.message ? `: ${(error as any).message}` : ""}`,
         variant: "destructive",
       });
     } finally {

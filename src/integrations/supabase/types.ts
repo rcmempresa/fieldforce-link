@@ -1177,6 +1177,7 @@ export type Database = {
         Args: { _user: string; _wo: string }
         Returns: boolean
       }
+      complete_work_order: { Args: { _wo: string }; Returns: undefined }
       create_contract_work_order: {
         Args: { _contract: string; _scheduled?: string; _technician?: string }
         Returns: string
