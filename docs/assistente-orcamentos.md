@@ -24,3 +24,10 @@ Exemplo de resposta:
 ```json
 {"data":{"reference":"ORC-2026-0007","sent":false,"pending_agent_whatsapp":true,"results":{"whatsapp":{"ok":false,"pending_agent":true,"pdf_url":"https://...","filename":"ORC-2026-0007.pdf","caption":"Olá ...","to":"351912345678"}}}}
 ```
+
+## Indisponibilidades dos técnicos
+- `listar_indisponibilidades` (user_id?, date_from?, date_to?)
+- `adicionar_indisponibilidade` (user_id, start_date, end_date, reason: ferias|baixa|folga|feriado|outro, notes?, created_by?)
+- `remover_indisponibilidade` (unavail_id)
+- `disponibilidade_equipa` devolve `unavailable_today` e `unavailable_reason`.
+- `atribuir_tecnico_ot` devolve 409 `warning:true` se o técnico estiver indisponível no dia da OT; para confirmar, repetir com `forcar: true`.

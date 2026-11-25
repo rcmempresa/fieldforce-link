@@ -669,6 +669,54 @@ export type Database = {
           },
         ]
       }
+      profile_unavailabilities: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          end_date: string
+          id: string
+          notes: string | null
+          reason: string
+          start_date: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          end_date: string
+          id?: string
+          notes?: string | null
+          reason?: string
+          start_date: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          end_date?: string
+          id?: string
+          notes?: string | null
+          reason?: string
+          start_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_unavailabilities_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_unavailabilities_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           address: string | null

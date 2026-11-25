@@ -27,7 +27,7 @@ function createClient() {
   } }, from(table: string) {
     const operations: Array<{ method: string; args: any[] }> = [];
     const query: any = {};
-    for (const method of ["select", "in", "order", "limit", "gte", "lt", "range", "ilike", "update", "eq", "or", "insert", "upsert", "delete", "single"]) {
+    for (const method of ["select", "in", "order", "limit", "gte", "lt", "range", "ilike", "update", "eq", "or", "insert", "upsert", "delete", "single", "lte", "maybeSingle"]) {
       query[method] = (...args: any[]) => {
         operations.push({ method, args });
         calls.push({ table, method, args });
@@ -48,6 +48,7 @@ function createClient() {
         }));
         if (method === "in") data = data.filter((row) => args[1].includes(get(row, args[0])));
         if (method === "gte") data = data.filter((row) => get(row, args[0]) >= args[1]);
+        if (method === "lte") data = data.filter((row) => get(row, args[0]) <= args[1]);
         if (method === "lt") data = data.filter((row) => get(row, args[0]) < args[1]);
       }
       data.sort((a, b) => {
@@ -79,7 +80,7 @@ function createClient() {
         fixtures[table] = [...(fixtures[table] ?? []), row];
         data = [row];
       }
-      if (operations.some((operation) => operation.method === "single")) return Promise.resolve({ data: data[0] ?? null, error: null }).then(resolve, reject);
+      if (operations.some((operation) => operation.method === "single" || operation.method === "maybeSingle")) return Promise.resolve({ data: data[0] ?? null, error: null }).then(resolve, reject);
       return Promise.resolve({ data, error: null }).then(resolve, reject);
     };
     return query;
@@ -136,8 +137,8 @@ test("disponibilidade_equipa includes idle staff, excludes clients and counts on
     .map((status) => ({ user_id: "a", work_orders: { status } }));
   const { body } = await request("disponibilidade_equipa");
   expect(body.data).toEqual([
-    { user_id: "a", name: "Ana", open_ots: 2, in_progress_ots: 1 },
-    { user_id: "b", name: "Bruno", open_ots: 0, in_progress_ots: 0 },
+    { user_id: "a", name: "Ana", open_ots: 2, in_progress_ots: 1, unavailable_today: false, unavailable_reason: null },
+    { user_id: "b", name: "Bruno", open_ots: 0, in_progress_ots: 0, unavailable_today: false, unavailable_reason: null },
   ]);
   expect(body.count).toBe(2);
 });
@@ -554,4 +555,35 @@ test("uploaded actions require secret and are advertised", async () => {
     expect((await request("unknown")).body.supported).toContain(action);
   }
   expect(calls).toHaveLength(0);
+});
+
+const TECH = "11111111-1111-4111-8111-111111111111";
+test("adicionar_indisponibilidade rejects end before start and invalid reason", async () => {
+  expect((await request("adicionar_indisponibilidade", { user_id: TECH, start_date: "2026-12-10", end_date: "2026-12-01" })).status).toBe(400);
+  expect((await request("adicionar_indisponibilidade", { user_id: TECH, start_date: "2026-12-01", end_date: "2026-12-02", reason: "praia" })).status).toBe(400);
+});
+test("adicionar_indisponibilidade inserts for staff, defaults to ferias", async () => {
+  fixtures.user_roles = [{ user_id: TECH, role: "employee" }];
+  const { status, body } = await request("adicionar_indisponibilidade", { user_id: TECH, start_date: "2026-12-01", end_date: "2026-12-05" });
+  expect(status).toBe(200);
+  expect(body.data.reason).toBe("ferias");
+});
+test("disponibilidade_equipa flags who is unavailable today", async () => {
+  const today = new Date().toISOString().slice(0, 10);
+  fixtures.user_roles = [{ user_id: "a", role: "employee" }];
+  fixtures.profiles = [{ id: "a", name: "Ana" }];
+  fixtures.profile_unavailabilities = [{ user_id: "a", reason: "baixa", start_date: today, end_date: today }];
+  const { body } = await request("disponibilidade_equipa");
+  expect(body.data[0].unavailable_today).toBe(true);
+  expect(body.data[0].unavailable_reason).toBe("baixa");
+});
+test("atribuir_tecnico_ot warns on unavailable day and assigns with forcar", async () => {
+  fixtures.work_orders = [{ id: "wo1", reference: "WO-2026-0001", scheduled_date: "2026-12-03T09:00:00Z" }];
+  fixtures.profiles = [{ id: TECH, name: "Nuno" }];
+  fixtures.profile_unavailabilities = [{ user_id: TECH, reason: "ferias", start_date: "2026-12-01", end_date: "2026-12-05" }];
+  const warn = await request("atribuir_tecnico_ot", { reference: "0001", tecnico_nome: "Nuno" });
+  expect(warn.status).toBe(409);
+  expect(warn.body.assigned).toBe(false);
+  const ok = await request("atribuir_tecnico_ot", { reference: "0001", tecnico_nome: "Nuno", forcar: true });
+  expect(ok.status).toBe(200);
 });

@@ -9,6 +9,8 @@ const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
 const str = (v: unknown, max = 200) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : undefined);
+const isUuid = (v?: string) => !!v && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+const UNAVAILABILITY_REASONS = ["ferias", "baixa", "folga", "feriado", "outro"];
 const isDate = (v?: string) => !!v && /^\d{4}-\d{2}-\d{2}$/.test(v);
 const nextDay = (d: string) => { const t = new Date(d + "T00:00:00Z"); t.setUTCDate(t.getUTCDate() + 1); return t.toISOString().slice(0, 10); };
 
@@ -525,9 +527,63 @@ Deno.serve(async (req) => {
           if (assignments.length < 1000) break;
         }
         const data = [...groups.values()].sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "", "pt-PT"));
+        const today = new Date().toISOString().slice(0, 10);
+        const { data: unavail, error: unavailErr } = await db.from("profile_unavailabilities")
+          .select("user_id, reason").lte("start_date", today).gte("end_date", today);
+        if (unavailErr) throw unavailErr;
+        const unavailMap = new Map((unavail ?? []).map((u: any) => [u.user_id, u.reason]));
+        const dataWithUnavail = data.map((t) => ({ ...t,
+          unavailable_today: unavailMap.has(t.user_id), unavailable_reason: unavailMap.get(t.user_id) ?? null }));
+        return json({ data: dataWithUnavail, count: dataWithUnavail.length });
+      }
+      case "listar_indisponibilidades": {
+        const userId = str(p.user_id, 40);
+        const from = str(p.date_from, 10);
+        const to = str(p.date_to, 10);
+        if (userId && !isUuid(userId)) return json({ error: "user_id inválido" }, 400);
+        if ((from && !isDate(from)) || (to && !isDate(to))) return json({ error: "Datas devem ser YYYY-MM-DD" }, 400);
+        let q = db.from("profile_unavailabilities")
+          .select("id, user_id, start_date, end_date, reason, notes, profiles!profile_unavailabilities_user_id_fkey(name)")
+          .order("start_date", { ascending: true }).limit(200);
+        if (userId) q = q.eq("user_id", userId);
+        if (from) q = q.gte("end_date", from);
+        if (to) q = q.lte("start_date", to);
+        const { data, error } = await q;
+        if (error) throw error;
         return json({ data, count: data.length });
       }
-   case "relatorio_mensal": {
+      case "adicionar_indisponibilidade": {
+        const userId = str(p.user_id, 40);
+        const startDate = str(p.start_date, 10);
+        const endDate = str(p.end_date, 10);
+        const reason = str(p.reason, 20) ?? "ferias";
+        const notes = str(p.notes, 500);
+        const createdBy = str(p.created_by, 40);
+        if (!userId || !startDate || !endDate) return json({ error: "user_id, start_date e end_date obrigatórios" }, 400);
+        if (!isUuid(userId) || (createdBy && !isUuid(createdBy))) return json({ error: "user_id/created_by inválido" }, 400);
+        if (!isDate(startDate) || !isDate(endDate)) return json({ error: "Datas devem ser YYYY-MM-DD" }, 400);
+        if (endDate < startDate) return json({ error: "end_date deve ser >= start_date" }, 400);
+        if (!UNAVAILABILITY_REASONS.includes(reason)) return json({ error: "reason inválido" }, 400);
+        const { data: role, error: roleErr } = await db.from("user_roles").select("user_id")
+          .eq("user_id", userId).in("role", ["employee", "manager"]).limit(1);
+        if (roleErr) throw roleErr;
+        if (!role?.length) return json({ error: "Técnico não encontrado" }, 404);
+        const { data, error } = await db.from("profile_unavailabilities").insert({
+          user_id: userId, start_date: startDate, end_date: endDate,
+          reason, notes: notes ?? null, created_by: createdBy ?? null,
+        }).select().single();
+        if (error) throw error;
+        return json({ data });
+      }
+      case "remover_indisponibilidade": {
+        const unavailId = str(p.unavail_id, 40);
+        if (!unavailId) return json({ error: "unavail_id obrigatório" }, 400);
+        if (!isUuid(unavailId)) return json({ error: "unavail_id inválido" }, 400);
+        const { error } = await db.from("profile_unavailabilities").delete().eq("id", unavailId);
+        if (error) throw error;
+        return json({ data: { deleted: true } });
+      }
+    case "relatorio_mensal": {
      const year = Number(p.year) || new Date().getUTCFullYear();
      const month = Math.min(Math.max(Number(p.month) || new Date().getUTCMonth() + 1, 1), 12);
      const dateFrom = `${year}-${String(month).padStart(2, "0")}-01`;
@@ -620,6 +676,20 @@ Deno.serve(async (req) => {
         if (profiles.length > 1) return json({ error: "Nome ambíguo", matches: profiles.map((x: any) => x.name) }, 400);
         const tecnicoId = (profiles[0] as any).id;
         const tecnicoName = (profiles[0] as any).name;
+        if (p.forcar !== true) {
+          const { data: otDate } = await db.from("work_orders").select("scheduled_date").eq("id", otId).maybeSingle();
+          if (otDate?.scheduled_date) {
+            const woDay = String(otDate.scheduled_date).slice(0, 10);
+            const { data: blocks, error: blockErr } = await db.from("profile_unavailabilities")
+              .select("reason").eq("user_id", tecnicoId).lte("start_date", woDay).gte("end_date", woDay).limit(1);
+            if (blockErr) throw blockErr;
+            const block = blocks?.[0] as any;
+            if (block) {
+              const reasonPt: Record<string, string> = { ferias: "férias", baixa: "baixa médica", folga: "folga", feriado: "feriado", outro: "indisponível" };
+              return json({ warning: true, assigned: false, message: `${tecnicoName} está em ${reasonPt[block.reason] ?? "indisponível"} nesse dia. Confirmas mesmo assim? (repete com forcar: true)`, technician: tecnicoName, reason: block.reason }, 409);
+            }
+          }
+        }
         const { error: assignErr } = await db.from("work_order_assignments")
           .upsert({ work_order_id: otId, user_id: tecnicoId }, { onConflict: "work_order_id,user_id" });
         if (assignErr) throw assignErr;
@@ -1077,7 +1147,7 @@ ${i.valid_until ? `<tr><td style="padding:4px 12px 4px 0">Válido até</td><td>$
         return json({ data: { ok: true, reference: q.reference, confirmed: i.ok } });
       }
       default:
-        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "listar_contratos", "historico_equipamento", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "criar_cliente", "editar_cliente", "apagar_registo_horas", "criar_orcamento", "listar_orcamentos", "buscar_orcamento", "marcar_orcamento_enviado", "enviar_email_orcamento", "procurar_cliente_orcamento", "resumo_orcamento", "editar_orcamento", "adicionar_linha_orcamento", "editar_linha_orcamento", "remover_linha_orcamento", "enviar_orcamento", "confirmar_whatsapp_orcamento"] }, 400);
+        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "listar_contratos", "historico_equipamento", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "criar_cliente", "editar_cliente", "apagar_registo_horas", "criar_orcamento", "listar_orcamentos", "buscar_orcamento", "marcar_orcamento_enviado", "enviar_email_orcamento", "procurar_cliente_orcamento", "resumo_orcamento", "editar_orcamento", "adicionar_linha_orcamento", "editar_linha_orcamento", "remover_linha_orcamento", "enviar_orcamento", "confirmar_whatsapp_orcamento", "listar_indisponibilidades", "adicionar_indisponibilidade", "remover_indisponibilidade"] }, 400);
     }
   } catch (e: any) {
     console.error(action, e);
