@@ -1,5 +1,7 @@
 # Current tasks
 
+- [x] Align empregado-digital unavailability actions and assignment override with the `force` contract; 59 tests passed and the function was deployed. Live verification requires the agent secret.
+
 - [x] Add listar_contratos and historico_equipamento with validated filters and existing report linkage.
 - [x] Complete criar_cliente duplicate checks for contact email and phone without email.
 - [x] Test, deploy and verify the three uploaded actions without changing live records (54 tests passed; live contracts, equipment orders/reports, duplicate email and secret protection verified).

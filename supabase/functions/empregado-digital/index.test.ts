@@ -577,13 +577,29 @@ test("disponibilidade_equipa flags who is unavailable today", async () => {
   expect(body.data[0].unavailable_today).toBe(true);
   expect(body.data[0].unavailable_reason).toBe("baixa");
 });
-test("atribuir_tecnico_ot warns on unavailable day and assigns with forcar", async () => {
+test("atribuir_tecnico_ot warns on unavailable day and assigns with force", async () => {
   fixtures.work_orders = [{ id: "wo1", reference: "WO-2026-0001", scheduled_date: "2026-12-03T09:00:00Z" }];
   fixtures.profiles = [{ id: TECH, name: "Nuno" }];
   fixtures.profile_unavailabilities = [{ user_id: TECH, reason: "ferias", start_date: "2026-12-01", end_date: "2026-12-05" }];
   const warn = await request("atribuir_tecnico_ot", { reference: "0001", tecnico_nome: "Nuno" });
   expect(warn.status).toBe(409);
-  expect(warn.body.assigned).toBe(false);
-  const ok = await request("atribuir_tecnico_ot", { reference: "0001", tecnico_nome: "Nuno", forcar: true });
+  expect(warn.body).toMatchObject({ warning: true, assigned: false, technician: "Nuno", reason: "ferias" });
+  expect(warn.body.message).toContain("force: true");
+  expect(fixtures.work_order_assignments).toBeUndefined();
+  const ok = await request("atribuir_tecnico_ot", { reference: "0001", tecnico_nome: "Nuno", force: true });
   expect(ok.status).toBe(200);
+  expect(fixtures.work_order_assignments).toHaveLength(1);
+});
+test("unavailability actions are advertised and removal deletes only the selected period", async () => {
+  for (const action of ["listar_indisponibilidades", "adicionar_indisponibilidade", "remover_indisponibilidade"]) {
+    expect((await request("unknown")).body.supported).toContain(action);
+  }
+  fixtures.profile_unavailabilities = [
+    { id: "11111111-1111-4111-8111-111111111111", user_id: TECH, reason: "ferias" },
+    { id: "22222222-2222-4222-8222-222222222222", user_id: TECH, reason: "folga" },
+  ];
+  const removed = await request("remover_indisponibilidade", { unavail_id: "11111111-1111-4111-8111-111111111111" });
+  expect(removed.status).toBe(200);
+  expect(removed.body.data).toEqual({ deleted: true });
+  expect(fixtures.profile_unavailabilities).toEqual([{ id: "22222222-2222-4222-8222-222222222222", user_id: TECH, reason: "folga" }]);
 });

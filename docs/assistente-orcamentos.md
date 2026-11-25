@@ -30,4 +30,4 @@ Exemplo de resposta:
 - `adicionar_indisponibilidade` (user_id, start_date, end_date, reason: ferias|baixa|folga|feriado|outro, notes?, created_by?)
 - `remover_indisponibilidade` (unavail_id)
 - `disponibilidade_equipa` devolve `unavailable_today` e `unavailable_reason`.
-- `atribuir_tecnico_ot` devolve 409 `warning:true` se o técnico estiver indisponível no dia da OT; para confirmar, repetir com `forcar: true`.
+- `atribuir_tecnico_ot` devolve 409 `{ warning: true, message, technician, reason }` se o técnico estiver indisponível no dia da OT; para confirmar, repetir com `force: true`. O antigo `forcar: true` continua aceite por compatibilidade.

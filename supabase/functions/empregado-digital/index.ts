@@ -676,7 +676,8 @@ Deno.serve(async (req) => {
         if (profiles.length > 1) return json({ error: "Nome ambíguo", matches: profiles.map((x: any) => x.name) }, 400);
         const tecnicoId = (profiles[0] as any).id;
         const tecnicoName = (profiles[0] as any).name;
-        if (p.forcar !== true) {
+        const force = p.force === true || p.forcar === true; // `forcar` remains as a legacy alias.
+        if (!force) {
           const { data: otDate } = await db.from("work_orders").select("scheduled_date").eq("id", otId).maybeSingle();
           if (otDate?.scheduled_date) {
             const woDay = String(otDate.scheduled_date).slice(0, 10);
@@ -686,7 +687,7 @@ Deno.serve(async (req) => {
             const block = blocks?.[0] as any;
             if (block) {
               const reasonPt: Record<string, string> = { ferias: "férias", baixa: "baixa médica", folga: "folga", feriado: "feriado", outro: "indisponível" };
-              return json({ warning: true, assigned: false, message: `${tecnicoName} está em ${reasonPt[block.reason] ?? "indisponível"} nesse dia. Confirmas mesmo assim? (repete com forcar: true)`, technician: tecnicoName, reason: block.reason }, 409);
+              return json({ warning: true, assigned: false, message: `${tecnicoName} está em ${reasonPt[block.reason] ?? "indisponível"} nesse dia. Confirmas mesmo assim? (repete com force: true)`, technician: tecnicoName, reason: block.reason }, 409);
             }
           }
         }
