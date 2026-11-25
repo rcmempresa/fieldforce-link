@@ -275,11 +275,12 @@ Deno.serve(async (req) => {
           const s = tecnicoSearch.replace(/[%,()]/g, " ");
           const { data: profs, error: pe } = await db.from("profiles").select("id").ilike("name", `%${s}%`).limit(200);
           if (pe) throw pe;
-          const ids = (profs ?? []).map((x: any) => x.id);
+          const ids = (profs ?? []).map((x: any) => x.id).filter(Boolean);
           if (!ids.length) return json({ data: [], count: 0 });
           const { data: asg, error: ae } = await db.from("work_order_assignments").select("work_order_id").in("user_id", ids).limit(5000);
           if (ae) throw ae;
-          const woIds = [...new Set((asg ?? []).map((x: any) => x.work_order_id))];
+          // filter(Boolean) remove nulos; slice(0,200) evita URLs demasiado longas no PostgREST
+      const woIds = [...new Set((asg ?? []).map((x: any) => x.work_order_id).filter(Boolean))].slice(0, 200);
           if (!woIds.length) return json({ data: [], count: 0 });
           q = q.in("id", woIds);
         }
