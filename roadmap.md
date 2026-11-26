@@ -25,4 +25,5 @@
 - [x] WhatsApp dos orçamentos enviado pelo agente externo (número próprio na app fica como opção futura)
 
 - [x] Apply uploaded technician status action, assignment selects, creator role validation and preserve existing hours/unavailability actions.
-- [x] Verify schema and handler tests (67 passing); live unavailability read succeeds. New action awaits automatic function deployment.
+- [x] Verify schema and handler tests (67 passing); live unavailability read succeeds. 
+- [ ] Confirm new action live after automatic function deployment; blocked because the published function still runs the previous version.
