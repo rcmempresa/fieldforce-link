@@ -275,6 +275,19 @@ test("adicionar_material_ot rejects invalid quantities and creator IDs", async (
   expect((await request("adicionar_material_ot", { reference: "0688", descricao: "Cabo", created_by: "22222222-2222-4222-8222-222222222222" })).status).toBe(404);
   expect(calls.some((call) => call.method === "insert")).toBe(false);
 });
+test("adicionar_material_ot accepts any internal user and rejects clients or outsiders", async () => {
+  seedWriteFixtures();
+  const managerId = "44444444-4444-4444-8444-444444444444";
+  const clientUserId = "55555555-5555-5555-8555-555555555555";
+  fixtures.user_roles.push({ user_id: managerId, role: "manager" }, { user_id: clientUserId, role: "client" });
+  // No profile row for the manager: the role check alone must be enough.
+  expect((await request("adicionar_material_ot", { reference: "WO-2026-0688", descricao: "Cabo", created_by: managerId })).status).toBe(200);
+  expect(fixtures.work_order_materials.at(-1)).toMatchObject({ created_by: managerId });
+  const result = await request("adicionar_material_ot", { reference: "WO-2026-0688", descricao: "Tubo", created_by: clientUserId });
+  expect(result.status).toBe(404);
+  expect(result.body.error).toBe("Utilizador não encontrado");
+  expect(fixtures.work_order_materials).toHaveLength(1);
+});
 test("remover_material_ot removes only the matching material from the selected OT", async () => {
   seedWriteFixtures();
   fixtures.work_order_materials = [{ id: "m1", work_order_id: "ot1", description: "Cabo elétrico" }, { id: "m2", work_order_id: "ot2", description: "Cabo elétrico" }];

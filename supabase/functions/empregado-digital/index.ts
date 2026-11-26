@@ -780,8 +780,10 @@ Deno.serve(async (req) => {
         const order = await findWriteOrder(db, reference);
         if (order.response) return order.response;
         if (material.created_by) {
-          const creator = await findWriteProfile(db, "", false, material.created_by);
-          if (creator.response) return creator.response;
+          // Aceitar qualquer utilizador interno (employee ou manager)
+          const { data: roleCheck } = await db.from("user_roles").select("user_id")
+            .eq("user_id", material.created_by).in("role", ["employee", "manager"]).limit(1);
+          if (!roleCheck?.length) return json({ error: "Utilizador não encontrado" }, 404);
         }
         const { data: inserted, error } = await db.from("work_order_materials")
           .insert({ work_order_id: order.data.id, ...material }).select("id").single();
