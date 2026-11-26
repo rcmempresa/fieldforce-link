@@ -34,6 +34,7 @@ const readSchemas = {
   listar_contratos: z.object({ status: z.enum(["active", "ended"]).optional(), client_search: nameInput.optional() }),
   historico_equipamento: z.object({ equipment_id: z.string().uuid().optional(), equipment_search: nameInput.optional(), client_search: nameInput.optional() }),
 };
+const EQ_CATS = ["hvac","electricity","generator","cctv","automatismos","refrigeration","thermal_accumulator","heat_pump","industrial","domestic","intrusion","fire","other"] as const;
 const writeSchemas = {
   criar_cliente: z.object({ name: nameInput,
     company_name: z.string().trim().min(1).max(200).optional(),
@@ -45,7 +46,40 @@ const writeSchemas = {
     address: z.string().trim().min(1).max(500).optional(),
     name: z.string().trim().min(1).max(200).optional(),
     nif: z.string().trim().min(1).max(20).optional(),
-    company_name: z.string().trim().min(1).max(200).optional() }),
+    company_name: z.string().trim().min(1).max(200).optional(),
+    email: z.string().trim().email().optional() }),
+  criar_equipamento: z.object({ client_search: nameInput,
+    name: z.string().trim().min(1).max(200),
+    category: z.enum(EQ_CATS).default("other"),
+    equipment_type: z.enum(["general","ac"]).default("general"),
+    brand: z.string().trim().min(1).max(100).optional(),
+    model: z.string().trim().min(1).max(100).optional(),
+    serial_number: z.string().trim().min(1).max(100).optional(),
+    outdoor_model: z.string().trim().min(1).max(100).optional(),
+    outdoor_serial_number: z.string().trim().min(1).max(100).optional(),
+    manufacture_year: z.preprocess((v) => v === "" || v === null || v === undefined ? undefined : Number(v),
+      z.number().int().min(1900).max(2100).optional()),
+    location: z.string().trim().min(1).max(500).optional(),
+    notes: z.string().trim().min(1).max(1000).optional() }),
+  editar_equipamento: z.object({ equipment_search: nameInput,
+    client_search: nameInput.optional(),
+    name: z.string().trim().min(1).max(200).optional(),
+    category: z.enum(EQ_CATS).optional(),
+    brand: z.string().trim().max(100).optional(),
+    model: z.string().trim().max(100).optional(),
+    serial_number: z.string().trim().max(100).optional(),
+    location: z.string().trim().max(500).optional(),
+    notes: z.string().trim().max(1000).optional() }),
+  criar_funcionario: z.object({ name: nameInput,
+    email: z.string().trim().email(),
+    phone: z.string().trim().min(1).max(50).optional(),
+    nif: z.string().trim().min(1).max(20).optional(),
+    address: z.string().trim().min(1).max(500).optional() }),
+  editar_funcionario: z.object({ search: nameInput,
+    nome: z.string().trim().min(1).max(200).optional(),
+    telefone: z.string().trim().min(1).max(50).optional(),
+    morada: z.string().trim().min(1).max(500).optional(),
+    nif: z.string().trim().min(1).max(20).optional() }),
   apagar_registo_horas: z.object({ reference: referenceInput,
     date: dateInput.default(() => new Date().toISOString().slice(0, 10)),
     user_id: z.string().uuid().optional() }),
@@ -915,16 +949,140 @@ case "horas_por_cliente": {
         const parsed = writeSchemas.editar_cliente.safeParse({ ...p, phone: p.telefone ?? p.phone,
           address: p.morada ?? p.address, name: p.nome ?? p.name, company_name: p.empresa ?? p.company_name });
         if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
-        const { client_search, ...fields } = parsed.data;
+        const { client_search, email: newEmail, ...fields } = parsed.data;
         const update = Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
-        if (!Object.keys(update).length) return json({ error: "Nenhum campo para atualizar" }, 400);
+        if (!Object.keys(update).length && !newEmail) return json({ error: "Nenhum campo para atualizar" }, 400);
         const client = await findWriteProfile(db, client_search, true);
         if (client.response) return client.response;
-        const { data: updated, error } = await db.from("profiles").update(update).eq("id", client.data.id)
-          .select("id, name, company_name").single();
+        const updatedFields: string[] = [];
+        if (Object.keys(update).length) {
+          const { data: updatedProfile, error } = await db.from("profiles").update(update).eq("id", client.data.id)
+            .select("id").single();
+          if (error) throw error;
+          if (!updatedProfile) return json({ error: "Cliente não encontrado" }, 404);
+          updatedFields.push(...Object.keys(update));
+        }
+        if (newEmail) {
+          const { data: existing, error: findError } = await db.from("client_emails").select("id")
+            .eq("user_id", client.data.id).order("created_at").limit(1).maybeSingle();
+          if (findError) throw findError;
+          const { error: emailError } = existing
+            ? await db.from("client_emails").update({ email: newEmail }).eq("id", existing.id)
+            : await db.from("client_emails").insert({ user_id: client.data.id, email: newEmail });
+          if (emailError) throw emailError;
+          updatedFields.push("email");
+        }
+        const name = (update.company_name as string) || client.data.company_name || (update.name as string) || client.data.name;
+        return json({ data: { id: client.data.id, name, updated: updatedFields } });
+      }
+      case "listar_equipamentos": {
+        const search = str(p.search, 100);
+        const clientSearch = str(p.client_search, 100);
+        let q = db.from("equipments")
+          .select("id, name, brand, model, serial_number, category, equipment_type, location, manufacture_year, client:profiles!equipments_client_id_fkey(id, name, company_name)")
+          .order("name").limit(limit);
+        if (clientSearch) {
+          const c = await findWriteProfile(db, clientSearch, true);
+          if (c.response) return c.response;
+          q = q.eq("client_id", c.data.id);
+        }
+        if (search) {
+          const term = search.replace(/[%,()_]/g, " ");
+          q = q.or(`name.ilike.%${term}%,brand.ilike.%${term}%,model.ilike.%${term}%,serial_number.ilike.%${term}%`);
+        }
+        const { data, error } = await q;
         if (error) throw error;
-        if (!updated) return json({ error: "Cliente não encontrado" }, 404);
-        return json({ data: { id: updated.id, name: updated.company_name || updated.name, updated: Object.keys(update) } });
+        return json({ data: data ?? [], count: (data ?? []).length });
+      }
+      case "criar_equipamento": {
+        const parsed = writeSchemas.criar_equipamento.safeParse(p);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const { client_search, ...f } = parsed.data;
+        const client = await findWriteProfile(db, client_search, true);
+        if (client.response) return client.response;
+        const { data: eq, error } = await db.from("equipments").insert({
+          client_id: client.data.id, name: f.name, category: f.category, equipment_type: f.equipment_type,
+          brand: f.brand ?? null, model: f.model ?? null, serial_number: f.serial_number ?? null,
+          outdoor_model: f.outdoor_model ?? null, outdoor_serial_number: f.outdoor_serial_number ?? null,
+          manufacture_year: f.manufacture_year ?? null, location: f.location ?? null, notes: f.notes ?? null,
+        }).select("id, name").single();
+        if (error) throw error;
+        return json({ data: { id: eq.id, name: eq.name, client: client.data.company_name || client.data.name } });
+      }
+      case "editar_equipamento": {
+        const parsed = writeSchemas.editar_equipamento.safeParse(p);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const { equipment_search, client_search: eqClient, ...fields } = parsed.data;
+        const update = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined));
+        if (!Object.keys(update).length) return json({ error: "Nenhum campo para atualizar" }, 400);
+        const term = equipment_search.replace(/[%,()_]/g, " ");
+        let eqQuery = db.from("equipments").select("id, name, serial_number")
+          .or(`name.ilike.%${term}%,serial_number.ilike.%${term}%`).limit(6);
+        if (eqClient) {
+          const c = await findWriteProfile(db, eqClient, true);
+          if (c.response) return c.response;
+          eqQuery = eqQuery.eq("client_id", c.data.id);
+        }
+        const { data: eqs, error: findError } = await eqQuery;
+        if (findError) throw findError;
+        if (!eqs?.length) return json({ error: "Equipamento não encontrado" }, 404);
+        if (eqs.length > 1) return json({ error: "Equipamento ambíguo", matches: eqs.map((e: any) => e.serial_number ? `${e.name} (${e.serial_number})` : e.name) }, 400);
+        const { data: updated, error } = await db.from("equipments").update(update).eq("id", eqs[0].id).select("id, name").single();
+        if (error) throw error;
+        return json({ data: { id: updated.id, name: updated.name, updated: Object.keys(update) } });
+      }
+      case "criar_funcionario": {
+        const parsed = writeSchemas.criar_funcionario.safeParse(p);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const input = parsed.data;
+        // No password is returned: the employee sets it through the recovery email.
+        const { data: authData, error: authError } = await db.auth.admin.createUser({
+          email: input.email, email_confirm: true, user_metadata: { name: input.name },
+        });
+        if (authError) {
+          if (["email_exists", "user_already_exists"].includes(authError.code ?? "") || authError.message?.toLowerCase().includes("already"))
+            return json({ error: "Email já registado" }, 409);
+          throw authError;
+        }
+        const uid = authData?.user?.id;
+        if (!uid) throw new Error("Falha ao criar a conta");
+        try {
+          const { error: profileError } = await db.from("profiles").update({
+            name: input.name, phone: input.phone ?? null, address: input.address ?? null, nif: input.nif ?? null,
+          }).eq("id", uid);
+          if (profileError) throw profileError;
+          const { error: roleError } = await db.from("user_roles").upsert(
+            { user_id: uid, role: "employee", approved: true }, { onConflict: "user_id,role" });
+          if (roleError) throw roleError;
+          const { error: clientRoleError } = await db.from("user_roles").delete().eq("user_id", uid).eq("role", "client");
+          if (clientRoleError) throw clientRoleError;
+        } catch (err) {
+          const { error: cleanupError } = await db.auth.admin.deleteUser(uid);
+          if (cleanupError) console.error("criar_funcionario cleanup failed", { user_id: uid });
+          throw err;
+        }
+        let passwordEmailSent = false;
+        try {
+          const { error: mailError } = await db.functions.invoke("send-recovery-email", { body: { email: input.email } });
+          passwordEmailSent = !mailError;
+        } catch (_) { passwordEmailSent = false; }
+        return json({ data: { id: uid, name: input.name, email: input.email, password_email_sent: passwordEmailSent } });
+      }
+      case "editar_funcionario": {
+        const parsed = writeSchemas.editar_funcionario.safeParse(p);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const { search, nome, telefone, morada, nif } = parsed.data;
+        const update: Record<string, string> = {};
+        if (nome) update.name = nome;
+        if (telefone) update.phone = telefone;
+        if (morada) update.address = morada;
+        if (nif) update.nif = nif;
+        if (!Object.keys(update).length) return json({ error: "Nenhum campo para atualizar" }, 400);
+        const employee = await findWriteProfile(db, search, false);
+        if (employee.response) return employee.response;
+        const { data: updated, error } = await db.from("profiles").update(update).eq("id", employee.data.id).select("id, name").single();
+        if (error) throw error;
+        return json({ data: { id: updated.id, name: updated.name, updated: Object.keys(update) } });
       }
       case "apagar_registo_horas": {
         const parsed = writeSchemas.apagar_registo_horas.safeParse({ ...p, date: p.date ?? p.data });
@@ -1219,7 +1377,7 @@ ${i.valid_until ? `<tr><td style="padding:4px 12px 4px 0">Válido até</td><td>$
         return json({ data: { reference: order.data.reference, technician: technician.data.name, tecnico_status: updated.tecnico_status } });
       }
       default:
-        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "listar_contratos", "historico_equipamento", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "criar_cliente", "editar_cliente", "apagar_registo_horas", "criar_orcamento", "listar_orcamentos", "buscar_orcamento", "marcar_orcamento_enviado", "enviar_email_orcamento", "procurar_cliente_orcamento", "resumo_orcamento", "editar_orcamento", "adicionar_linha_orcamento", "editar_linha_orcamento", "remover_linha_orcamento", "enviar_orcamento", "confirmar_whatsapp_orcamento", "listar_indisponibilidades", "adicionar_indisponibilidade", "remover_indisponibilidade", "horas_por_cliente", "atualizar_status_tecnico_ot"] }, 400);
+        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "listar_contratos", "historico_equipamento", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "criar_cliente", "editar_cliente", "listar_equipamentos", "criar_equipamento", "editar_equipamento", "criar_funcionario", "editar_funcionario", "apagar_registo_horas", "criar_orcamento", "listar_orcamentos", "buscar_orcamento", "marcar_orcamento_enviado", "enviar_email_orcamento", "procurar_cliente_orcamento", "resumo_orcamento", "editar_orcamento", "adicionar_linha_orcamento", "editar_linha_orcamento", "remover_linha_orcamento", "enviar_orcamento", "confirmar_whatsapp_orcamento", "listar_indisponibilidades", "adicionar_indisponibilidade", "remover_indisponibilidade", "horas_por_cliente", "atualizar_status_tecnico_ot"] }, 400);
     }
   } catch (e: any) {
     console.error(action, e);

@@ -31,3 +31,11 @@ Exemplo de resposta:
 - `remover_indisponibilidade` (unavail_id)
 - `disponibilidade_equipa` devolve `unavailable_today` e `unavailable_reason`.
 - `atribuir_tecnico_ot` devolve 409 `{ warning: true, message, technician, reason }` se o técnico estiver indisponível no dia da OT; para confirmar, repetir com `force: true`. O antigo `forcar: true` continua aceite por compatibilidade.
+
+## Clientes, equipamentos e funcionários
+- `editar_cliente` aceita `email` (atualiza o primeiro email do cliente ou cria-o).
+- `listar_equipamentos` { search?, client_search?, limit? }
+- `criar_equipamento` { client_search, name, category?, equipment_type?, brand?, model?, serial_number?, outdoor_model?, outdoor_serial_number?, manufacture_year?, location?, notes? }
+- `editar_equipamento` { equipment_search, client_search?, ...campos } — se houver vários, devolve 400 com `matches`.
+- `criar_funcionario` { name, email, phone?, nif?, address? } — não devolve password; o funcionário recebe o email para definir a password (`password_email_sent`).
+- `editar_funcionario` { search, nome?, telefone?, morada?, nif? }

@@ -11,7 +11,7 @@ let authError: any = null;
 let failingTable: string | undefined;
 const newClientId = "33333333-3333-4333-8333-333333333333";
 function createClient() {
-  return { auth: { admin: {
+  return { functions: { async invoke(name: string, opts: any) { authCalls.push({ method: "invoke:" + name, input: opts.body }); return { error: null }; } }, auth: { admin: {
     async createUser(input: any) {
       authCalls.push({ method: "createUser", input });
       if (authError) return { data: null, error: authError };
@@ -686,4 +686,32 @@ test("unavailability actions are advertised and removal deletes only the selecte
   expect(removed.status).toBe(200);
   expect(removed.body.data).toEqual({ id: "11111111-1111-4111-8111-111111111111", removed: true });
   expect(fixtures.profile_unavailabilities).toEqual([{ id: "22222222-2222-4222-8222-222222222222", user_id: TECH, reason: "folga" }]);
+});
+
+const clientRow = { user_id: "c1", role: "client" };
+test("editar_cliente updates the first email or creates one", async () => {
+  fixtures.user_roles = [clientRow]; fixtures.profiles = [{ id: "c1", name: "Ana", company_name: "Ana Lda" }];
+  fixtures.client_emails = [];
+  expect((await request("editar_cliente", { client_search: "ana", email: "a@x.pt" })).body.data.updated).toEqual(["email"]);
+  expect(fixtures.client_emails.map((r: any) => r.email)).toEqual(["a@x.pt"]);
+  await request("editar_cliente", { client_search: "ana", email: "b@x.pt" });
+  expect(fixtures.client_emails.map((r: any) => r.email)).toEqual(["b@x.pt"]);
+});
+test("editar_equipamento refuses ambiguous matches", async () => {
+  fixtures.equipments = [{ id: "e1", name: "AC Sala" }, { id: "e2", name: "AC Quarto" }];
+  const r = await request("editar_equipamento", { equipment_search: "AC", location: "Piso 1" });
+  expect(r.status).toBe(400);
+  expect(fixtures.equipments.every((e: any) => !e.location)).toBe(true);
+});
+test("criar_funcionario creates approved employee without returning a password", async () => {
+  const r = await request("criar_funcionario", { name: "Joao Tec", email: "joao@x.pt" });
+  expect(r.body.data.password_email_sent).toBe(true);
+  expect(JSON.stringify(r.body)).not.toContain("password\":\"");
+  expect(r.body.data.temp_password).toBeUndefined();
+  expect(fixtures.user_roles.filter((x: any) => x.user_id === newClientId).map((x: any) => x.role)).toEqual(["employee"]);
+});
+test("criar_funcionario deletes the account when persistence fails", async () => {
+  failingTable = "profiles";
+  expect((await request("criar_funcionario", { name: "Joao Tec", email: "joao@x.pt" })).status).toBe(500);
+  expect(authCalls.map(c => c.method)).toContain("deleteUser");
 });
