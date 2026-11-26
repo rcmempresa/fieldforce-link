@@ -61,6 +61,8 @@ const writeSchemas = {
     unit: z.string().trim().min(1).max(20).default("un"), created_by: z.string().uuid().optional() }),
   remover_material_ot: z.object({ reference: referenceInput, description: materialDescriptionInput }),
   remover_tecnico_ot: z.object({ reference: referenceInput, tecnico_nome: nameInput }),
+  atualizar_status_tecnico_ot: z.object({ reference: referenceInput, tecnico_nome: nameInput,
+    tecnico_status: z.enum(["novo", "ativo", "pausado", "concluido"]) }),
   agendar_ot: z.object({ reference: referenceInput, date: dateInput, time: timeInput.default("09:00") }),
   criar_ot: z.object({ titulo: z.string().trim().min(1).max(200), client_search: nameInput,
     service_type: z.enum(["repair", "maintenance", "installation", "warranty"]).default("repair"),
@@ -258,7 +260,7 @@ Deno.serve(async (req) => {
         const unassigned = p.unassigned === true || p.unassigned === "true";
         const clientJoin = clientSearch ? "client:profiles!work_orders_client_id_fkey!inner(id, name, company_name)" : "client:profiles!work_orders_client_id_fkey(id, name, company_name)";
         let q = db.from("work_orders")
-          .select(`id, reference, title, status, priority, service_type, scheduled_date, needs_scheduling, is_after_hours, total_hours, address, ${clientJoin}, work_order_assignments(user_id, profiles!work_order_assignments_user_id_fkey(name))`)
+          .select(`id, reference, title, status, priority, service_type, scheduled_date, needs_scheduling, is_after_hours, total_hours, address, ${clientJoin}, work_order_assignments(user_id, tecnico_status, profiles!work_order_assignments_user_id_fkey(name))`)
           .order("scheduled_date", { ascending: false, nullsFirst: false })
           .limit(limit);
         const priority = str(p.priority, 30);
@@ -279,7 +281,7 @@ Deno.serve(async (req) => {
           if (pe) throw pe;
           const ids = (profs ?? []).map((x: any) => x.id).filter(Boolean);
           if (!ids.length) return json({ data: [], count: 0 });
-          const { data: asg, error: ae } = await db.from("work_order_assignments").select("work_order_id").in("user_id", ids).limit(5000);
+          const { data: asg, error: ae } = await db.from("work_order_assignments").select("work_order_id, tecnico_status").in("user_id", ids).limit(5000);
           if (ae) throw ae;
           // filter(Boolean) remove nulos; slice(0,200) evita URLs demasiado longas no PostgREST
       const woIds = [...new Set((asg ?? []).map((x: any) => x.work_order_id).filter(Boolean))].slice(0, 200);
@@ -307,7 +309,7 @@ Deno.serve(async (req) => {
         const reference = str(p.reference, 50);
         if (!reference) return json({ error: "Missing params.reference" }, 400);
         const { data: rows, error } = await db.from("work_orders")
-          .select("*, client:profiles!work_orders_client_id_fkey(id, name, company_name, phone, address), work_order_assignments(user_id, profiles!work_order_assignments_user_id_fkey(name)), work_order_equipments(*, equipments(*)), work_order_materials(*), time_entries(id, user_id, start_time, end_time, duration_hours, work_regime, pause_reason, note)")
+          .select("*, client:profiles!work_orders_client_id_fkey(id, name, company_name, phone, address), work_order_assignments(user_id, tecnico_status, profiles!work_order_assignments_user_id_fkey(name)), work_order_equipments(*, equipments(*)), work_order_materials(*), time_entries(id, user_id, start_time, end_time, duration_hours, work_regime, pause_reason, note)")
           .ilike("reference", `%${reference}%`)
           .order("reference", { ascending: true })
           .limit(6);
@@ -425,7 +427,7 @@ Deno.serve(async (req) => {
       case "ots_atrasadas": {
         const today = new Date().toISOString().slice(0, 10);
         const { data, error } = await db.from("work_orders")
-          .select("id, reference, title, status, priority, scheduled_date, client:profiles!work_orders_client_id_fkey(id, name, company_name), work_order_assignments(user_id, profiles!work_order_assignments_user_id_fkey(name))")
+          .select("id, reference, title, status, priority, scheduled_date, client:profiles!work_orders_client_id_fkey(id, name, company_name), work_order_assignments(user_id, tecnico_status, profiles!work_order_assignments_user_id_fkey(name))")
           .in("status", ["pending", "approved", "in_progress"])
           .lt("scheduled_date", today)
           .order("scheduled_date", { ascending: true })
@@ -514,7 +516,7 @@ Deno.serve(async (req) => {
           ids.map((id) => [id, { user_id: id, name: profiles?.find((profile) => profile.id === id)?.name ?? null, open_ots: 0, in_progress_ots: 0 }]));
         for (let offset = 0; ; offset += 1000) {
           const { data: assignments, error } = await db.from("work_order_assignments")
-            .select("user_id, work_orders!inner(status)")
+            .select("user_id, tecnico_status, work_orders!inner(status)")
             .in("work_orders.status", ["pending", "approved", "in_progress"])
             .order("id", { ascending: true }).range(offset, offset + 999);
           if (error) throw error;
@@ -579,9 +581,10 @@ Deno.serve(async (req) => {
         const unavailId = str(p.unavail_id, 40);
         if (!unavailId) return json({ error: "unavail_id obrigatório" }, 400);
         if (!isUuid(unavailId)) return json({ error: "unavail_id inválido" }, 400);
-        const { error } = await db.from("profile_unavailabilities").delete().eq("id", unavailId);
+        const { data, error } = await db.from("profile_unavailabilities").delete().eq("id", unavailId).select("id").maybeSingle();
         if (error) throw error;
-        return json({ data: { deleted: true } });
+        if (!data) return json({ error: "Registo não encontrado" }, 404);
+        return json({ data: { id: unavailId, removed: true } });
       }
 case "horas_por_cliente": {
     const clientSearch = str(p.client_search, 100);
@@ -639,7 +642,7 @@ case "horas_por_cliente": {
 
      const [woRes, teRes] = await Promise.all([
        db.from("work_orders")
-         .select("status, service_type, work_order_assignments(user_id, profiles!work_order_assignments_user_id_fkey(name))")
+         .select("status, service_type, work_order_assignments(user_id, tecnico_status, profiles!work_order_assignments_user_id_fkey(name))")
          .gte("scheduled_date", dateFrom).lt("scheduled_date", dateTo).limit(5000),
        db.from("time_entries")
          .select("user_id, duration_hours, profiles!time_entries_user_id_fkey(name)")
@@ -826,10 +829,11 @@ case "horas_por_cliente": {
         const order = await findWriteOrder(db, reference);
         if (order.response) return order.response;
         if (material.created_by) {
-          // Aceitar qualquer utilizador interno (employee ou manager)
-          const { data: roleCheck } = await db.from("user_roles").select("user_id")
-            .eq("user_id", material.created_by).in("role", ["employee", "manager"]).limit(1);
-          if (!roleCheck?.length) return json({ error: "Utilizador não encontrado" }, 404);
+          const { data: creatorRoles, error: creatorRoleErr } = await db.from("user_roles")
+            .select("user_id").eq("user_id", material.created_by)
+            .in("role", ["employee", "manager"]).limit(1);
+          if (creatorRoleErr) throw creatorRoleErr;
+          if (!creatorRoles?.length) return json({ error: "Utilizador não encontrado ou sem permissão" }, 404);
         }
         const { data: inserted, error } = await db.from("work_order_materials")
           .insert({ work_order_id: order.data.id, ...material }).select("id").single();
@@ -960,8 +964,11 @@ case "horas_por_cliente": {
           .select("email").eq("user_id", client.data.id).order("created_at", { ascending: true }).limit(1);
         if (emailError) throw emailError;
         if (input.created_by) {
-          const creator = await findWriteProfile(db, "", false, input.created_by);
-          if (creator.response) return creator.response;
+          const { data: creatorRoles, error: creatorRoleErr } = await db.from("user_roles")
+            .select("user_id").eq("user_id", input.created_by)
+            .in("role", ["employee", "manager"]).limit(1);
+          if (creatorRoleErr) throw creatorRoleErr;
+          if (!creatorRoles?.length) return json({ error: "Utilizador não encontrado ou sem permissão" }, 404);
         }
         const round2 = (v: number) => Math.round(v * 100) / 100;
         const items = input.items.map((item) => ({ ...item, total: round2(item.quantity * item.unit_price) }));
@@ -1195,8 +1202,24 @@ ${i.valid_until ? `<tr><td style="padding:4px 12px 4px 0">Válido até</td><td>$
         if (i.ok) await db.from("quotes").update({ status: q.status === "rascunho" ? "enviado" : q.status, sent_at: new Date().toISOString() }).eq("id", q.id);
         return json({ data: { ok: true, reference: q.reference, confirmed: i.ok } });
       }
+      case "atualizar_status_tecnico_ot": {
+        const parsed = writeSchemas.atualizar_status_tecnico_ot.safeParse(p);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const input = parsed.data;
+        const order = await findWriteOrder(db, input.reference);
+        if (order.response) return order.response;
+        const technician = await findWriteProfile(db, input.tecnico_nome);
+        if (technician.response) return technician.response;
+        const { data: updated, error } = await db.from("work_order_assignments")
+          .update({ tecnico_status: input.tecnico_status })
+          .eq("work_order_id", order.data.id).eq("user_id", technician.data.id)
+          .select("user_id, tecnico_status").maybeSingle();
+        if (error) throw error;
+        if (!updated) return json({ error: "Técnico não atribuído à OT" }, 404);
+        return json({ data: { reference: order.data.reference, technician: technician.data.name, tecnico_status: updated.tecnico_status } });
+      }
       default:
-        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "listar_contratos", "historico_equipamento", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "criar_cliente", "editar_cliente", "apagar_registo_horas", "criar_orcamento", "listar_orcamentos", "buscar_orcamento", "marcar_orcamento_enviado", "enviar_email_orcamento", "procurar_cliente_orcamento", "resumo_orcamento", "editar_orcamento", "adicionar_linha_orcamento", "editar_linha_orcamento", "remover_linha_orcamento", "enviar_orcamento", "confirmar_whatsapp_orcamento", "listar_indisponibilidades", "adicionar_indisponibilidade", "remover_indisponibilidade", "horas_por_cliente"] }, 400);
+        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "listar_contratos", "historico_equipamento", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "criar_cliente", "editar_cliente", "apagar_registo_horas", "criar_orcamento", "listar_orcamentos", "buscar_orcamento", "marcar_orcamento_enviado", "enviar_email_orcamento", "procurar_cliente_orcamento", "resumo_orcamento", "editar_orcamento", "adicionar_linha_orcamento", "editar_linha_orcamento", "remover_linha_orcamento", "enviar_orcamento", "confirmar_whatsapp_orcamento", "listar_indisponibilidades", "adicionar_indisponibilidade", "remover_indisponibilidade", "horas_por_cliente", "atualizar_status_tecnico_ot"] }, 400);
     }
   } catch (e: any) {
     console.error(action, e);

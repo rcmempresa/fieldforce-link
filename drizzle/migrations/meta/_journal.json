@@ -225,6 +225,13 @@
       "when": 1795638839705,
       "tag": "0031_profile_unavailabilities",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1795707709817,
+      "tag": "0032_assignment_technician_status",
+      "breakpoints": true
     }
   ]
 }

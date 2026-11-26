@@ -951,6 +951,7 @@ export type Database = {
           assigned_at: string
           assigned_by: string | null
           id: string
+          tecnico_status: string
           user_id: string
           work_order_id: string
         }
@@ -958,6 +959,7 @@ export type Database = {
           assigned_at?: string
           assigned_by?: string | null
           id?: string
+          tecnico_status?: string
           user_id: string
           work_order_id: string
         }
@@ -965,6 +967,7 @@ export type Database = {
           assigned_at?: string
           assigned_by?: string | null
           id?: string
+          tecnico_status?: string
           user_id?: string
           work_order_id?: string
         }

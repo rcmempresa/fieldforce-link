@@ -18,3 +18,5 @@
 - "Sem material" is an explicit flag on work_orders (missing_material_since/note), set atomically by the pause_work_order RPC or manager set_missing_material and cleared by triggers; never infer it from the last time entry, which proved unreliable.
 - Only service-role email senders may insert email_logs, and attachment storage INSERT policies must bind owner_id to auth.uid(); this prevents forged delivery records and uploads claiming another user's ownership without changing existing file paths.
 - Technicians lose all read access to OTs once status is completed, invoiced or awaiting_purchase_order (wo_is_open in RLS and can_access_work_order); their own stats come from my_hours_since/my_completed_count RPCs so counters survive.
+
+- Agent technician-status writes update only an existing assignment after unique OT/profile resolution; they never alter time entries or the global OT status, keeping status metadata separate from time accounting.

@@ -23,3 +23,6 @@
 - [x] Restrict /assistente-digital to managers: route guard, sidebar item removed for employees, page shows access denied, and assistente-proxy rejects non-managers (6 tests passed; live 403 for employee, manager reaches message handling).
 - [x] Email de nova solicitação chegava a geral@nrenergias.pt — resolvido com profiles.notification_email a apontar para geral@nrtechsolucion.pt.
 - [x] WhatsApp dos orçamentos enviado pelo agente externo (número próprio na app fica como opção futura)
+
+- [x] Apply uploaded technician status action, assignment selects, creator role validation and preserve existing hours/unavailability actions.
+- [x] Verify schema and handler tests (67 passing); live unavailability read succeeds. New action awaits automatic function deployment.

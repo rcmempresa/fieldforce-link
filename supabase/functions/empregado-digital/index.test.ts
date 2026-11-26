@@ -285,7 +285,7 @@ test("adicionar_material_ot accepts any internal user and rejects clients or out
   expect(fixtures.work_order_materials.at(-1)).toMatchObject({ created_by: managerId });
   const result = await request("adicionar_material_ot", { reference: "WO-2026-0688", descricao: "Tubo", created_by: clientUserId });
   expect(result.status).toBe(404);
-  expect(result.body.error).toBe("Utilizador não encontrado");
+  expect(result.body.error).toBe("Utilizador não encontrado ou sem permissão");
   expect(fixtures.work_order_materials).toHaveLength(1);
 });
 test("remover_material_ot removes only the matching material from the selected OT", async () => {
@@ -571,6 +571,77 @@ test("uploaded actions require secret and are advertised", async () => {
 });
 
 const TECH = "11111111-1111-4111-8111-111111111111";
+test("technician status accepts all four values and preserves OT status and hours", async () => {
+  for (const tecnico_status of ["novo", "ativo", "pausado", "concluido"]) {
+    seedWriteFixtures();
+    fixtures.work_orders[0].status = "in_progress";
+    fixtures.time_entries = [{ duration_hours: 2 }];
+    fixtures.work_order_assignments = [
+      { work_order_id: "ot1", user_id: technicianId, tecnico_status: "novo" },
+      { work_order_id: "ot2", user_id: technicianId, tecnico_status: "novo" },
+    ];
+    const result = await request("atualizar_status_tecnico_ot", { reference: "0688", tecnico_nome: "Duarte", tecnico_status });
+    expect(result.status).toBe(200);
+    expect(result.body.data).toEqual({ reference: "WO-2026-0688", technician: "Duarte", tecnico_status });
+    expect(fixtures.work_order_assignments[0].tecnico_status).toBe(tecnico_status);
+    expect(fixtures.work_order_assignments[1].tecnico_status).toBe("novo");
+    expect(fixtures.work_orders[0].status).toBe("in_progress");
+    expect(fixtures.time_entries[0].duration_hours).toBe(2);
+  }
+});
+test("technician status rejects invalid values, ambiguous targets and missing assignments", async () => {
+  const params = { reference: "0688", tecnico_nome: "Duarte", tecnico_status: "ativo" };
+  expect((await request("atualizar_status_tecnico_ot", { ...params, tecnico_status: "completed" })).status).toBe(400);
+  expect(calls).toHaveLength(0);
+  seedWriteFixtures();
+  expect((await request("atualizar_status_tecnico_ot", params)).status).toBe(404);
+  fixtures.work_orders.push({ id: "ot2", reference: "WO-2025-0688" });
+  expect((await request("atualizar_status_tecnico_ot", params)).status).toBe(400);
+  fixtures.work_orders.pop();
+  fixtures.user_roles.push({ user_id: "other", role: "manager" });
+  fixtures.profiles.push({ id: "other", name: "Duarte Segundo" });
+  expect((await request("atualizar_status_tecnico_ot", params)).status).toBe(400);
+});
+test("technician status requires the agent secret and is advertised", async () => {
+  expect((await request("atualizar_status_tecnico_ot", {}, "wrong")).status).toBe(401);
+  expect(calls).toHaveLength(0);
+  expect((await request("unknown")).body.supported).toContain("atualizar_status_tecnico_ot");
+});
+test("creator role database errors stop material and quote creation", async () => {
+  seedWriteFixtures();
+  failingTable = "user_roles";
+  expect((await request("adicionar_material_ot", { reference: "0688", description: "Cabo", created_by: TECH })).status).toBe(500);
+  expect(fixtures.work_order_materials).toBeUndefined();
+});
+test("quote creator accepts internal roles and rejects clients without inserting", async () => {
+  seedWriteFixtures();
+  const manager = "44444444-4444-4444-8444-444444444444";
+  const client = "55555555-5555-4555-8555-555555555555";
+  fixtures.user_roles.push({ user_id: manager, role: "manager" }, { user_id: client, role: "client" });
+  const params = { client_search: "Empresa", items: [{ description: "Filtro", quantity: 1, unit_price: 10 }] };
+  expect((await request("criar_orcamento", { ...params, created_by: manager })).status).toBe(200);
+  expect(fixtures.quotes[0].created_by).toBe(manager);
+  expect((await request("criar_orcamento", { ...params, created_by: client })).status).toBe(404);
+  expect(fixtures.quotes).toHaveLength(1);
+});
+test("removing a nonexistent unavailable period returns 404", async () => {
+  expect((await request("remover_indisponibilidade", { unavail_id: TECH })).status).toBe(404);
+});
+test("hours per client sums technicians and OTs including the whole final day", async () => {
+  seedWriteFixtures();
+  fixtures.time_entries = [
+    { user_id: TECH, work_order_id: "ot1", duration_hours: 2, start_time: "2026-11-26T23:59:59Z", profiles: { name: "Duarte" } },
+    { user_id: TECH, work_order_id: "ot1", duration_hours: 7, start_time: "2026-11-27T00:00:00Z", profiles: { name: "Duarte" } },
+  ];
+  const result = await request("horas_por_cliente", { client_search: "Empresa", date_to: "2026-11-26" });
+  expect(result.status).toBe(200);
+  expect(result.body.data.total_hours).toBe(0);
+  fixtures.work_orders[0].client_id = "client1";
+  const withOrders = await request("horas_por_cliente", { client_search: "Empresa", date_to: "2026-11-26" });
+  expect(withOrders.body.data.total_hours).toBe(2);
+  expect(withOrders.body.data.por_tecnico).toEqual([{ name: "Duarte", hours: 2 }]);
+  expect(withOrders.body.data.por_ot[0].hours).toBe(2);
+});
 test("adicionar_indisponibilidade rejects end before start and invalid reason", async () => {
   expect((await request("adicionar_indisponibilidade", { user_id: TECH, start_date: "2026-12-10", end_date: "2026-12-01" })).status).toBe(400);
   expect((await request("adicionar_indisponibilidade", { user_id: TECH, start_date: "2026-12-01", end_date: "2026-12-02", reason: "praia" })).status).toBe(400);
@@ -613,6 +684,6 @@ test("unavailability actions are advertised and removal deletes only the selecte
   ];
   const removed = await request("remover_indisponibilidade", { unavail_id: "11111111-1111-4111-8111-111111111111" });
   expect(removed.status).toBe(200);
-  expect(removed.body.data).toEqual({ deleted: true });
+  expect(removed.body.data).toEqual({ id: "11111111-1111-4111-8111-111111111111", removed: true });
   expect(fixtures.profile_unavailabilities).toEqual([{ id: "22222222-2222-4222-8222-222222222222", user_id: TECH, reason: "folga" }]);
 });
