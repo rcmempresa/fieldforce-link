@@ -583,6 +583,52 @@ Deno.serve(async (req) => {
         if (error) throw error;
         return json({ data: { deleted: true } });
       }
+case "horas_por_cliente": {
+    const clientSearch = str(p.client_search, 100);
+    if (!clientSearch) return json({ error: "client_search obrigatório" }, 400);
+    const from = str(p.date_from, 10);
+    const to   = str(p.date_to, 10);
+    const { data: roles, error: re } = await db.from("user_roles").select("user_id").eq("role", "client");
+    if (re) throw re;
+    const clientIds = (roles ?? []).map((r: any) => r.user_id);
+    if (!clientIds.length) return json({ data: { total_hours: 0, por_tecnico: [], por_ot: [] } });
+    const term = clientSearch.replace(/[%,()]/g, " ");
+    const { data: clients, error: ce } = await db.from("profiles")
+      .select("id, name, company_name").in("id", clientIds)
+      .or(`name.ilike.%${term}%,company_name.ilike.%${term}%`).limit(5);
+    if (ce) throw ce;
+    if (!clients?.length) return json({ error: "Cliente não encontrado" }, 404);
+    if (clients.length > 1) return json({ error: "Cliente ambíguo", matches: clients.map((c: any) => c.company_name || c.name) }, 400);
+    const client = clients[0];
+    const { data: wos, error: we } = await db.from("work_orders").select("id, reference, title").eq("client_id", client.id).limit(500);
+    if (we) throw we;
+    if (!wos?.length) return json({ data: { client_name: client.company_name || client.name, total_hours: 0, por_tecnico: [], por_ot: [], periodo: { from: from ?? null, to: to ?? null } } });
+    const woIds = wos.map((w: any) => w.id);
+    const woMap = new Map(wos.map((w: any) => [w.id, w]));
+    let q = db.from("time_entries")
+      .select("user_id, work_order_id, duration_hours, profiles!time_entries_user_id_fkey(name)")
+      .in("work_order_id", woIds).order("start_time", { ascending: false }).limit(5000);
+    if (from) q = q.gte("start_time", from);
+    if (to)   q = q.lt("start_time", nextDay(to));
+    const { data: entries, error: ee } = await q;
+    if (ee) throw ee;
+    const total_hours = (entries ?? []).reduce((s: number, e: any) => s + (Number(e.duration_hours) || 0), 0);
+    const byTech = new Map<string, { name: string; hours: number }>();
+    const byOt   = new Map<string, { reference: string; title: string; hours: number }>();
+    for (const e of entries ?? []) {
+      const uid = e.user_id; const name = (e.profiles as any)?.name ?? uid;
+      const gt = byTech.get(uid) ?? { name, hours: 0 }; gt.hours += Number(e.duration_hours) || 0; byTech.set(uid, gt);
+      const wo = woMap.get(e.work_order_id); if (!wo) continue;
+      const go = byOt.get(e.work_order_id) ?? { reference: wo.reference, title: wo.title, hours: 0 }; go.hours += Number(e.duration_hours) || 0; byOt.set(e.work_order_id, go);
+    }
+    return json({ data: {
+      client_name: client.company_name || client.name,
+      total_hours: Math.round(total_hours * 100) / 100,
+      por_tecnico: [...byTech.values()].map(t => ({ ...t, hours: Math.round(t.hours * 100) / 100 })).sort((a, b) => b.hours - a.hours),
+      por_ot: [...byOt.values()].map(o => ({ ...o, hours: Math.round(o.hours * 100) / 100 })).sort((a, b) => b.hours - a.hours),
+      periodo: { from: from ?? null, to: to ?? null },
+    }});
+  }
     case "relatorio_mensal": {
      const year = Number(p.year) || new Date().getUTCFullYear();
      const month = Math.min(Math.max(Number(p.month) || new Date().getUTCMonth() + 1, 1), 12);
@@ -1150,7 +1196,7 @@ ${i.valid_until ? `<tr><td style="padding:4px 12px 4px 0">Válido até</td><td>$
         return json({ data: { ok: true, reference: q.reference, confirmed: i.ok } });
       }
       default:
-        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "listar_contratos", "historico_equipamento", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "criar_cliente", "editar_cliente", "apagar_registo_horas", "criar_orcamento", "listar_orcamentos", "buscar_orcamento", "marcar_orcamento_enviado", "enviar_email_orcamento", "procurar_cliente_orcamento", "resumo_orcamento", "editar_orcamento", "adicionar_linha_orcamento", "editar_linha_orcamento", "remover_linha_orcamento", "enviar_orcamento", "confirmar_whatsapp_orcamento", "listar_indisponibilidades", "adicionar_indisponibilidade", "remover_indisponibilidade"] }, 400);
+        return json({ error: `Unknown action '${action}'`, supported: ["listar_ots", "detalhe_ot", "listar_clientes", "listar_contratos", "historico_equipamento", "registos_horas", "ots_atrasadas", "horas_equipa", "resumo_dia", "equipamentos_cliente", "materiais_usados", "disponibilidade_equipa", "relatorio_mensal", "atualizar_estado_ot", "adicionar_nota_ot", "atribuir_tecnico_ot", "remover_tecnico_ot", "agendar_ot", "criar_ot", "registar_horas_ot", "editar_ot", "adicionar_material_ot", "remover_material_ot", "criar_cliente", "editar_cliente", "apagar_registo_horas", "criar_orcamento", "listar_orcamentos", "buscar_orcamento", "marcar_orcamento_enviado", "enviar_email_orcamento", "procurar_cliente_orcamento", "resumo_orcamento", "editar_orcamento", "adicionar_linha_orcamento", "editar_linha_orcamento", "remover_linha_orcamento", "enviar_orcamento", "confirmar_whatsapp_orcamento", "listar_indisponibilidades", "adicionar_indisponibilidade", "remover_indisponibilidade", "horas_por_cliente"] }, 400);
     }
   } catch (e: any) {
     console.error(action, e);
